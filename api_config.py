@@ -25,7 +25,7 @@ def configure_api_keys():
         st.markdown("**Specialization:** Code generation, creative problem-solving, UI design")
         openai_key = st.text_input(
             "OpenAI API Key", 
-            value=current_keys['openai'],
+            value="",
             type="password",
             placeholder="sk-..."
         )
@@ -34,7 +34,7 @@ def configure_api_keys():
         st.markdown("**Specialization:** Project planning, architecture decisions, debugging logic")
         anthropic_key = st.text_input(
             "Anthropic API Key", 
-            value=current_keys['anthropic'],
+            value="",
             type="password",
             placeholder="sk-ant-..."
         )
@@ -43,7 +43,7 @@ def configure_api_keys():
         st.markdown("**Specialization:** Testing strategies, validation, quality assurance")
         gemini_key = st.text_input(
             "Gemini API Key", 
-            value=current_keys['gemini'],
+            value="",
             type="password",
             placeholder="AI..."
         )

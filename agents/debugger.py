@@ -688,3 +688,6 @@ def unsafe_function(user_input):
 
 if __name__ == "__main__":
     test_debug_utilities()
+        self.log_file = log_file
+        self.error_counts = {}
+        self.setup_logging()

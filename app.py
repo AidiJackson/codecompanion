@@ -10,7 +10,7 @@ import time
 # Core system components
 from components.collaboration_dashboard import render_collaboration_dashboard, render_model_health_status
 from core.model_orchestrator import AgentType
-from core.workflow_orchestrator import WorkflowOrchestrator, ProjectType, ProjectComplexity
+from core.workflow_orchestrator import WorkflowOrchestrator, ProjectType, ProjectComplexity, AgentStatus
 
 # Agent imports 
 from agents.project_manager import ProjectManagerAgent
@@ -418,8 +418,7 @@ def process_user_request(request: str):
         
         result = safe_api_call(
             _process_request,
-            service_name="orchestrator_process",
-            timeout=45  # 45 second timeout
+            timeout=60  # Increased timeout for multi-agent processing
         )
         
         progress_container.empty()
@@ -1458,6 +1457,22 @@ def render_live_orchestration_dashboard():
             'current_phase': 'Error'
         }
     
+    # Manual control buttons
+    st.markdown("### 🎮 Orchestra Controls")
+    control_col1, control_col2, control_col3 = st.columns(3)
+    
+    with control_col1:
+        if st.button("▶️ Continue Orchestra", help="Continue processing remaining agents"):
+            continue_orchestration()
+    
+    with control_col2:
+        if st.button("🚀 Execute All Agents", help="Force execute all remaining agents"):
+            execute_all_agents()
+    
+    with control_col3:
+        if st.button("⏭️ Next Agent", help="Trigger the next available agent"):
+            trigger_next_agent()
+    
     # Live Agent Activity Dashboard
     st.markdown("### 🤖 Live Agent Activity")
     
@@ -1816,6 +1831,122 @@ def handle_orchestration_error(error_msg: str):
             st.metric("Status", st.session_state.current_project["status"].title())
         with col4:
             st.metric("Files Generated", len(st.session_state.project_files))
+
+def continue_orchestration():
+    """Continue processing remaining agents in the workflow"""
+    try:
+        if st.session_state.workflow_orchestrator:
+            orchestrator = st.session_state.workflow_orchestrator
+            
+            # Find incomplete steps
+            incomplete_steps = [step for step in orchestrator.workflow_steps 
+                              if step.status not in [AgentStatus.COMPLETED, AgentStatus.ERROR]]
+            
+            if incomplete_steps:
+                with st.spinner("🎼 Continuing orchestra..."):
+                    # Execute remaining workflow steps
+                    execution_context = {
+                        "project_analysis": orchestrator.current_project,
+                        "collaboration_history": []
+                    }
+                    
+                    completed_steps = [step for step in orchestrator.workflow_steps 
+                                     if step.status == AgentStatus.COMPLETED]
+                    
+                    for step in incomplete_steps:
+                        if orchestrator.are_dependencies_satisfied(step, completed_steps):
+                            # Execute the step
+                            result = orchestrator.execute_workflow_step(step, execution_context)
+                            
+                            if step.status == AgentStatus.COMPLETED:
+                                orchestrator.update_project_outputs(step.agent_type, result)
+                                completed_steps.append(step)
+                                
+                                orchestrator.add_agent_communication(
+                                    f"{step.agent_type.value} completed task: {step.task}"
+                                )
+                
+                st.success("Orchestra continued! Check agent statuses above.")
+                st.rerun()
+            else:
+                st.info("All agents have completed their tasks!")
+    except Exception as e:
+        st.error(f"Error continuing orchestra: {str(e)}")
+
+def execute_all_agents():
+    """Force execute all remaining agents"""
+    try:
+        if st.session_state.workflow_orchestrator:
+            orchestrator = st.session_state.workflow_orchestrator
+            
+            with st.spinner("🚀 Executing all agents..."):
+                # Force execute all incomplete steps
+                execution_context = {
+                    "project_analysis": orchestrator.current_project,
+                    "collaboration_history": []
+                }
+                
+                for step in orchestrator.workflow_steps:
+                    if step.status not in [AgentStatus.COMPLETED, AgentStatus.ERROR]:
+                        result = orchestrator.execute_workflow_step(step, execution_context)
+                        if step.status == AgentStatus.COMPLETED:
+                            orchestrator.update_project_outputs(step.agent_type, result)
+                            orchestrator.add_agent_communication(
+                                f"{step.agent_type.value} completed task: {step.task}"
+                            )
+                
+            st.success("All agents executed! Check results above.")
+            st.rerun()
+    except Exception as e:
+        st.error(f"Error executing all agents: {str(e)}")
+
+def trigger_next_agent():
+    """Trigger the next available agent in sequence"""
+    try:
+        if st.session_state.workflow_orchestrator:
+            orchestrator = st.session_state.workflow_orchestrator
+            completed_steps = [step for step in orchestrator.workflow_steps 
+                             if step.status == AgentStatus.COMPLETED]
+            
+            # Find next available step
+            for step in orchestrator.workflow_steps:
+                if (step.status == AgentStatus.IDLE and 
+                    orchestrator.are_dependencies_satisfied(step, completed_steps)):
+                    
+                    with st.spinner(f"⚡ Triggering {step.agent_type.value}..."):
+                        execution_context = {
+                            "project_analysis": orchestrator.current_project,
+                            "collaboration_history": []
+                        }
+                        
+                        result = orchestrator.execute_workflow_step(step, execution_context)
+                        
+                        if step.status == AgentStatus.COMPLETED:
+                            orchestrator.update_project_outputs(step.agent_type, result)
+                            orchestrator.add_agent_communication(
+                                f"{step.agent_type.value} completed task: {step.task}"
+                            )
+                    
+                    st.success(f"{step.agent_type.value} completed!")
+                    st.rerun()
+                    return
+            
+            st.info("No agents ready to execute. Check dependencies.")
+    except Exception as e:
+        st.error(f"Error triggering next agent: {str(e)}")
+
+def reset_orchestration():
+    """Reset the orchestration to allow new project"""
+    keys_to_reset = [
+        'active_project', 'workflow_orchestrator', 'workflow_status',
+        'project_outputs', 'orchestration_logs'
+    ]
+    
+    for key in keys_to_reset:
+        if key in st.session_state:
+            del st.session_state[key]
+    
+    st.rerun()
 
 if __name__ == "__main__":
     main()

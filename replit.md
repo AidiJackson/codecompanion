@@ -6,6 +6,8 @@ CodeCompanion Orchestra is an advanced multi-agent AI development system featuri
 
 **RECENT MAJOR UPDATE (August 2025):** Comprehensive crash prevention and stability measures have been implemented to ensure production-level resilience and user-friendly error handling. The system now includes robust error boundaries, automatic session recovery, memory management, API safety measures, and emergency controls.
 
+**LATEST UPDATE (August 10, 2025):** Fixed critical agent orchestration flow to ensure proper sequential execution after dependencies complete. Added manual control buttons for orchestra management and resolved function naming conflicts that were causing application crashes.
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -20,13 +22,15 @@ Preferred communication style: Simple, everyday language.
 ### Agent Architecture
 - **Base Agent Pattern**: Abstract base class defining common agent behaviors and OpenAI API integration
 - **Specialized Agent Classes**: Five distinct agents each with specific roles and capabilities
-  - ProjectManagerAgent: Central orchestrator for project planning and coordination
-  - CodeGeneratorAgent: Backend development and algorithm implementation
-  - UIDesignerAgent: Frontend development and user experience design
-  - TestWriterAgent: Test case generation and quality assurance
-  - DebuggerAgent: Code analysis, bug detection, and optimization
+  - ProjectManagerAgent: Central orchestrator for project planning and coordination (Claude Sonnet)
+  - CodeGeneratorAgent: Backend development and algorithm implementation (GPT-4)
+  - UIDesignerAgent: Frontend development and user experience design (Gemini Flash)
+  - TestWriterAgent: Test case generation and quality assurance (GPT-4)
+  - DebuggerAgent: Code analysis, bug detection, and optimization (Claude Sonnet)
 - **Agent Communication**: Message-based system with handoff mechanisms between agents
 - **Context Awareness**: Agents maintain conversation history and project context
+- **Sequential Execution**: Fixed workflow orchestrator ensures proper agent handoffs after dependency completion
+- **Manual Controls**: Added "Continue Orchestra", "Execute All Agents", and "Next Agent" buttons for manual progression
 
 ### Core System Components
 - **Workflow Orchestrator**: Advanced orchestration engine analyzing project requirements, determining agent assignments, coordinating intelligent handoffs, and providing real-time collaboration monitoring

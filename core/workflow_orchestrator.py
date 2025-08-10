@@ -248,7 +248,7 @@ class WorkflowOrchestrator:
             step.progress = 0
             return {"error": str(e)}
     
-    async def orchestrate_project(self, project_description: str, project_type: ProjectType,
+    def orchestrate_project(self, project_description: str, project_type: ProjectType,
                                 complexity: ProjectComplexity) -> Dict[str, Any]:
         """Main orchestration method - coordinates entire multi-agent workflow"""
         
@@ -268,33 +268,52 @@ class WorkflowOrchestrator:
         
         completed_steps = []
         
-        for step in self.workflow_steps:
-            # Check dependencies
-            if self.are_dependencies_satisfied(step, completed_steps):
-                # Add collaboration communication
-                self.add_agent_communication(
-                    f"{step.agent_type.value} is now working on: {step.task}"
-                )
-                
-                # Execute the step
-                result = self.execute_workflow_step(step, execution_context)
-                
-                # Update project outputs based on agent type
-                self.update_project_outputs(step.agent_type, result)
-                
-                completed_steps.append(step)
-                
-                # Add completion communication
-                self.add_agent_communication(
-                    f"{step.agent_type.value} completed task: {step.task}"
-                )
-                
-                # Update context for next steps
-                execution_context["collaboration_history"].append({
-                    "step_id": step.id,
-                    "agent": step.agent_type.value,
-                    "output": result
-                })
+        # Continue processing until all steps are completed
+        max_iterations = len(self.workflow_steps) * 2  # Prevent infinite loops
+        iteration = 0
+        
+        while len(completed_steps) < len(self.workflow_steps) and iteration < max_iterations:
+            iteration += 1
+            steps_executed_this_round = 0
+            
+            for step in self.workflow_steps:
+                # Skip if already completed
+                if step in completed_steps:
+                    continue
+                    
+                # Check dependencies
+                if self.are_dependencies_satisfied(step, completed_steps):
+                    # Add collaboration communication
+                    self.add_agent_communication(
+                        f"{step.agent_type.value} is now working on: {step.task}"
+                    )
+                    
+                    # Execute the step
+                    result = self.execute_workflow_step(step, execution_context)
+                    
+                    # Only add to completed if successful
+                    if step.status == AgentStatus.COMPLETED:
+                        # Update project outputs based on agent type
+                        self.update_project_outputs(step.agent_type, result)
+                        
+                        completed_steps.append(step)
+                        steps_executed_this_round += 1
+                        
+                        # Add completion communication
+                        self.add_agent_communication(
+                            f"{step.agent_type.value} completed task: {step.task}"
+                        )
+                        
+                        # Update context for next steps
+                        execution_context["collaboration_history"].append({
+                            "step_id": step.id,
+                            "agent": step.agent_type.value,
+                            "output": result
+                        })
+            
+            # If no steps were executed this round, break to prevent infinite loops
+            if steps_executed_this_round == 0:
+                break
         
         # Phase 4: Final project summary
         return self.generate_project_summary()

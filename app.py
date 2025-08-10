@@ -1909,21 +1909,105 @@ def render_workflow_monitor():
     
     st.header("⚡ Live Workflow Monitor")
     
+    # Check if we have real execution data to display
+    has_real_data = (
+        st.session_state.get('execution_started', False) or 
+        (st.session_state.get('agent_outputs') and 
+         any(output.get('is_real', False) for output in st.session_state.agent_outputs)) or
+        (st.session_state.get('project_status') and 
+         any(status.get('is_real', False) if isinstance(status, dict) else False for status in st.session_state.project_status))
+    )
+    
+    if has_real_data:
+        # Show real execution monitoring
+        st.success("🔴 REAL AI Execution Active - Showing authentic data from live API calls")
+        render_real_execution_monitor()
+    else:
+        # Show simulation data for demo purposes
+        st.info("📊 Demo Mode - Start a real AI project to see live execution data")
+        render_simulation_monitor()
+
+def render_real_execution_monitor():
+    """Monitor real AI execution with authentic data"""
+    
+    # Real execution metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    # Count real artifacts from database
+    real_artifacts_count = 0
+    if 'agent_outputs' in st.session_state:
+        real_artifacts_count = len([o for o in st.session_state.agent_outputs if o.get('is_real', False)])
+    
+    # Count real status updates
+    real_events_count = 0
+    if 'project_status' in st.session_state:
+        real_events_count = len([s for s in st.session_state.project_status if isinstance(s, dict) and s.get('is_real', False)])
+    
+    # Execution phase
+    execution_phase = st.session_state.get('execution_phase', 'idle')
+    is_active = execution_phase not in ['completed', 'failed', 'idle']
+    
+    with col1:
+        st.metric("🔴 Live Sessions", "1" if is_active else "0")
+    with col2:
+        st.metric("📄 Real Artifacts", real_artifacts_count)
+    with col3:
+        st.metric("⚡ Live Events", real_events_count)
+    with col4:
+        phase_display = execution_phase.replace('_', ' ').title()
+        st.metric("🎯 Status", phase_display)
+    
+    # Real-time agent activity
+    st.subheader("🤖 Real Agent Activity")
+    
+    if 'agent_outputs' in st.session_state and st.session_state.agent_outputs:
+        # Display real agent outputs with actual timestamps
+        for output in st.session_state.agent_outputs:
+            if output.get('is_real', False):
+                timestamp = output.get('formatted_time', output.get('timestamp', 'N/A'))
+                agent_name = output.get('agent', 'Unknown Agent')
+                
+                with st.container():
+                    col1, col2, col3 = st.columns([1, 2, 1])
+                    with col1:
+                        st.caption(str(timestamp))
+                    with col2:
+                        st.markdown(f"**🤖 {agent_name}** - Content Generated")
+                    with col3:
+                        st.markdown("✅ Complete")
+                    st.markdown("---")
+    
+    # Real-time status updates
+    if 'project_status' in st.session_state and st.session_state.project_status:
+        st.subheader("📊 Real-Time Status Updates")
+        for status in reversed(st.session_state.project_status[-10:]):
+            if isinstance(status, dict) and status.get('is_real', False):
+                time_str = status.get('time', 'N/A')
+                message = status.get('message', 'N/A')
+                st.markdown(f"⏰ **{time_str}** - {message}")
+            elif not isinstance(status, dict):
+                # Legacy format for real status
+                current_time = datetime.now().strftime("%H:%M:%S")
+                st.markdown(f"⏰ **{current_time}** - {str(status)}")
+
+def render_simulation_monitor():
+    """Show simulation data for demo purposes"""
+    
     orchestrator = st.session_state.orchestrator
     
-    # Workflow overview
+    # Simulation metrics
     col1, col2, col3, col4 = st.columns(4)
     
     status = orchestrator.get_workflow_status()
     
     with col1:
-        st.metric("Total Events", status["total_events"])
+        st.metric("Demo Events", status["total_events"])
     with col2:
-        st.metric("Active Tasks", status["active_tasks"])
+        st.metric("Demo Tasks", status["active_tasks"])
     with col3:
-        st.metric("Completed Tasks", status["completed_tasks"]) 
+        st.metric("Demo Completed", status["completed_tasks"]) 
     with col4:
-        st.metric("Artifacts Produced", status["artifacts_produced"])
+        st.metric("Demo Artifacts", status["artifacts_produced"])
     
     # Event stream
     st.subheader("📜 Event Stream")

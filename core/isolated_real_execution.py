@@ -125,8 +125,17 @@ This is a REAL API call - please provide authentic, detailed analysis."""
                 }]
             )
             
-            # Extract result
-            result_content = response.content[0].text
+            # Extract result with proper error handling
+            if response.content and len(response.content) > 0:
+                # Handle different content block types
+                content_block = response.content[0]
+                if hasattr(content_block, 'text'):
+                    result_content = content_block.text
+                else:
+                    result_content = str(content_block)
+            else:
+                result_content = "No content received from Claude API"
+            
             completion_time = datetime.now().strftime("%H:%M:%S")
             
             logger.info(f"✅ REAL Claude API call completed: {len(result_content)} chars")

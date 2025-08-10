@@ -1371,6 +1371,49 @@ def render_project_launch():
                         st.write(check)
                 else:
                     st.success("✅ No fake timestamps detected")
+    
+    # CRITICAL: ISOLATED REAL EXECUTION BUTTON
+    st.markdown("---")
+    st.subheader("🔥 ISOLATED REAL EXECUTION")
+    st.warning("⚡ This completely bypasses all simulation systems and makes direct API calls")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("🚀 ISOLATED Real Claude Call", type="primary"):
+            # Import and use isolated executor
+            from core.isolated_real_execution import IsolatedRealExecutor
+            
+            # Clear any existing simulation data
+            for key in ['project_status', 'agent_outputs', 'live_timeline', 'real_artifacts']:
+                if key in st.session_state:
+                    st.session_state[key] = []
+            
+            # Create isolated executor
+            executor = IsolatedRealExecutor()
+            
+            # Execute ONLY real Claude call
+            result = executor.execute_real_claude_only(st.session_state.project_description)
+            
+            # Store isolated execution state
+            st.session_state.isolated_executor = executor
+            st.session_state.isolated_result = result
+            
+            st.success("✅ Isolated real execution started!")
+    
+    with col2:
+        if st.button("📊 Show Isolated Results"):
+            if 'isolated_executor' in st.session_state:
+                st.session_state.isolated_executor.display_isolated_results()
+            else:
+                st.warning("❌ No isolated execution found. Run isolated Claude call first.")
+    
+    with col3:
+        if st.button("🧹 Clear Isolated Data"):
+            for key in ['ISOLATED_REAL_STATUS', 'ISOLATED_REAL_OUTPUTS', 'isolated_executor', 'isolated_result']:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.success("🧹 Isolated data cleared")
 
     # Execute workflow if started
     if st.session_state.get('execution_started', False) and st.session_state.get('execution_phase') != "completed":
@@ -1540,8 +1583,26 @@ def execute_workflow_step():
                     current_time = datetime.now().strftime("%H:%M:%S")
                     st.write(f"⏰ {current_time} - {str(status)}")
         
-        # Show REAL AI-generated artifacts (not simulation)
-        if 'real_artifacts' in st.session_state and st.session_state.real_artifacts:
+        # PRIORITY: Show ISOLATED real execution results first
+        if 'ISOLATED_REAL_STATUS' in st.session_state or 'ISOLATED_REAL_OUTPUTS' in st.session_state:
+            st.subheader("🔥 ISOLATED REAL EXECUTION RESULTS")
+            
+            # Show isolated status
+            if 'ISOLATED_REAL_STATUS' in st.session_state and st.session_state.ISOLATED_REAL_STATUS:
+                st.markdown("#### 📊 ISOLATED Status Updates")
+                for status in st.session_state.ISOLATED_REAL_STATUS:
+                    st.write(f"⏰ {status['time']} - {status['message']} | ISOLATED REAL | ID: {status.get('execution_id', 'unknown')}")
+            
+            # Show isolated outputs
+            if 'ISOLATED_REAL_OUTPUTS' in st.session_state and st.session_state.ISOLATED_REAL_OUTPUTS:
+                st.markdown("#### 🤖 ISOLATED Agent Outputs")
+                for output in st.session_state.ISOLATED_REAL_OUTPUTS:
+                    with st.expander(f"📄 {output['agent']} - {output['time']} | ISOLATED REAL", expanded=True):
+                        st.markdown(output['content'])
+                        st.caption(f"Word count: {output['word_count']} | ISOLATED real API call | ID: {output.get('execution_id', 'unknown')}")
+        
+        # Show REAL AI-generated artifacts (not simulation) - Secondary priority
+        elif 'real_artifacts' in st.session_state and st.session_state.real_artifacts:
             st.subheader("📄 AI-Generated Artifacts")
             for artifact in st.session_state.real_artifacts:
                 if artifact.get('is_real', False):  # Only show real artifacts

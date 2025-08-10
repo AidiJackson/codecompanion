@@ -101,16 +101,32 @@ class EventBus:
     - Stream monitoring and metrics
     """
     
-    def __init__(self, redis_url: str = "redis://localhost:6379"):
-        try:
-            self.redis = redis.from_url(redis_url, decode_responses=True)
-            self.redis.ping()
-            logger.info("Connected to Redis successfully")
-        except redis.ConnectionError:
-            logger.warning("Redis not available - DISABLING event bus completely")
+    def __init__(self, redis_url: Optional[str] = None):
+        from settings import settings
+        
+        # Use strict configuration - no fallbacks without explicit config
+        if settings.EVENT_BUS == "redis":
+            redis_url = redis_url or settings.get_redis_url()
+            
+            try:
+                self.redis = redis.from_url(redis_url, decode_responses=True)
+                self.redis.ping()
+                logger.info(f"✅ Redis connected successfully: {settings.scrub_url(redis_url)}")
+                
+            except redis.ConnectionError as e:
+                # FAIL-FAST: No fallback to mock when Redis is explicitly configured
+                raise RuntimeError(f"Redis configured but unreachable: {settings.scrub_url(redis_url)} - {e}")
+        
+        elif settings.EVENT_BUS == "mock":
+            logger.warning("🚨 WARNING: Using MOCK event bus - simulation data may interfere with real API results")
             self.redis = None
-            # CRITICAL: Disable all event streaming when Redis unavailable
-            # This prevents mock events from interfering with real API data
+            
+        else:
+            raise ValueError(f"Invalid EVENT_BUS configuration: {settings.EVENT_BUS}")
+        
+        # Store configuration
+        self.event_bus_type = settings.EVENT_BUS
+        self.redis_connected = self.redis is not None
         
         self.stream_prefix = "orchestra"
         self.consumer_groups: Dict[str, str] = {}

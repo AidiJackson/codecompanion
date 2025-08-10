@@ -28,14 +28,18 @@ class IsolatedRealExecutor:
         self.ui_updater.update_status_direct("Isolated Real Executor initialized", "system")
     
     def check_api_keys(self) -> Dict[str, bool]:
-        """Check which API keys are available"""
-        keys = {
-            'Claude': bool(os.environ.get('ANTHROPIC_API_KEY')),
-            'GPT-4': bool(os.environ.get('OPENAI_API_KEY')),
-            'Gemini': bool(os.environ.get('GEMINI_API_KEY'))
+        """Check which API keys are available using strict settings"""
+        from settings import settings
+        
+        keys = settings.get_available_models()
+        # Convert to expected format
+        available_keys = {
+            'Claude': keys['claude'],
+            'GPT-4': keys['gpt-4'],
+            'Gemini': keys['gemini']
         }
-        logger.info(f"🔑 API keys available: {keys}")
-        return keys
+        logger.info(f"🔑 API keys available: {available_keys}")
+        return available_keys
     
     def add_real_status(self, message: str):
         """Add real status using direct UI updater - bypasses all event systems"""
@@ -88,14 +92,16 @@ class IsolatedRealExecutor:
         self.add_real_status(f"🔥 ISOLATED Real Claude execution started at {current_time}")
         
         try:
-            # Import and use Claude directly
+            # Import and use Claude directly with strict settings
             import anthropic
+            from settings import settings
             
-            api_key = os.environ.get('ANTHROPIC_API_KEY')
-            if not api_key:
-                error_msg = "❌ ANTHROPIC_API_KEY not found"
+            if not settings.ANTHROPIC_API_KEY:
+                error_msg = "❌ ANTHROPIC_API_KEY not found in strict configuration"
                 self.add_real_status(error_msg)
                 return {"status": "failed", "error": "Missing API key"}
+            
+            api_key = settings.ANTHROPIC_API_KEY
             
             self.add_real_status("🔑 API key found, creating Claude client...")
             

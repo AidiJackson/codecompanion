@@ -5,7 +5,6 @@ Provides unified interfaces for OpenAI, Anthropic, and Google AI APIs
 with structured communication protocols and error handling.
 """
 
-import os
 import asyncio
 import logging
 from typing import Dict, List, Optional, Any, Union
@@ -21,16 +20,18 @@ import google.generativeai as genai
 from schemas.artifacts import ArtifactBase, ArtifactType
 from schemas.routing import ModelType
 from agents.base_agent import AgentInput, AgentOutput, AgentType
+from settings import settings
 
 logger = logging.getLogger(__name__)
 
 
 class AIClientConfig(BaseModel):
-    """Configuration for AI clients"""
+    """Configuration for AI clients using strict settings"""
     
-    openai_api_key: Optional[str] = Field(default_factory=lambda: os.environ.get('OPENAI_API_KEY'))
-    anthropic_api_key: Optional[str] = Field(default_factory=lambda: os.environ.get('ANTHROPIC_API_KEY'))
-    gemini_api_key: Optional[str] = Field(default_factory=lambda: os.environ.get('GEMINI_API_KEY'))
+    openai_api_key: Optional[str] = Field(default_factory=lambda: settings.OPENAI_API_KEY)
+    anthropic_api_key: Optional[str] = Field(default_factory=lambda: settings.ANTHROPIC_API_KEY)
+    gemini_api_key: Optional[str] = Field(default_factory=lambda: settings.GEMINI_API_KEY)
+    openrouter_api_key: Optional[str] = Field(default_factory=lambda: settings.OPENROUTER_API_KEY)
     
     # Model configurations
     openai_model: str = Field(default="gpt-4o")

@@ -58,9 +58,25 @@ import uuid
 import pandas as pd
 
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Import strict configuration FIRST
+from settings import settings
+from startup_logs import log_system_startup, validate_critical_config
+
+# Configure logging with settings
+logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL))
 logger = logging.getLogger(__name__)
+
+# Validate critical configuration and log startup info
+try:
+    validate_critical_config()
+    log_system_startup()
+except RuntimeError as e:
+    logger.critical(f"❌ Critical configuration error: {e}")
+    # In production, we would exit here, but for Streamlit we'll show error
+    if hasattr(st, 'error'):  # Check if streamlit is available
+        import streamlit as st
+        st.error(f"System configuration error: {e}")
+        st.stop()
 
 # Streamlit configuration
 st.set_page_config(
@@ -70,24 +86,49 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Initialize database on app startup
+# Initialize database and event bus with strict configuration
 @st.cache_resource
 def get_database_manager():
-    """Initialize database manager singleton"""
+    """Initialize database manager with strict configuration"""
     try:
-        # Initialize database structure
+        database_url = settings.get_database_url()
         initialize_database()
-        # Create database manager
         db_manager = DatabaseManager()
-        logger.info("✅ Database infrastructure initialized successfully")
+        logger.info(f"✅ Database initialized: {settings.scrub_url(database_url)}")
         return db_manager
     except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
+        logger.error(f"❌ Database initialization failed: {e}")
         st.error(f"Database initialization failed: {e}")
         return None
 
-# Get database manager instance
+@st.cache_resource  
+def initialize_event_bus():
+    """Initialize event bus with strict fail-fast configuration"""
+    try:
+        from core.event_streaming import EventBus
+        
+        # This will fail-fast if Redis is configured but unreachable
+        event_bus = EventBus()
+        
+        logger.info(f"✅ Event bus type: {event_bus.event_bus_type}")
+        logger.info(f"✅ Redis connected: {event_bus.redis_connected}")
+        
+        return event_bus
+        
+    except RuntimeError as e:
+        # Redis configured but unreachable - FAIL FAST
+        logger.error(f"❌ Event bus initialization failed: {e}")
+        st.error(f"System initialization failed: {e}")
+        st.stop()
+        
+    except Exception as e:
+        logger.error(f"❌ Unexpected error during event bus init: {e}")
+        st.error(f"System initialization error: {e}")
+        st.stop()
+
+# Initialize core systems with strict configuration
 db = get_database_manager()
+event_bus = initialize_event_bus()
 
 def get_or_create_session_id():
     """Get or create a unique session ID for database operations"""

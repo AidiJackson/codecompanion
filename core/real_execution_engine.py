@@ -162,7 +162,7 @@ class RealExecutionEngine:
             - Component architecture and relationships
             """
             
-            code_result = await self._execute_code_generator_agent(project_config, gpt4_prompt, pm_result)
+            code_result = await self._execute_code_generator_agent(project_config, gpt4_prompt)
             completion_time = datetime.now().strftime("%H:%M:%S")
             
             self.status_callback("✅ GPT-4 architecture design complete")
@@ -186,7 +186,7 @@ class RealExecutionEngine:
             - Component specifications
             """
             
-            ui_result = await self._execute_ui_designer_agent(project_config, gemini_prompt, [pm_result, code_result])
+            ui_result = await self._execute_ui_designer_agent(project_config, gemini_prompt)
             completion_time = datetime.now().strftime("%H:%M:%S")
             
             self.status_callback("✅ Gemini UI design complete")
@@ -353,7 +353,7 @@ class RealExecutionEngine:
             if not self.ai_clients.openai_client:
                 return f"Error: OpenAI client not available. Please provide API key."
             
-            response = await self.ai_clients.openai_client.chat.completions.create(
+            response = self.ai_clients.openai_client.chat.completions.create(
                 model="gpt-4",
                 messages=[
                     {"role": "system", "content": f"You are an expert {role}."},
@@ -361,31 +361,23 @@ class RealExecutionEngine:
                 ],
                 max_tokens=1500
             )
-            return response.choices[0].message.content
+            return response.choices[0].message.content or f"No response from {role}"
         except Exception as e:
             return f"Error in {role}: {str(e)}"
 
-    async def _execute_project_manager_agent(self, project_config: Dict[str, Any]) -> str:
+    async def _execute_project_manager_agent(self, project_config: Dict[str, Any], prompt: str) -> str:
         """Execute real Claude Project Manager agent"""
         
         agent_input = AgentInput(
             request_id=str(uuid.uuid4()),
             task_id="project_analysis",
             objective=f"Analyze and break down this project: {project_config['description']}",
-            context=f"""
-            Project Type: {project_config.get('type', 'general')}
-            Complexity: {project_config.get('complexity', 'medium')}
-            
-            Please provide a comprehensive project analysis including:
-            1. Requirements breakdown
-            2. Technical architecture recommendations
-            3. Development phases and timeline
-            4. Risk assessment
-            5. Success criteria
-            """,
+            context=prompt,
             priority="high",
             dependency_artifacts=[],
-            requested_artifact=ArtifactType.SPEC_DOC
+            requested_artifact=ArtifactType.SPEC_DOC,
+            correlation_id=str(uuid.uuid4()),
+            max_processing_time=300
         )
         
         try:
@@ -399,29 +391,19 @@ class RealExecutionEngine:
         except Exception as e:
             return f"Exception in Claude execution: {str(e)}"
 
-    async def _execute_code_generator_agent(self, project_config: Dict[str, Any], requirements: str) -> str:
+    async def _execute_code_generator_agent(self, project_config: Dict[str, Any], prompt: str) -> str:
         """Execute real GPT-4 Code Generator agent"""
         
         agent_input = AgentInput(
             request_id=str(uuid.uuid4()),
             task_id="code_generation",
             objective=f"Generate code structure for: {project_config['description']}",
-            context=f"""
-            Project Requirements from Analysis:
-            {requirements}
-            
-            Project Type: {project_config.get('type', 'general')}
-            
-            Please provide:
-            1. System architecture design
-            2. Core implementation structure
-            3. Key components and modules
-            4. Database design if applicable
-            5. API structure if applicable
-            """,
+            context=prompt,
             priority="high",
-            dependency_artifacts=[requirements],
-            requested_artifact=ArtifactType.CODE_PATCH
+            dependency_artifacts=[],
+            requested_artifact=ArtifactType.CODE_PATCH,
+            correlation_id=str(uuid.uuid4()),
+            max_processing_time=300
         )
         
         try:
@@ -435,31 +417,19 @@ class RealExecutionEngine:
         except Exception as e:
             return f"Exception in GPT-4 execution: {str(e)}"
 
-    async def _execute_ui_designer_agent(self, project_config: Dict[str, Any], previous_artifacts: List[str]) -> str:
+    async def _execute_ui_designer_agent(self, project_config: Dict[str, Any], prompt: str) -> str:
         """Execute real Gemini UI Designer agent"""
-        
-        dependencies_text = "\n\n".join(previous_artifacts)
         
         agent_input = AgentInput(
             request_id=str(uuid.uuid4()),
             task_id="ui_design",
             objective=f"Design user interface for: {project_config['description']}",
-            context=f"""
-            Previous Agent Results:
-            {dependencies_text}
-            
-            Project Type: {project_config.get('type', 'general')}
-            
-            Please provide:
-            1. UI/UX design approach
-            2. Component structure and layouts
-            3. User experience flows
-            4. Visual design decisions
-            5. Responsive design considerations
-            """,
+            context=prompt,
             priority="high",
-            dependency_artifacts=previous_artifacts,
-            requested_artifact=ArtifactType.DESIGN_DOC
+            dependency_artifacts=[],
+            requested_artifact=ArtifactType.DESIGN_DOC,
+            correlation_id=str(uuid.uuid4()),
+            max_processing_time=300
         )
         
         try:
@@ -495,7 +465,9 @@ class RealExecutionEngine:
             """,
             priority="high",
             dependency_artifacts=[code_structure],
-            requested_artifact=ArtifactType.TEST_PLAN
+            requested_artifact=ArtifactType.TEST_PLAN,
+            correlation_id=str(uuid.uuid4()),
+            max_processing_time=300
         )
         
         try:
@@ -533,7 +505,9 @@ class RealExecutionEngine:
             """,
             priority="high",
             dependency_artifacts=code_artifacts,
-            requested_artifact=ArtifactType.EVAL_REPORT
+            requested_artifact=ArtifactType.EVAL_REPORT,
+            correlation_id=str(uuid.uuid4()),
+            max_processing_time=300
         )
         
         try:

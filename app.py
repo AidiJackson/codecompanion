@@ -114,9 +114,11 @@ def main():
         st.title("🤖 CodeCompanion - Multi-Agent AI Development System")
         st.markdown("### Live collaboration between specialized AI agents")
         
-        # Add emergency controls in sidebar
+        # Add emergency controls and API health monitoring in sidebar
         with st.sidebar:
             render_emergency_controls()
+            st.markdown("---")
+            render_sidebar_health_status()
         
         # Validate session state
         validation_results = validate_session()
@@ -216,13 +218,14 @@ def render_emergency_controls():
             status = "✅" if valid else "❌"
             st.text(f"{status} {key}")
     
-    # Secondary tabs for additional functionality
+    # Main navigation tabs - restored all missing tabs
     st.markdown("---")
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "💬 Agent Chat", 
-        "📊 Collaboration Dashboard", 
-        "📁 Project Files", 
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        "💬 Chat Interface", 
+        "🎼 Live Orchestra", 
         "🏥 System Health",
+        "📊 Collaboration Dashboard",
+        "📁 Project Files",
         "⚙️ Settings"
     ])
     
@@ -230,17 +233,21 @@ def render_emergency_controls():
         render_chat_interface()
     
     with tab2:
-        render_collaboration_dashboard()
-        render_model_health_status()
+        if st.session_state.workflow_orchestrator and st.session_state.active_project:
+            render_live_orchestration()
+        else:
+            render_project_initiation_panel()
     
     with tab3:
-        render_project_files()
+        render_system_health()
     
     with tab4:
-        from components.stability_monitor import render_stability_monitor
-        render_stability_monitor()
+        render_collaboration_dashboard()
     
     with tab5:
+        render_project_files()
+    
+    with tab6:
         render_settings()
 
 def render_chat_interface():
@@ -565,31 +572,520 @@ def emergency_stop_operations():
         log_user_action("emergency_stop_failed", {"error": str(e)})
 
 def render_project_files():
-    """Render project files interface"""
+    """Render project files interface with enhanced functionality"""
     st.markdown("## 📁 Generated Project Files")
     
-    if not st.session_state.project_files:
+    project_files = get_session_value('project_files', {})
+    
+    if not project_files:
         st.info("No project files generated yet. Start a conversation to create files.")
         return
     
-    # File explorer
-    for filename, content in st.session_state.project_files.items():
-        with st.expander(f"📄 {filename}"):
-            st.code(content, language="python")
-            
-            # Download button
-            st.download_button(
-                f"Download {filename}",
-                data=content,
-                file_name=filename,
-                mime="text/plain",
-                key=f"download_{filename}"
-            )
+    # File statistics
+    total_files = len(project_files)
+    total_size = sum(len(str(content)) for content in project_files.values())
     
-    # Download all files as ZIP
-    if len(st.session_state.project_files) > 1:
-        if st.button("📦 Download All Files"):
-            st.success("Download feature would be implemented here")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Files", total_files)
+    with col2:
+        st.metric("Total Size", f"{total_size/1000:.1f} KB")
+    with col3:
+        if st.button("🗑️ Clear All Files"):
+            set_session_value('project_files', {})
+            st.success("All files cleared!")
+            st.rerun()
+    
+    # File explorer with improved interface
+    for filename, content in project_files.items():
+        with st.expander(f"📄 {filename} ({len(str(content))} chars)"):
+            # Detect file type for syntax highlighting
+            if filename.endswith('.py'):
+                language = 'python'
+            elif filename.endswith('.js'):
+                language = 'javascript'
+            elif filename.endswith('.html'):
+                language = 'html'
+            elif filename.endswith('.css'):
+                language = 'css'
+            elif filename.endswith('.json'):
+                language = 'json'
+            else:
+                language = 'text'
+            
+            st.code(content, language=language)
+            
+            # File actions
+            action_col1, action_col2 = st.columns(2)
+            with action_col1:
+                st.download_button(
+                    f"📥 Download {filename}",
+                    data=content,
+                    file_name=filename,
+                    mime="text/plain",
+                    key=f"download_{filename}"
+                )
+            with action_col2:
+                if st.button(f"🗑️ Delete", key=f"delete_{filename}"):
+                    del project_files[filename]
+                    set_session_value('project_files', project_files)
+                    st.success(f"Deleted {filename}")
+                    st.rerun()
+    
+    # Download all files as ZIP (enhanced version)
+    if total_files > 1:
+        if st.button("📦 Download All Files as ZIP"):
+            try:
+                import zipfile
+                import io
+                
+                zip_buffer = io.BytesIO()
+                with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                    for filename, content in project_files.items():
+                        zip_file.writestr(filename, content)
+                
+                st.download_button(
+                    "📥 Download project.zip",
+                    data=zip_buffer.getvalue(),
+                    file_name="project.zip",
+                    mime="application/zip"
+                )
+            except Exception as e:
+                st.error(f"Error creating ZIP file: {str(e)}")
+
+def render_model_health_status():
+    """Render AI model health monitoring with real-time API testing"""
+    from utils.error_handler import safe_api_call, logger
+    
+    st.markdown("## 🏥 Model Health Status")
+    
+    # API status tracking
+    api_status = get_session_value('api_status', {
+        'openai': {'status': 'unknown', 'last_test': None, 'error': None},
+        'anthropic': {'status': 'unknown', 'last_test': None, 'error': None},
+        'google': {'status': 'unknown', 'last_test': None, 'error': None}
+    })
+    
+    # Display status indicators
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        status = api_status.get('openai', {})
+        icon = "🟢" if status.get('status') == 'healthy' else "🔴" if status.get('status') == 'error' else "🟡"
+        st.metric("OpenAI GPT-4", f"{icon} {status.get('status', 'unknown').title()}")
+        if status.get('error'):
+            st.caption(f"Error: {status['error'][:50]}...")
+    
+    with col2:
+        status = api_status.get('anthropic', {})
+        icon = "🟢" if status.get('status') == 'healthy' else "🔴" if status.get('status') == 'error' else "🟡"
+        st.metric("Claude Sonnet", f"{icon} {status.get('status', 'unknown').title()}")
+        if status.get('error'):
+            st.caption(f"Error: {status['error'][:50]}...")
+    
+    with col3:
+        status = api_status.get('google', {})
+        icon = "🟢" if status.get('status') == 'healthy' else "🔴" if status.get('status') == 'error' else "�1"
+        st.metric("Gemini Flash", f"{icon} {status.get('status', 'unknown').title()}")
+        if status.get('error'):
+            st.caption(f"Error: {status['error'][:50]}...")
+    
+    # Test APIs button
+    if st.button("🔍 Test All APIs", help="Test connections to all AI services"):
+        with st.spinner("Testing API connections..."):
+            test_results = test_all_apis()
+            set_session_value('api_status', test_results)
+            st.rerun()
+    
+    # Performance metrics
+    with st.expander("📊 Performance Metrics", expanded=False):
+        metrics = get_session_value('api_metrics', {})
+        if metrics:
+            for service, data in metrics.items():
+                st.write(f"**{service.title()}:**")
+                st.write(f"- Success Rate: {data.get('success_rate', 'N/A')}%")
+                st.write(f"- Avg Response Time: {data.get('avg_response_time', 'N/A')}ms")
+                st.write(f"- Total Requests: {data.get('total_requests', 0)}")
+                st.write("---")
+        else:
+            st.info("No performance data available yet.")
+
+def test_all_apis():
+    """Test all API connections and return status"""
+    from utils.error_handler import safe_api_call, logger
+    import os
+    from datetime import datetime
+    
+    results = {}
+    
+    # Test OpenAI
+    def test_openai():
+        import openai
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            raise Exception("OPENAI_API_KEY environment variable not set")
+        
+        client = openai.OpenAI(api_key=api_key)
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": "Hello"}],
+            max_tokens=10
+        )
+        return response.choices[0].message.content
+    
+    # Test Anthropic
+    def test_anthropic():
+        import anthropic
+        api_key = os.getenv('ANTHROPIC_API_KEY')
+        if not api_key:
+            raise Exception("ANTHROPIC_API_KEY environment variable not set")
+        
+        client = anthropic.Anthropic(api_key=api_key)
+        response = client.messages.create(
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=10,
+            messages=[{"role": "user", "content": "Hello"}]
+        )
+        return response.content[0].text if response.content else "No response"
+    
+    # Test Google
+    def test_google():
+        import google.generativeai as genai
+        api_key = os.getenv('GOOGLE_API_KEY')
+        if not api_key:
+            raise Exception("GOOGLE_API_KEY environment variable not set")
+        
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        response = model.generate_content("Hello")
+        return response.text
+    
+    # Test each API
+    for api_name, test_func in [
+        ('openai', test_openai),
+        ('anthropic', test_anthropic), 
+        ('google', test_google)
+    ]:
+        result = safe_api_call(test_func, service_name=f"test_{api_name}", timeout=15)
+        
+        if result['success']:
+            results[api_name] = {
+                'status': 'healthy',
+                'last_test': datetime.now().isoformat(),
+                'error': None
+            }
+        else:
+            results[api_name] = {
+                'status': 'error',
+                'last_test': datetime.now().isoformat(),
+                'error': result.get('error', 'Unknown error')
+            }
+    
+    return results
+
+def render_sidebar_health_status():
+    """Render compact API health status in sidebar"""
+    st.markdown("## 🏥 Model Health")
+    
+    # Get API status
+    api_status = get_session_value('api_status', {
+        'openai': {'status': 'unknown'},
+        'anthropic': {'status': 'unknown'},
+        'google': {'status': 'unknown'}
+    })
+    
+    # Compact status display
+    for api_name, status in api_status.items():
+        status_val = status.get('status', 'unknown')
+        icon = "🟢" if status_val == 'healthy' else "🔴" if status_val == 'error' else "🟡"
+        api_display = api_name.replace('openai', 'GPT-4').replace('anthropic', 'Claude').replace('google', 'Gemini')
+        st.text(f"{icon} {api_display}")
+    
+    if st.button("🔍 Test APIs", use_container_width=True, help="Test all API connections"):
+        with st.spinner("Testing..."):
+            test_results = test_all_apis()
+            set_session_value('api_status', test_results)
+            st.rerun()
+
+def render_collaboration_dashboard():
+    """Render enhanced agent collaboration monitoring"""
+    st.markdown("## 📊 Agent Collaboration Dashboard")
+    
+    # Get agent status
+    agent_status = get_session_value('agent_status', {})
+    
+    if not agent_status:
+        st.info("No active collaboration sessions. Start a project to see agent activity.")
+        return
+    
+    # Overall collaboration metrics
+    total_agents = len(agent_status)
+    active_agents = sum(1 for status in agent_status.values() if status.get('status') == 'working')
+    completed_agents = sum(1 for status in agent_status.values() if status.get('status') == 'completed')
+    
+    metric_col1, metric_col2, metric_col3 = st.columns(3)
+    with metric_col1:
+        st.metric("Total Agents", total_agents)
+    with metric_col2:
+        st.metric("Active Now", active_agents)
+    with metric_col3:
+        st.metric("Completed", completed_agents)
+    
+    st.markdown("### Agent Activity Status")
+    
+    # Display agent activity with enhanced information
+    for agent_name, status in agent_status.items():
+        with st.container():
+            col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+            
+            with col1:
+                agent_title = agent_name.replace('_', ' ').title()
+                st.write(f"**🤖 {agent_title}**")
+                if status.get('current_task'):
+                    st.caption(f"Task: {status['current_task']}")
+                if status.get('last_activity'):
+                    st.caption(f"Last active: {status['last_activity']}")
+            
+            with col2:
+                status_color = {
+                    'idle': '🟡',
+                    'working': '🟢', 
+                    'completed': '✅',
+                    'error': '🔴',
+                    'stopped': '⏹️'
+                }
+                current_status = status.get('status', 'idle')
+                st.write(f"{status_color.get(current_status, '⚪')} {current_status.title()}")
+            
+            with col3:
+                progress = status.get('progress', 0)
+                st.progress(progress / 100)
+                st.caption(f"{progress}%")
+            
+            with col4:
+                # Agent-specific actions
+                if st.button(f"Reset", key=f"reset_{agent_name}", help=f"Reset {agent_title}"):
+                    agent_status[agent_name] = {
+                        "status": "idle",
+                        "progress": 0,
+                        "current_task": "",
+                        "last_activity": None
+                    }
+                    set_session_value('agent_status', agent_status)
+                    st.rerun()
+            
+            st.divider()
+    
+    # Model Performance Comparison
+    st.markdown("### 📈 Model Performance Comparison")
+    
+    # Get API metrics for performance comparison
+    api_metrics = get_session_value('api_metrics', {})
+    
+    if api_metrics:
+        # Create performance comparison table
+        performance_data = []
+        for service, metrics in api_metrics.items():
+            performance_data.append({
+                'Model': service.replace('openai', 'GPT-4').replace('anthropic', 'Claude').replace('google', 'Gemini'),
+                'Success Rate': f"{metrics.get('success_rate', 0)}%",
+                'Avg Response Time': f"{metrics.get('avg_response_time', 0)}ms",
+                'Total Requests': metrics.get('total_requests', 0)
+            })
+        
+        if performance_data:
+            import pandas as pd
+            df = pd.DataFrame(performance_data)
+            st.dataframe(df, use_container_width=True)
+    else:
+        st.info("No performance data available yet. Test APIs to see performance metrics.")
+    
+    # AI Consensus Sessions
+    st.markdown("### 🤝 AI Consensus Sessions")
+    
+    chat_history = get_session_value('chat_history', [])
+    consensus_messages = [msg for msg in chat_history if msg.get('agent') == 'Agent Team Consensus']
+    
+    if consensus_messages:
+        st.metric("Consensus Sessions", len(consensus_messages))
+        
+        with st.expander("Recent Consensus Sessions", expanded=False):
+            for i, msg in enumerate(consensus_messages[-3:], 1):  # Show last 3
+                st.write(f"**Session {i}:**")
+                st.write(msg.get('content', 'No content')[:200] + "...")
+                st.write(f"*{msg.get('timestamp', 'No timestamp')}*")
+                st.divider()
+    else:
+        st.info("No consensus sessions yet. Use 'Get Team Consensus' to start.")
+    
+    # Collaboration insights
+    with st.expander("🔍 Collaboration Insights", expanded=False):
+        agent_messages = [msg for msg in chat_history if msg.get('role') == 'assistant']
+        
+        if agent_messages:
+            st.write(f"**Total Agent Responses:** {len(agent_messages)}")
+            
+            # Agent contribution breakdown
+            agent_contributions = {}
+            for msg in agent_messages:
+                agent = msg.get('agent', 'Unknown')
+                agent_contributions[agent] = agent_contributions.get(agent, 0) + 1
+            
+            if agent_contributions:
+                st.write("**Agent Contributions:**")
+                for agent, count in sorted(agent_contributions.items(), key=lambda x: x[1], reverse=True):
+                    st.write(f"- {agent}: {count} responses")
+        else:
+            st.info("No collaboration data available yet.")
+    
+    # Live activity feed
+    st.markdown("### 📡 Live Activity Feed")
+    
+    # Show recent activity
+    recent_activities = []
+    for agent_name, status in agent_status.items():
+        if status.get('status') == 'working' or status.get('current_task'):
+            recent_activities.append(f"🤖 {agent_name.replace('_', ' ').title()}: {status.get('current_task', 'Processing...')}")
+    
+    if recent_activities:
+        for activity in recent_activities[-5:]:  # Show last 5 activities
+            st.text(activity)
+    else:
+        st.info("No recent activity to display.")
+
+def render_system_health():
+    """Render comprehensive system health monitoring"""
+    st.markdown("## 🏥 System Health & Diagnostics")
+    
+    # Overall system status
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        # Session health
+        session_info = session_manager.get_session_info()
+        error_count = session_info.get('error_count', 0)
+        if error_count == 0:
+            st.success("Session: Healthy")
+        else:
+            st.warning(f"Session: {error_count} errors")
+    
+    with col2:
+        # Memory status
+        import sys
+        memory_usage = sys.getsizeof(st.session_state)
+        if memory_usage < 1000000:  # 1MB
+            st.success(f"Memory: {memory_usage/1000:.1f} KB")
+        else:
+            st.warning(f"Memory: {memory_usage/1000000:.1f} MB")
+    
+    with col3:
+        # Agent status
+        agent_status = get_session_value('agent_status', {})
+        active_agents = sum(1 for status in agent_status.values() if status.get('status') == 'working')
+        if active_agents > 0:
+            st.info(f"Agents: {active_agents} active")
+        else:
+            st.success("Agents: All idle")
+    
+    # Model Health Status Section
+    st.markdown("---")
+    render_model_health_status()
+    
+    # Performance Metrics
+    st.markdown("---")
+    st.markdown("### ⚡ Performance Metrics")
+    
+    # Chat history metrics
+    chat_history = get_session_value('chat_history', [])
+    project_files = get_session_value('project_files', {})
+    
+    perf_col1, perf_col2, perf_col3 = st.columns(3)
+    with perf_col1:
+        st.metric("Chat Messages", len(chat_history))
+    with perf_col2:
+        st.metric("Project Files", len(project_files))
+    with perf_col3:
+        total_file_size = sum(len(str(content)) for content in project_files.values())
+        st.metric("Total File Size", f"{total_file_size/1000:.1f} KB")
+    
+    # System diagnostics
+    st.markdown("---")
+    st.markdown("### 🔧 System Diagnostics")
+    
+    with st.expander("Session State Validation", expanded=False):
+        validation_results = validate_session()
+        for key, valid in validation_results.items():
+            status = "✅" if valid else "❌"
+            st.text(f"{status} {key}")
+    
+    with st.expander("Session Information", expanded=False):
+        for key, value in session_info.items():
+            st.text(f"{key}: {value}")
+    
+    with st.expander("Environment Variables", expanded=False):
+        import os
+        env_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GOOGLE_API_KEY']
+        for var in env_vars:
+            status = "✅" if os.getenv(var) else "❌"
+            st.text(f"{status} {var}: {'Set' if os.getenv(var) else 'Not set'}")
+    
+    # Error logs
+    st.markdown("---")
+    st.markdown("### 📋 Error Logs")
+    
+    try:
+        with open('app_errors.log', 'r') as f:
+            logs = f.readlines()[-10:]  # Last 10 lines
+            if logs:
+                st.text_area("Recent Error Logs", '\n'.join(logs), height=200)
+            else:
+                st.success("No recent errors found.")
+    except FileNotFoundError:
+        st.info("No error log file found.")
+    
+    # Quick actions
+    st.markdown("---")
+    st.markdown("### ⚡ Quick Actions")
+    
+    action_col1, action_col2, action_col3, action_col4 = st.columns(4)
+    
+    with action_col1:
+        if st.button("🔍 Test All APIs"):
+            with st.spinner("Testing APIs..."):
+                test_results = test_all_apis()
+                set_session_value('api_status', test_results)
+                st.success("API test completed!")
+                st.rerun()
+    
+    with action_col2:
+        if st.button("🧹 Clean Memory"):
+            cleanup_session()
+            st.success("Memory cleaned!")
+            st.rerun()
+    
+    with action_col3:
+        if st.button("🔄 Refresh Status"):
+            st.success("Status refreshed!")
+            st.rerun()
+    
+    with action_col4:
+        if st.button("📊 Export Diagnostics"):
+            diagnostic_data = {
+                'session_info': session_info,
+                'validation_results': validation_results,
+                'chat_messages': len(chat_history),
+                'project_files': len(project_files),
+                'api_status': get_session_value('api_status', {})
+            }
+            
+            import json
+            diagnostic_json = json.dumps(diagnostic_data, indent=2, default=str)
+            st.download_button(
+                "📥 Download Diagnostics",
+                data=diagnostic_json,
+                file_name="system_diagnostics.json",
+                mime="application/json"
+            )
 
 def render_settings():
     """Render application settings with enhanced safety controls"""

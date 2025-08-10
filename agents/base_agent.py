@@ -75,7 +75,7 @@ class AgentInput(BaseModel):
     dependency_artifacts: List[str] = Field(default_factory=list, description="IDs of dependent artifacts")
     
     # Request specification
-    requested_artifact: ArtifactType = Field(..., description="Type of artifact to produce")
+    requested_artifact: Optional[ArtifactType] = Field(default=ArtifactType.SPEC_DOC, description="Type of artifact to produce")
     
     # Policies and constraints
     policies: Dict[str, Any] = Field(default_factory=dict, description="Processing policies and constraints")
@@ -91,7 +91,7 @@ class AgentInput(BaseModel):
     
     # Metadata
     submitted_at: datetime = Field(default_factory=datetime.now, description="Request submission time")
-    submitted_by: str = Field(..., description="ID of requesting agent or system")
+    submitted_by: str = Field(default="system", description="ID of requesting agent or system")
 
 
 class AgentOutput(BaseModel):

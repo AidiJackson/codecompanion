@@ -1130,7 +1130,13 @@ def execute_workflow_step():
             import asyncio
             
             async def run_real_workflow():
-                return await execution_engine.execute_real_project_workflow(project_config)
+                try:
+                    # Try the complex workflow first
+                    return await execution_engine.execute_real_project_workflow(project_config)
+                except Exception as e:
+                    # If complex workflow fails due to validation, use simple workflow
+                    update_status(f"⚠️ Complex workflow failed, switching to simple workflow: {str(e)[:100]}")
+                    return await execution_engine.execute_simple_workflow(project_config)
             
             # Execute the real AI workflow
             result = asyncio.run(run_real_workflow())

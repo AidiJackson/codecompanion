@@ -10,6 +10,7 @@ import time
 # Core system components
 from components.collaboration_dashboard import render_collaboration_dashboard, render_model_health_status
 from core.model_orchestrator import AgentType
+from core.workflow_orchestrator import WorkflowOrchestrator, ProjectType, ProjectComplexity
 
 # Agent imports 
 from agents.project_manager import ProjectManagerAgent
@@ -44,6 +45,14 @@ if "agent_status" not in st.session_state:
     st.session_state.agent_status = {}
 if "project_files" not in st.session_state:
     st.session_state.project_files = {}
+if "orchestrator" not in st.session_state:
+    st.session_state.orchestrator = None
+if "active_project" not in st.session_state:
+    st.session_state.active_project = None
+if "workflow_status" not in st.session_state:
+    st.session_state.workflow_status = None
+if "workflow_orchestrator" not in st.session_state:
+    st.session_state.workflow_orchestrator = None
 
 def initialize_agents():
     """Initialize all agents with multi-model integration"""
@@ -56,6 +65,7 @@ def initialize_agents():
             "debugger": DebuggerAgent()
         }
         st.session_state.orchestrator = AgentOrchestrator(st.session_state.agents, st.session_state.memory)
+        st.session_state.workflow_orchestrator = WorkflowOrchestrator(st.session_state.agents)
         
         # Initialize agent status
         for agent_name in st.session_state.agents:
@@ -82,8 +92,15 @@ def main():
     # Initialize agents
     initialize_agents()
     
-    # Main application tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["💬 Chat", "📊 AI Dashboard", "📁 Project Files", "⚙️ Settings"])
+    # Check if we have an active orchestrated project
+    if st.session_state.active_project:
+        render_live_orchestration_dashboard()
+    else:
+        render_project_initiation_panel()
+    
+    # Secondary tabs for additional functionality
+    st.markdown("---")
+    tab1, tab2, tab3, tab4 = st.tabs(["💬 Agent Chat", "📊 Collaboration Dashboard", "📁 Project Files", "⚙️ Settings"])
     
     with tab1:
         render_chat_interface()
@@ -295,6 +312,284 @@ def render_settings():
     
     st.markdown("### 🏥 System Health")
     st.write("**Status:** ✅ All systems operational")
+
+def render_project_initiation_panel():
+    """Render the main project initiation interface"""
+    st.markdown("## 🚀 Project Initiation Panel")
+    st.markdown("### Describe your project and watch AI agents collaborate to build it")
+    
+    # Project description input
+    project_description = st.text_area(
+        "📝 Project Description",
+        placeholder="e.g., Build a task management app with team collaboration, real-time updates, user authentication, and file sharing capabilities...",
+        height=120,
+        help="Describe what you want to build in detail. The more specific you are, the better the AI agents can collaborate."
+    )
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Project type selector
+        project_type = st.selectbox(
+            "🏗️ Project Type",
+            options=[
+                ("Web Application", ProjectType.WEB_APP),
+                ("Mobile App", ProjectType.MOBILE_APP), 
+                ("API Service", ProjectType.API_SERVICE),
+                ("Desktop Application", ProjectType.DESKTOP_APP),
+                ("Data Pipeline", ProjectType.DATA_PIPELINE),
+                ("Machine Learning", ProjectType.MACHINE_LEARNING)
+            ],
+            format_func=lambda x: x[0]
+        )
+    
+    with col2:
+        # Complexity level slider
+        complexity_mapping = {
+            1: ("Simple", ProjectComplexity.SIMPLE, "Basic functionality, minimal features"),
+            2: ("Medium", ProjectComplexity.MEDIUM, "Standard features, moderate complexity"),
+            3: ("Complex", ProjectComplexity.COMPLEX, "Advanced features, high complexity")
+        }
+        
+        complexity_level = st.slider(
+            "⚡ Complexity Level", 
+            min_value=1, 
+            max_value=3, 
+            value=2,
+            format=lambda x: complexity_mapping[x][1].value.title()
+        )
+        
+        complexity_info = complexity_mapping[complexity_level]
+        st.caption(f"**{complexity_info[0]}:** {complexity_info[2]}")
+    
+    # Project preview
+    if project_description:
+        st.markdown("### 🔍 Project Preview")
+        
+        with st.expander("Preview Agent Assignment", expanded=True):
+            complexity_obj = complexity_info[1]
+            
+            if complexity_obj == ProjectComplexity.SIMPLE:
+                agents = ["📋 Project Manager (Planning)", "💻 Code Generator (Development)"]
+                optional = ["🎨 UI Designer (Basic Interface)"]
+            elif complexity_obj == ProjectComplexity.MEDIUM:
+                agents = ["📋 Project Manager (Architecture)", "💻 Code Generator (Backend)", 
+                         "🎨 UI Designer (Frontend)", "🧪 Test Writer (QA)"]
+                optional = ["🔍 Debugger (Optimization)"]
+            else:
+                agents = ["📋 Project Manager (Full Planning)", "💻 Code Generator (Full Stack)", 
+                         "🎨 UI Designer (Complete UX)", "🧪 Test Writer (Comprehensive Tests)", 
+                         "🔍 Debugger (Performance)"]
+                optional = []
+            
+            st.write("**Active Agents:**")
+            for agent in agents:
+                st.write(f"✅ {agent}")
+            
+            if optional:
+                st.write("**Optional Agents:**")
+                for agent in optional:
+                    st.write(f"⚪ {agent}")
+            
+            estimated_time = {
+                ProjectComplexity.SIMPLE: "15-30 minutes",
+                ProjectComplexity.MEDIUM: "45-60 minutes", 
+                ProjectComplexity.COMPLEX: "1-2 hours"
+            }
+            st.info(f"🕒 **Estimated Time:** {estimated_time[complexity_obj]}")
+    
+    # Start Orchestra button
+    st.markdown("---")
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        start_button = st.button(
+            "🎼 Start Orchestra",
+            disabled=not project_description.strip(),
+            use_container_width=True,
+            type="primary"
+        )
+        
+        if start_button and project_description.strip():
+            start_orchestration(project_description, project_type[1], complexity_info[1])
+
+def start_orchestration(description: str, project_type: ProjectType, complexity: ProjectComplexity):
+    """Initialize and start the AI agent orchestration"""
+    
+    with st.spinner("🎼 Initializing AI Agent Orchestra..."):
+        time.sleep(2)  # Simulate initialization
+        
+        # Create workflow orchestrator if not exists
+        if not st.session_state.workflow_orchestrator:
+            st.session_state.workflow_orchestrator = WorkflowOrchestrator(st.session_state.agents)
+        
+        # Analyze project requirements
+        project_analysis = st.session_state.workflow_orchestrator.analyze_project_requirements(
+            description, project_type, complexity
+        )
+        
+        # Create workflow steps
+        workflow_steps = st.session_state.workflow_orchestrator.create_intelligent_workflow(project_analysis)
+        st.session_state.workflow_orchestrator.workflow_steps = workflow_steps
+        st.session_state.workflow_orchestrator.current_project = project_analysis
+        
+        # Set active project
+        st.session_state.active_project = project_analysis
+        st.session_state.workflow_status = "initializing"
+        
+        st.success("🎼 Orchestra initialized! Agents are ready to collaborate.")
+        time.sleep(1)
+        st.rerun()
+
+def render_live_orchestration_dashboard():
+    """Render the live orchestration dashboard showing real-time agent collaboration"""
+    
+    st.markdown("## 🎼 AI Agent Orchestra - Live Collaboration")
+    
+    # Project header
+    project = st.session_state.active_project
+    st.markdown(f"### 🏗️ {project['description'][:100]}{'...' if len(project['description']) > 100 else ''}")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Project Type", project['project_type'].replace('_', ' ').title())
+    with col2:
+        st.metric("Complexity", project['complexity'].title()) 
+    with col3:
+        st.metric("Active Agents", len(project['required_agents']))
+    with col4:
+        if st.button("🔄 Reset Project"):
+            reset_orchestration()
+    
+    # Get real-time status
+    status = st.session_state.workflow_orchestrator.get_real_time_status()
+    
+    # Overall progress
+    st.markdown("### 📊 Overall Progress")
+    progress_bar = st.progress(status['overall_progress'] / 100)
+    st.caption(f"Current Phase: **{status['current_phase']}** | {status['overall_progress']:.1f}% Complete")
+    
+    # Live Agent Activity Dashboard
+    st.markdown("### 🤖 Live Agent Activity")
+    
+    # Create agent status cards
+    agent_cols = st.columns(len(status['agent_statuses']))
+    
+    for i, (agent_name, agent_status) in enumerate(status['agent_statuses'].items()):
+        with agent_cols[i]:
+            # Agent icon mapping
+            agent_icons = {
+                "project_manager": "📋",
+                "code_generator": "💻",
+                "ui_designer": "🎨", 
+                "test_writer": "🧪",
+                "debugger": "🔍"
+            }
+            
+            icon = agent_icons.get(agent_name, "🤖")
+            status_color = {
+                "idle": "🔵",
+                "analyzing": "🟡",
+                "working": "🟢",
+                "collaborating": "🟠", 
+                "completed": "✅",
+                "error": "🔴"
+            }.get(agent_status['status'], "⚪")
+            
+            st.markdown(f"**{icon} {agent_name.replace('_', ' ').title()}**")
+            st.caption(f"Status: {status_color} {agent_status['status'].title()}")
+            
+            # Progress bar for each agent
+            if agent_status['progress'] > 0:
+                st.progress(agent_status['progress'] / 100)
+                st.caption(f"{agent_status['progress']}%")
+            
+            # Current task
+            if agent_status.get('current_task'):
+                st.caption(f"Task: {agent_status['current_task'][:50]}...")
+    
+    # Agent Collaboration Panel
+    st.markdown("### 🗣️ Agent Collaboration Feed")
+    
+    collaboration_container = st.container()
+    with collaboration_container:
+        # Show recent communications
+        communications = status.get('recent_communications', [])
+        
+        if not communications:
+            st.info("🤖 Agents are preparing to collaborate...")
+        else:
+            for comm in communications[-5:]:  # Show last 5 messages
+                timestamp = datetime.fromisoformat(comm['timestamp']).strftime("%H:%M:%S")
+                st.markdown(f"**{timestamp}** | {comm['message']}")
+    
+    # Control buttons
+    st.markdown("### 🎛️ Orchestra Controls")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("▶️ Start Execution", disabled=st.session_state.workflow_status == "running"):
+            execute_orchestration()
+    
+    with col2:
+        if st.button("⏸️ Pause Execution", disabled=st.session_state.workflow_status != "running"):
+            st.session_state.workflow_status = "paused"
+            st.success("Orchestration paused")
+    
+    with col3:
+        if st.button("📥 Download Results", disabled=status['overall_progress'] < 100):
+            download_project_results()
+
+def execute_orchestration():
+    """Execute the orchestration workflow"""
+    st.session_state.workflow_status = "running"
+    
+    with st.spinner("🎼 Agents are collaborating..."):
+        # Simulate workflow execution
+        orchestrator = st.session_state.workflow_orchestrator
+        
+        # Execute steps sequentially for demo
+        for step in orchestrator.workflow_steps:
+            if step.status.value == "idle":
+                # Simulate execution
+                step.status = step.status.__class__("working")
+                step.progress = 50
+                
+                # Add to communications
+                orchestrator.add_agent_communication(
+                    f"{step.agent_type.value.replace('_', ' ').title()} started: {step.task[:50]}..."
+                )
+                
+                time.sleep(1)  # Simulate work
+                
+                step.progress = 100
+                step.status = step.status.__class__("completed")
+                
+                orchestrator.add_agent_communication(
+                    f"{step.agent_type.value.replace('_', ' ').title()} completed task successfully!"
+                )
+                
+                break  # Execute one step per click for demo
+    
+    st.success("✅ Orchestration step completed!")
+    st.rerun()
+
+def download_project_results():
+    """Handle downloading of generated project files"""
+    st.success("📥 Project files ready for download!")
+    # Implementation for file download would go here
+
+def reset_orchestration():
+    """Reset the current orchestration"""
+    st.session_state.active_project = None
+    st.session_state.workflow_status = None
+    if st.session_state.workflow_orchestrator:
+        st.session_state.workflow_orchestrator.current_project = None
+        st.session_state.workflow_orchestrator.workflow_steps = []
+        st.session_state.workflow_orchestrator.agent_communications = []
+    st.success("🔄 Project reset! Ready for new orchestration.")
+    st.rerun()
     
     # Sidebar for project configuration
     with st.sidebar:

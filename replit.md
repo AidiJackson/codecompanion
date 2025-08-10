@@ -1,8 +1,8 @@
-# CodeCompanion - Multi-Agent AI Development System
+# CodeCompanion Orchestra - Multi-Agent AI Development System
 
 ## Overview
 
-CodeCompanion is a multi-agent AI development system that leverages specialized AI agents to collaborate on software development projects. The system consists of five specialized agents working together: Project Manager (orchestration and planning), Code Generator (backend development), UI Designer (frontend development), Test Writer (quality assurance), and Debugger (code analysis and bug fixing). Built with Streamlit for the user interface, the system provides an interactive platform where agents can hand off tasks to each other, maintain project memory, and generate complete software solutions through collaborative AI workflows.
+CodeCompanion Orchestra is an advanced multi-agent AI development system featuring intelligent orchestration between specialized AI agents powered by Claude, GPT-4, and Gemini. The system provides a comprehensive project initiation interface where users describe their project requirements and watch as AI agents collaborate in real-time to deliver complete software solutions. The core orchestration engine analyzes project complexity, assigns optimal AI models to each agent specialty, and coordinates intelligent handoffs between agents with live status monitoring and visual collaboration feeds.
 
 ## User Preferences
 
@@ -27,6 +27,9 @@ Preferred communication style: Simple, everyday language.
 - **Context Awareness**: Agents maintain conversation history and project context
 
 ### Core System Components
+- **Workflow Orchestrator**: Advanced orchestration engine analyzing project requirements, determining agent assignments, coordinating intelligent handoffs, and providing real-time collaboration monitoring
+- **Project Initiation Panel**: Comprehensive interface for project description, type selection, complexity levels, and agent preview with estimated completion times
+- **Live Orchestration Dashboard**: Real-time agent activity monitoring, collaboration feeds, progress tracking, and visual workflow management
 - **Agent Orchestrator**: Central coordination system managing multi-agent workflows with task assignment and dependency tracking
 - **Project Memory**: SQLite-based persistent storage for project context, agent interactions, and conversation history
 - **Communication Protocol**: Structured message system with priority levels, correlation IDs, and response requirements

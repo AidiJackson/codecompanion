@@ -21,6 +21,24 @@ import logging
 import threading
 import time
 import openai
+import uvicorn
+import socket
+
+def _is_port_open(host, port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(0.2)
+        return s.connect_ex((host, port)) == 0
+
+def start_api_background():
+    # avoid double-start on Streamlit reruns
+    if not _is_port_open("0.0.0.0", 5050):
+        t = threading.Thread(
+            target=lambda: uvicorn.run("api:app", host="0.0.0.0", port=5050, log_level="info"),
+            daemon=True
+        )
+        t.start()
+
+start_api_background()
 
 # Import and run strict config startup logging
 from startup_logs_strict import log_startup_configuration
@@ -746,9 +764,11 @@ def render_real_mode():
             st.warning("Please enter an objective.")
         else:
             with st.spinner("Calling real AI models..."):
+                API_BASE = "http://0.0.0.0:5050"
+                
                 async def go():
                     async with httpx.AsyncClient(timeout=120) as client:
-                        r = await client.post("http://0.0.0.0:8000/run_real", json={"objective": objective.strip()})
+                        r = await client.post(f"{API_BASE}/run_real", json={"objective": objective.strip()})
                         r.raise_for_status()
                         return r.json()
                 
@@ -771,12 +791,29 @@ def render_real_mode():
                 
                 except Exception as e:
                     st.error(f"API call failed: {e}")
-                    st.info("Make sure the API server is running on port 8000")
+                    st.stop()
 
 def main():
     """Main application interface"""
     
     init_session_state()
+    
+    # Add API status to sidebar
+    API_BASE = "http://0.0.0.0:5050"
+    async def _ping():
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as c:
+                r = await c.get(f"{API_BASE}/openapi.json")
+                return r.status_code == 200
+        except Exception:
+            return False
+    
+    try:
+        ok = asyncio.run(_ping())
+    except Exception:
+        ok = False
+    
+    st.sidebar.markdown(f"**API (5050)**: {'✅' if ok else '❌'}")
     
     st.title("🎼 CodeCompanion Orchestra v3")
     st.markdown("**Comprehensive JSON Schema-based Multi-Agent AI Development System**")

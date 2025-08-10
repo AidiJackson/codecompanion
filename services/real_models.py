@@ -2,7 +2,7 @@ import os, json, httpx
 from typing import Optional
 
 ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY")
-OPENROUTER_KEY = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENAI_API_KEY")
+OPENAI_KEY = os.environ.get("OPENAI_API_KEY")  # Direct OpenAI API
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
 
 async def call_claude(prompt: str) -> Optional[str]:
@@ -25,12 +25,12 @@ async def call_claude(prompt: str) -> Optional[str]:
         return "".join([blk.get("text","") for blk in data.get("content",[])])
 
 async def call_gpt4(prompt: str) -> Optional[str]:
-    if not OPENROUTER_KEY: return None
-    # OpenRouter compatible endpoint
-    url = "https://openrouter.ai/api/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {OPENROUTER_KEY}", "Content-Type": "application/json"}
+    if not OPENAI_KEY: return None
+    # Direct OpenAI API endpoint
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {OPENAI_KEY}", "Content-Type": "application/json"}
     body = {
-        "model": "openai/gpt-4o-mini",   # cheap-fast GPT-4 class; change if you prefer
+        "model": "gpt-4o-mini",   # cheap-fast GPT-4 class
         "messages": [{"role":"user","content":prompt}],
         "temperature": 0.2,
         "max_tokens": 800,

@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     def get_available_models(self) -> Dict[str, bool]:
         return {
             "claude": bool(self.ANTHROPIC_API_KEY),
-            "gpt4":   bool(self.OPENROUTER_API_KEY or self.OPENAI_API_KEY),
+            "gpt4":   bool(self.OPENAI_API_KEY),
             "gemini": bool(self.GEMINI_API_KEY),
         }
 

@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Body
 from settings import settings
 from services.real_models import real_e2e
-import asyncio
 
 app = FastAPI()
 

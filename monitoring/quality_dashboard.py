@@ -233,35 +233,42 @@ class QualityMonitoringDashboard:
         
         st.subheader("Quality Cascade Pipeline")
         
-        # Get current cascade status
-        active_cascades = self.quality_cascade.get_all_active_cascades()
-        quality_stats = self.quality_cascade.get_quality_statistics()
+        try:
+            # Get current cascade status
+            active_cascades = self.quality_cascade.get_all_active_cascades()
+            quality_stats = self.quality_cascade.get_quality_statistics()
+        except Exception as e:
+            st.error(f"Error loading cascade pipeline data: {str(e)}")
+            logger.error(f"Failed to load cascade pipeline data: {e}")
+            return
         
         # Pipeline summary
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.metric("Active Cascades", quality_stats["active_cascades"])
+            st.metric("Active Cascades", quality_stats.get("active_cascades", 0))
         
         with col2:
             st.metric(
                 "Average Quality Score",
-                f"{quality_stats['average_quality_score']:.3f}"
+                f"{quality_stats.get('average_quality_score', 0.0):.3f}"
             )
         
         with col3:
-            if quality_stats["quality_score_range"]:
-                range_str = f"{quality_stats['quality_score_range']['min']:.2f} - {quality_stats['quality_score_range']['max']:.2f}"
+            quality_range = quality_stats.get("quality_score_range", {"min": 0.0, "max": 0.0})
+            if quality_range and (quality_range["min"] > 0 or quality_range["max"] > 0):
+                range_str = f"{quality_range['min']:.2f} - {quality_range['max']:.2f}"
             else:
                 range_str = "N/A"
             st.metric("Quality Range", range_str)
         
         # Stage distribution
-        if quality_stats["stages_distribution"]:
+        stages_distribution = quality_stats.get("stages_distribution", {})
+        if stages_distribution:
             st.subheader("Current Pipeline Stages")
             
-            stages = list(quality_stats["stages_distribution"].keys())
-            counts = list(quality_stats["stages_distribution"].values())
+            stages = list(stages_distribution.keys())
+            counts = list(stages_distribution.values())
             
             fig = px.pie(
                 values=counts,
@@ -272,11 +279,12 @@ class QualityMonitoringDashboard:
             st.plotly_chart(fig, use_container_width=True)
         
         # Complexity distribution
-        if quality_stats["complexity_distribution"]:
+        complexity_distribution = quality_stats.get("complexity_distribution", {})
+        if complexity_distribution:
             st.subheader("Task Complexity Distribution")
             
-            complexity_levels = list(quality_stats["complexity_distribution"].keys())
-            complexity_counts = list(quality_stats["complexity_distribution"].values())
+            complexity_levels = list(complexity_distribution.keys())
+            complexity_counts = list(complexity_distribution.values())
             
             fig = px.bar(
                 x=complexity_levels,

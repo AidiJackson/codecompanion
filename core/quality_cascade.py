@@ -525,6 +525,10 @@ class QualityCascade:
             return {
                 "active_cascades": 0,
                 "average_quality_score": 0.0,
+                "quality_score_range": {
+                    "min": 0.0,
+                    "max": 0.0
+                },
                 "stages_distribution": {},
                 "complexity_distribution": {}
             }

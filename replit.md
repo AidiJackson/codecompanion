@@ -14,6 +14,8 @@ CodeCompanion Orchestra is an advanced multi-agent AI development system featuri
 
 **REAL MULTI-AGENT EXECUTION IMPLEMENTATION (August 10, 2025):** Implemented actual AI agent collaboration with real API calls to Claude, GPT-4, and Gemini. Added comprehensive AI client system with structured prompts, real-time agent execution workflow, and live monitoring interface displaying actual agent results. Users can now launch real AI projects where agents collaborate through actual API calls and produce real artifacts.
 
+**INTELLIGENT MODEL ROUTER WITH LEARNING (August 10, 2025):** Implemented advanced Thompson Sampling bandit learning system for adaptive model selection. Added comprehensive cost governance, performance tracking with trend analysis, and outcome-based learning optimization. The system now learns from task outcomes and continuously improves routing decisions using Bayesian learning algorithms.
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -43,6 +45,10 @@ Preferred communication style: Simple, everyday language.
 - **Event-Sourced Orchestrator**: Immutable event stream managing workflow state with full auditability, replay capability, and time-travel debugging
 - **FastAPI Backend**: WebSocket endpoints for real-time UI updates, REST APIs for artifact operations, agent registration, and health monitoring
 - **Data-Driven Model Router**: Capability vector-based routing with multi-objective optimization (quality, cost, latency) and load balancing
+- **Intelligent Model Router**: Thompson Sampling bandit learning system with adaptive model selection, cost governance, and performance tracking
+- **Cost Governor**: Budget management system with project complexity-based limits, spending optimization, and cost violation detection
+- **Performance Tracker**: Real-time outcome tracking with trend analysis, quality metrics, and optimization opportunity identification
+- **Thompson Sampling Bandit**: Bayesian learning algorithm for balancing exploration vs exploitation in model selection
 - **Artifact Handler**: Type-safe artifact validation, serialization, and dependency tracking with comprehensive quality scoring
 - **Schema System**: Complete JSON Schema framework with Pydantic validation for artifacts, ledgers, routing decisions, and agent contracts
 - **Stream Consumers**: Specialized consumers for orchestration, metrics collection, UI updates, and conflict detection

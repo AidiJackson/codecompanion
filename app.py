@@ -32,6 +32,12 @@ from core.router import DataDrivenRouter, RoutingContext
 from core.artifacts import ArtifactValidator, ArtifactHandler
 from core.event_streaming import RealTimeEventOrchestrator, EventBus, StreamEvent, EventType as StreamEventType, EventStreamType
 
+# Enhanced intelligent routing imports
+from core.model_router import IntelligentRouter
+from schemas.outcomes import TaskOutcome
+from core.cost_governor import CostGovernor, ProjectComplexity
+from monitoring.performance_tracker import PerformanceTracker
+
 # Agent imports
 from agents.base_agent import BaseAgent, AgentInput, AgentOutput, AgentCapability, AgentType
 
@@ -56,6 +62,13 @@ def init_session_state():
     
     if 'router' not in st.session_state:
         st.session_state.router = DataDrivenRouter()
+    
+    if 'intelligent_router' not in st.session_state:
+        try:
+            st.session_state.intelligent_router = IntelligentRouter()
+        except Exception as e:
+            st.session_state.intelligent_router = None
+            logger.warning(f"Could not initialize intelligent router: {e}")
     
     if 'artifact_handler' not in st.session_state:
         st.session_state.artifact_handler = ArtifactHandler()
@@ -235,7 +248,8 @@ def main():
         st.markdown(f"**Live Events**: {event_count}")
 
     # Main navigation
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+        "🤖 Intelligent Router",
         "📋 Schema Demonstration",
         "🎯 Task & Artifact Management", 
         "🤖 Agent Orchestration",
@@ -245,21 +259,24 @@ def main():
     ])
     
     with tab1:
-        render_schema_demo()
+        render_intelligent_router()
     
     with tab2:
-        render_task_management()
+        render_schema_demo()
     
     with tab3:
+        render_task_management()
+    
+    with tab4:
         render_agent_orchestration()
         
-    with tab4:
+    with tab5:
         render_routing_dashboard()
     
-    with tab5:
+    with tab6:
         render_workflow_monitor()
     
-    with tab6:
+    with tab7:
         render_event_streaming_dashboard()
 
 def render_schema_demo():
@@ -1592,6 +1609,347 @@ def render_live_ai_project_launcher():
                 st.json(metrics)
             except Exception as e:
                 st.error(f"Failed to get metrics: {e}")
+
+
+def render_intelligent_router():
+    """Render the Intelligent Router with Learning interface"""
+    st.header("🤖 Intelligent Model Router with Learning")
+    st.markdown("Advanced router using Thompson Sampling bandit learning and cost governance")
+    
+    if not st.session_state.intelligent_router:
+        st.warning("Intelligent Router not available. Please check system configuration.")
+        return
+    
+    router = st.session_state.intelligent_router
+    
+    # Router Status and Controls
+    col1, col2, col3 = st.columns([1, 1, 1])
+    
+    with col1:
+        st.subheader("🎯 Router Status")
+        st.metric("Models Available", len(router.capability_vectors))
+        st.metric("Total Routing Requests", router.bandit.total_interactions)
+        
+    with col2:
+        st.subheader("💰 Cost Management")
+        try:
+            usage_summary = router.cost_governor.get_usage_summary("demo_project")
+            if 'current_usage' in usage_summary:
+                usage = usage_summary['current_usage']
+                budget = usage_summary['budget_limits']
+                utilization = usage_summary['utilization']
+                
+                st.metric("Token Usage", f"{usage['tokens_used']:,} / {budget['max_tokens']:,}")
+                st.metric("Cost Utilization", f"{utilization['cost_percent']:.1f}%")
+                st.metric("Requests Made", usage['requests_made'])
+            else:
+                st.info("No usage data available yet")
+        except Exception as e:
+            st.error(f"Error loading cost data: {e}")
+    
+    with col3:
+        st.subheader("📊 Performance Metrics")
+        try:
+            bandit_stats = router.bandit.get_arm_statistics()
+            if bandit_stats:
+                best_performing = max(bandit_stats.items(), key=lambda x: x[1]['estimated_mean'])
+                st.metric("Best Model", best_performing[0])
+                st.metric("Best Performance", f"{best_performing[1]['estimated_mean']:.3f}")
+                st.metric("Confidence", f"±{(best_performing[1]['confidence_interval'][1] - best_performing[1]['confidence_interval'][0])/2:.3f}")
+            else:
+                st.info("No performance data available yet")
+        except Exception as e:
+            st.error(f"Error loading performance data: {e}")
+    
+    # Interactive Router Demo
+    st.subheader("🎮 Interactive Router Demo")
+    
+    with st.expander("Create Demo Task", expanded=True):
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            task_description = st.text_area(
+                "Task Description",
+                value="Design a comprehensive microservices architecture for an e-commerce platform",
+                height=100
+            )
+        
+        with col2:
+            task_type = st.selectbox("Task Type", options=[t.value for t in TaskType])
+            complexity_level = st.slider("Complexity Level", 0.0, 1.0, 0.7, 0.1)
+            project_complexity = st.selectbox("Project Complexity", 
+                                            options=[c.value for c in ProjectComplexity])
+            time_sensitive = st.checkbox("Time Sensitive")
+        
+        if st.button("🚀 Route Task", type="primary"):
+            try:
+                # Create task
+                task = {
+                    'description': task_description,
+                    'context': {
+                        'task_type': TaskType(task_type),
+                        'project_complexity': project_complexity,
+                        'estimated_tokens': int(1000 + complexity_level * 3000),
+                        'time_sensitive': time_sensitive,
+                        'cost_sensitive': False,
+                        'quality_priority': 0.8,
+                        'complexity_level': complexity_level
+                    }
+                }
+                
+                # Route the task
+                routing_decision = router.route_task(task, task['context'])
+                
+                # Display results
+                st.success(f"✅ Task routed to: **{routing_decision['selected_model'].value}**")
+                st.metric("Routing Score", f"{routing_decision['routing_score']:.3f}")
+                
+                # Show decision breakdown
+                decision_factors = routing_decision.get('decision_factors', {})
+                if decision_factors:
+                    st.subheader("📋 Decision Breakdown")
+                    factors_df = {
+                        'Factor': ['Capability', 'Bandit Score', 'Quality', 'Cost', 'Latency', 'Exploration'],
+                        'Score': [
+                            decision_factors.get('capability_score', 0),
+                            decision_factors.get('bandit_score', 0),
+                            decision_factors.get('quality_component', 0),
+                            decision_factors.get('cost_component', 0),
+                            decision_factors.get('latency_component', 0),
+                            decision_factors.get('exploration_bonus', 0)
+                        ]
+                    }
+                    st.bar_chart(factors_df)
+                
+                # Show alternatives
+                alternatives = routing_decision.get('alternatives', [])
+                if alternatives:
+                    st.subheader("🔄 Alternative Models")
+                    for i, (alt_model, alt_score) in enumerate(alternatives[:3], 1):
+                        st.write(f"{i}. {alt_model.value}: {alt_score:.3f}")
+                
+                # Simulate execution (for demo purposes)
+                if st.button("🎭 Simulate Task Execution"):
+                    # Simple simulation
+                    import random
+                    success = random.random() > 0.2  # 80% success rate
+                    quality_score = random.uniform(0.6, 1.0)
+                    execution_time = random.uniform(15, 120)
+                    
+                    # Create outcome
+                    complexity_obj = TaskComplexity(
+                        technical_complexity=complexity_level,
+                        novelty=0.3,
+                        safety_risk=0.1,
+                        context_requirement=0.4,
+                        interdependence=0.2,
+                        estimated_tokens=task['context']['estimated_tokens'],
+                        requires_reasoning=task_type == TaskType.REASONING_LONG.value,
+                        requires_creativity=task_type == TaskType.CODE_UI.value,
+                        time_sensitive=time_sensitive
+                    )
+                    
+                    outcome = TaskOutcome(
+                        task_id=f"demo_{int(datetime.now().timestamp())}",
+                        model_used=routing_decision['selected_model'],
+                        task_type=TaskType(task_type),
+                        complexity=complexity_obj,
+                        success=success,
+                        quality_score=quality_score,
+                        execution_time=execution_time,
+                        token_usage=task['context']['estimated_tokens'],
+                        cost=task['context']['estimated_tokens'] * 0.002 / 1000,
+                        context=task['context'],
+                        error_type=None if success else "demo_error",
+                        timestamp=datetime.now()
+                    )
+                    
+                    # Update router learning
+                    router.update_from_outcome(outcome.task_id, outcome)
+                    
+                    # Show results
+                    result_col1, result_col2 = st.columns([1, 1])
+                    with result_col1:
+                        st.metric("Success", "✅ Yes" if success else "❌ No")
+                        st.metric("Quality Score", f"{quality_score:.3f}")
+                    with result_col2:
+                        st.metric("Execution Time", f"{execution_time:.1f}s")
+                        st.metric("Cost", f"${outcome.cost:.4f}")
+                    
+                    st.success("Router learning updated with task outcome!")
+                
+            except Exception as e:
+                st.error(f"Error routing task: {e}")
+                import traceback
+                st.code(traceback.format_exc())
+    
+    # Performance Analysis
+    st.subheader("📈 Performance Analysis")
+    
+    analysis_tab1, analysis_tab2, analysis_tab3 = st.tabs(["Model Performance", "Bandit Learning", "Cost Analysis"])
+    
+    with analysis_tab1:
+        st.markdown("### Model Performance Summary")
+        try:
+            performance_summary = router.get_model_performance_summary()
+            if performance_summary:
+                for model_name, task_metrics in performance_summary.items():
+                    with st.expander(f"📊 {model_name}"):
+                        for task_type, metrics in task_metrics.items():
+                            st.markdown(f"**{task_type}:**")
+                            col1, col2, col3, col4 = st.columns(4)
+                            with col1:
+                                st.metric("Success Rate", f"{metrics['success_rate']:.3f}")
+                            with col2:
+                                st.metric("Avg Quality", f"{metrics['avg_quality']:.3f}")
+                            with col3:
+                                st.metric("Avg Cost", f"${metrics['avg_cost']:.4f}")
+                            with col4:
+                                st.metric("Sample Count", metrics['sample_count'])
+            else:
+                st.info("No performance data available. Run some tasks to see analytics.")
+        except Exception as e:
+            st.error(f"Error loading performance data: {e}")
+    
+    with analysis_tab2:
+        st.markdown("### Thompson Sampling Bandit Statistics")
+        try:
+            bandit_stats = router.bandit.get_arm_statistics()
+            if bandit_stats:
+                # Create visualization data
+                models = list(bandit_stats.keys())
+                means = [stats['estimated_mean'] for stats in bandit_stats.values()]
+                pulls = [stats['total_pulls'] for stats in bandit_stats.values()]
+                
+                # Display statistics
+                for model, stats in bandit_stats.items():
+                    with st.expander(f"🎰 {model}"):
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Estimated Mean", f"{stats['estimated_mean']:.3f}")
+                        with col2:
+                            ci_lower, ci_upper = stats['confidence_interval']
+                            st.metric("Confidence Interval", f"[{ci_lower:.3f}, {ci_upper:.3f}]")
+                        with col3:
+                            st.metric("Total Pulls", stats['total_pulls'])
+                        
+                        st.metric("Alpha (Successes)", f"{stats['alpha']:.2f}")
+                        st.metric("Beta (Failures)", f"{stats['beta']:.2f}")
+                        st.caption(f"Last updated: {stats['last_updated']}")
+            else:
+                st.info("No bandit learning data available yet.")
+        except Exception as e:
+            st.error(f"Error loading bandit statistics: {e}")
+    
+    with analysis_tab3:
+        st.markdown("### Cost Analysis")
+        try:
+            # Budget overview by complexity
+            st.markdown("#### Budget Limits by Project Complexity")
+            for complexity in ProjectComplexity:
+                budget = router.cost_governor.budgets[complexity]
+                with st.expander(f"💰 {complexity.value.title()} Projects"):
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Max Tokens", f"{budget.max_tokens:,}")
+                        st.metric("Max Cost", f"${budget.max_cost_usd}")
+                    with col2:
+                        st.metric("Max Agents", budget.max_agents)
+                        st.metric("Max Requests", budget.max_requests)
+                    with col3:
+                        st.metric("Time Window", f"{budget.time_window_hours}h")
+            
+            # Current usage
+            st.markdown("#### Current Usage")
+            usage_summary = router.cost_governor.get_usage_summary("demo_project")
+            if 'error' not in usage_summary and 'current_usage' in usage_summary:
+                usage = usage_summary['current_usage']
+                budget = usage_summary['budget_limits']
+                utilization = usage_summary['utilization']
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Tokens Used", f"{usage['tokens_used']:,} / {budget['max_tokens']:,}")
+                    st.progress(utilization['tokens_percent'] / 100)
+                    st.metric("Requests Made", f"{usage['requests_made']} / {budget['max_requests']}")
+                    st.progress(utilization['requests_percent'] / 100)
+                
+                with col2:
+                    st.metric("Cost Incurred", f"${usage['cost_incurred']:.2f} / ${budget['max_cost_usd']:.2f}")
+                    st.progress(utilization['cost_percent'] / 100)
+                    st.metric("Active Agents", usage['agents_active'])
+            else:
+                st.info("No usage data available yet.")
+        except Exception as e:
+            st.error(f"Error loading cost analysis: {e}")
+    
+    # Insights and Recommendations
+    st.subheader("🔍 AI Insights and Recommendations")
+    
+    try:
+        insights = router.performance_tracker.generate_insights()
+        
+        if 'model_recommendations' in insights and insights['model_recommendations']:
+            st.markdown("#### 🎯 Recommended Models by Task Type")
+            recommendations = insights['model_recommendations']
+            for task_type, model in recommendations.items():
+                st.write(f"**{task_type}**: {model}")
+        
+        if 'optimization_opportunities' in insights:
+            opportunities = insights['optimization_opportunities'][:5]  # Top 5
+            if opportunities:
+                st.markdown("#### ⚡ Top Optimization Opportunities")
+                for i, opp in enumerate(opportunities, 1):
+                    st.write(f"{i}. **{opp['type']}**: {opp['model']} for {opp['task_type']}")
+                    st.caption(f"   → {opp['suggestion']}")
+        
+        if 'summary' in insights and insights['summary']:
+            st.markdown("#### 📋 Performance Summary")
+            summary = insights['summary']
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Tasks Analyzed", summary.get('total_tasks_analyzed', 0))
+            with col2:
+                st.metric("Success Rate", f"{summary.get('overall_success_rate', 0):.3f}")
+            with col3:
+                st.metric("Total Cost", f"${summary.get('total_cost', 0):.2f}")
+    
+    except Exception as e:
+        st.error(f"Error generating insights: {e}")
+        
+    # Export/Import Options
+    st.subheader("🔄 Data Management")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("📊 Export Learning Data"):
+            try:
+                learning_data = router.bandit.export_learning_data()
+                st.download_button(
+                    label="💾 Download Learning Data",
+                    data=json.dumps(learning_data, indent=2),
+                    file_name=f"router_learning_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                    mime="application/json"
+                )
+            except Exception as e:
+                st.error(f"Error exporting data: {e}")
+    
+    with col2:
+        if st.button("🧹 Reset Router Learning"):
+            if st.confirm("Are you sure you want to reset all learning data?"):
+                try:
+                    # Reset bandit arms
+                    for arm_id in router.bandit.arms.keys():
+                        router.bandit.reset_arm(arm_id)
+                    
+                    # Reset cost usage
+                    router.cost_governor.reset_usage("demo_project")
+                    
+                    st.success("Router learning data has been reset!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error resetting data: {e}")
+
 
 if __name__ == "__main__":
     main()

@@ -65,15 +65,22 @@ def get_bus() -> BaseBus:
 
         b = RedisStreamsBus(settings.REDIS_URL)
 
-        # Robust ping: works with or without an existing event loop (Streamlit thread safe)
+        # Test connection but don't fail startup if Redis is unreachable
         import asyncio
         try:
-            loop = asyncio.get_running_loop()
-            # Inside a running loop – schedule ping but do not block
-            loop.create_task(b.ping())
-        except RuntimeError:
-            # No running loop – run synchronously
-            asyncio.run(b.ping())
+            try:
+                loop = asyncio.get_running_loop()
+                # Inside a running loop – schedule ping but do not block
+                loop.create_task(b.ping())
+            except RuntimeError:
+                # No running loop – run synchronously
+                asyncio.run(b.ping())
+        except Exception as e:
+            # Redis connection failed - log warning but continue with MockBus
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Redis connection failed ({e}), falling back to MockBus")
+            return MockBus()
 
         return b
 

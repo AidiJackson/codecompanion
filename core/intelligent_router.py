@@ -67,8 +67,9 @@ class IntelligentTaskRouter:
     metrics to make optimal task assignments with multi-objective optimization.
     """
     
-    def __init__(self, event_bus: EventBus):
-        self.event_bus = event_bus
+    def __init__(self, event_bus=None):
+        from bus import bus
+        self.event_bus = bus
         self.agent_performance: Dict[str, AgentPerformance] = {}
         self.task_history: List[Dict[str, Any]] = []
         
@@ -343,7 +344,13 @@ class IntelligentTaskRouter:
             }
         )
         
-        await self.event_bus.publish_event(EventStreamType.METRICS, routing_event)
+        from bus import Event
+        event = Event(topic="metrics", payload={
+            "event_type": "routing_decision", 
+            "correlation_id": correlation_id,
+            "routing_data": decision
+        })
+        await self.event_bus.publish(event)
     
     async def update_agent_performance(self, agent_id: str, task_result: Dict[str, Any]):
         """Update agent performance based on task completion"""

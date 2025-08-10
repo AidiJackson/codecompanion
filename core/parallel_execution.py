@@ -59,8 +59,9 @@ class ParallelExecutionEngine:
     dependency management and real-time progress tracking
     """
     
-    def __init__(self, event_bus: EventBus):
-        self.event_bus = event_bus
+    def __init__(self, event_bus=None):
+        from bus import bus
+        self.event_bus = bus
         self.active_executions: Dict[str, Dict[str, Any]] = {}
         self.agent_graph: Dict[str, AgentExecutionNode] = {}
         self.execution_metrics = {}
@@ -497,7 +498,13 @@ class ParallelExecutionEngine:
             metadata={"execution_engine": "parallel_v1"}
         )
         
-        await self.event_bus.publish_event(EventStreamType.TASKS, event)
+        from bus import Event as EventClass
+        bus_event = EventClass(topic="tasks", payload={
+            "event_type": event_type.value,
+            "execution_id": execution_id,
+            "payload": payload
+        })
+        await self.event_bus.publish(bus_event)
     
     def get_execution_status(self, execution_id: str) -> Optional[Dict[str, Any]]:
         """Get current status of parallel execution"""

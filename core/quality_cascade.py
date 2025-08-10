@@ -89,8 +89,9 @@ class QualityCascade:
     based on confidence thresholds and complexity levels.
     """
     
-    def __init__(self, event_bus: Optional[EventBus] = None):
-        self.event_bus = event_bus
+    def __init__(self, event_bus=None):
+        from bus import bus
+        self.event_bus = bus
         
         # Confidence thresholds by complexity
         self.confidence_thresholds = {

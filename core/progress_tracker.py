@@ -80,8 +80,9 @@ class LiveProgressTracker(StreamConsumer):
     artifact creation, and collaboration metrics in real-time
     """
     
-    def __init__(self, event_bus: EventBus):
-        super().__init__(event_bus, "progress_tracker")
+    def __init__(self, event_bus=None):
+        from bus import bus
+        super().__init__(bus, "progress_tracker")
         
         # Progress tracking storage
         self.agent_progress: Dict[str, AgentProgress] = {}
@@ -325,7 +326,13 @@ class LiveProgressTracker(StreamConsumer):
         )
         
         # Publish to metrics stream
-        await self.event_bus.publish_event(EventStreamType.METRICS, progress_update)
+        from bus import Event 
+        event = Event(topic="metrics", payload={
+            "event_type": "progress_update",
+            "correlation_id": original_event.correlation_id,
+            "progress_data": progress_update.payload
+        })
+        await self.event_bus.publish(event)
     
     def get_live_progress_summary(self) -> Dict[str, Any]:
         """Get current progress summary"""

@@ -21,7 +21,7 @@ from google import genai
 from google.genai import types
 
 from core.event_streaming import (
-    EventBus, StreamEvent, EventType, EventStreamType, StreamConsumer,
+    StreamEvent, EventType, EventStreamType, StreamConsumer,
     RealTimeEventOrchestrator
 )
 from schemas.artifacts import (
@@ -96,8 +96,9 @@ class LiveAgentMetrics:
 class LiveAgentWorker(StreamConsumer):
     """Base class for live AI agent workers"""
     
-    def __init__(self, event_bus: EventBus, agent_id: str, model_type: ModelType):
-        super().__init__(event_bus, f"{agent_id}_worker")
+    def __init__(self, event_bus=None, agent_id: str = "", model_type: ModelType = ModelType.CLAUDE):
+        from bus import bus
+        super().__init__(bus, f"{agent_id}_worker")
         self.agent_id = agent_id
         self.model_type = model_type
         self.metrics = LiveAgentMetrics()

@@ -45,8 +45,6 @@ if "agent_status" not in st.session_state:
     st.session_state.agent_status = {}
 if "project_files" not in st.session_state:
     st.session_state.project_files = {}
-if "orchestrator" not in st.session_state:
-    st.session_state.orchestrator = None
 if "active_project" not in st.session_state:
     st.session_state.active_project = None
 if "workflow_status" not in st.session_state:

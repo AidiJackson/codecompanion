@@ -26,14 +26,15 @@ class TestWriterAgent(BaseAgent):
             }
         }
     
-    def process_request(self, request: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    def process_request(self, request: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Process test generation requests"""
+        context = context or {}
         messages = [
             {"role": "system", "content": self.get_system_prompt()},
             {"role": "user", "content": f"Test generation request: {request}\n\nProject context: {json.dumps(context, indent=2)}"}
         ]
         
-        response_content = self.call_llm(messages)
+        response_content = self.call_llm_sync(messages)
         
         # Generate test files based on request
         generated_files = self.generate_test_files(request, context)
@@ -56,14 +57,15 @@ class TestWriterAgent(BaseAgent):
             "files": generated_files
         }
     
-    def process_handoff(self, handoff_content: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    def process_handoff(self, handoff_content: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Process handoff from another agent"""
+        context = context or {}
         messages = [
             {"role": "system", "content": self.get_system_prompt()},
             {"role": "user", "content": f"Handoff from another agent: {handoff_content}\n\nTesting context: {json.dumps(context, indent=2)}"}
         ]
         
-        response_content = self.call_llm(messages, temperature=0.5)
+        response_content = self.call_llm_sync(messages, temperature=0.5)
         
         # Generate tests based on handoff
         generated_files = self.generate_tests_from_handoff(handoff_content, context)

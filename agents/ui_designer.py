@@ -28,14 +28,15 @@ class UIDesignerAgent(BaseAgent):
             }
         }
     
-    def process_request(self, request: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    def process_request(self, request: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Process UI/UX design requests"""
+        context = context or {}
         messages = [
             {"role": "system", "content": self.get_system_prompt()},
             {"role": "user", "content": f"UI/UX design request: {request}\n\nProject context: {json.dumps(context, indent=2)}"}
         ]
         
-        response_content = self.call_llm(messages)
+        response_content = self.call_llm_sync(messages)
         
         # Generate UI components and styling
         generated_files = self.generate_ui_files(request, context)
@@ -58,14 +59,15 @@ class UIDesignerAgent(BaseAgent):
             "files": generated_files
         }
     
-    def process_handoff(self, handoff_content: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    def process_handoff(self, handoff_content: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Process handoff from another agent"""
+        context = context or {}
         messages = [
             {"role": "system", "content": self.get_system_prompt()},
             {"role": "user", "content": f"Handoff from another agent: {handoff_content}\n\nDesign context: {json.dumps(context, indent=2)}"}
         ]
         
-        response_content = self.call_llm(messages, temperature=0.5)
+        response_content = self.call_llm_sync(messages, temperature=0.5)
         
         # Generate UI components based on handoff
         generated_files = self.generate_ui_from_handoff(handoff_content, context)

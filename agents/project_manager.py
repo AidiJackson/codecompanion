@@ -31,14 +31,15 @@ class ProjectManagerAgent(BaseAgent):
             }
         }
     
-    def process_request(self, request: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    def process_request(self, request: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Process project management requests"""
+        context = context or {}
         messages = [
             {"role": "system", "content": self.get_system_prompt()},
             {"role": "user", "content": f"Project request: {request}\n\nCurrent context: {json.dumps(context, indent=2)}"}
         ]
         
-        response_content = self.call_llm(messages)
+        response_content = self.call_llm_sync(messages)
         
         # Determine if we should hand off to specialists
         handoff_to = self.should_handoff(request, context)
@@ -63,14 +64,15 @@ class ProjectManagerAgent(BaseAgent):
             "files": self.generate_project_files(request) if "project" in request.lower() else None
         }
     
-    def process_handoff(self, handoff_content: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    def process_handoff(self, handoff_content: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Process handoff from another agent"""
+        context = context or {}
         messages = [
             {"role": "system", "content": self.get_system_prompt()},
             {"role": "user", "content": f"Handoff from another agent: {handoff_content}\n\nProject context: {json.dumps(context, indent=2)}"}
         ]
         
-        response_content = self.call_llm(messages, temperature=0.5)
+        response_content = self.call_llm_sync(messages, temperature=0.5)
         
         self.add_to_history(f"Handoff: {handoff_content}", response_content)
         

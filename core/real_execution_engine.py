@@ -48,10 +48,56 @@ class RealExecutionEngine:
     def _default_output_callback(self, agent_name: str, content: str):
         """Default output callback"""
         logger.info(f"Agent Output [{agent_name}]: {content[:100]}...")
+    
+    def add_real_timeline_event(self, timestamp: str, message: str):
+        """Add real timeline event with actual current time for live UI display"""
+        import streamlit as st
+        
+        if 'live_timeline' not in st.session_state:
+            st.session_state.live_timeline = []
+        
+        # Use actual current timestamp, not simulation
+        real_event = {
+            'time': timestamp,  # Real current time
+            'message': message,
+            'real_timestamp': datetime.now(),
+            'is_real': True  # Flag to distinguish from simulation
+        }
+        
+        st.session_state.live_timeline.append(real_event)
+        
+        # Force immediate UI update
+        try:
+            st.rerun()
+        except:
+            pass  # Handle case where rerun is called during execution
+    
+    def add_real_artifact(self, title: str, content: str):
+        """Add real artifact with actual AI-generated content for live display"""
+        import streamlit as st
+        
+        if 'real_artifacts' not in st.session_state:
+            st.session_state.real_artifacts = []
+        
+        if content and len(str(content).strip()) > 0:  # Only add non-empty content
+            artifact = {
+                'title': title,
+                'content': str(content),
+                'created_at': datetime.now(),
+                'formatted_time': datetime.now().strftime("%H:%M:%S"),
+                'word_count': len(str(content).split()),
+                'is_real': True,
+                'api_generated': True
+            }
+            
+            st.session_state.real_artifacts.append(artifact)
+            
+            # Update total artifacts counter for live display
+            st.session_state.total_artifacts = len(st.session_state.real_artifacts)
 
     async def execute_real_project_workflow(self, project_config: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Execute complete real AI project workflow with actual API calls.
+        Execute complete real AI project workflow with actual API calls and live UI updates.
         
         Args:
             project_config: Project configuration with description, type, complexity
@@ -60,49 +106,129 @@ class RealExecutionEngine:
             Dictionary with execution results and artifacts
         """
         self.execution_id = f"real_execution_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        current_time = datetime.now().strftime("%H:%M:%S")
         
-        self.status_callback(f"🚀 Real AI session started at {current_time}")
-        self.status_callback("🔑 Initializing AI clients (Claude, GPT-4, Gemini)")
+        # Initialize session state for real-time tracking
+        import streamlit as st
+        if 'live_timeline' not in st.session_state:
+            st.session_state.live_timeline = []
+        if 'real_artifacts' not in st.session_state:
+            st.session_state.real_artifacts = []
+        
+        # Clear any previous simulation data
+        st.session_state.live_timeline.clear()
+        st.session_state.real_artifacts.clear()
+        
+        start_time = datetime.now()
+        current_time = start_time.strftime("%H:%M:%S")
+        
+        self.status_callback(f"🚀 Real AI multi-agent session started at {current_time}")
+        self.add_real_timeline_event(current_time, "🚀 Real AI session initialized")
         
         try:
             # Step 1: Real Claude Project Manager Analysis
-            self.status_callback("🧠 Claude analyzing project requirements...")
-            pm_result = await self._execute_project_manager_agent(project_config)
+            current_time = datetime.now().strftime("%H:%M:%S")
+            self.status_callback("🧠 Claude agent started - Requirements Analysis")
+            self.add_real_timeline_event(current_time, "🧠 Claude agent started - Requirements Analysis")
+            
+            claude_prompt = f"""
+            Analyze this project thoroughly:
+            Description: {project_config.get('description')}
+            Type: {project_config.get('type')} 
+            Complexity: {project_config.get('complexity')}
+            
+            Provide detailed requirements analysis, technical recommendations, and project structure.
+            """
+            
+            pm_result = await self._execute_project_manager_agent(project_config, claude_prompt)
+            completion_time = datetime.now().strftime("%H:%M:%S")
+            
             self.status_callback("✅ Claude requirements analysis complete")
+            self.add_real_timeline_event(completion_time, "✅ Claude requirements analysis complete")
+            self.add_real_artifact("Requirements Analysis by Claude", pm_result)
             self.output_callback("Project Manager (Claude)", pm_result)
             
             # Step 2: Real GPT-4 Code Generation
-            self.status_callback("💻 GPT-4 designing system architecture...")
-            code_result = await self._execute_code_generator_agent(project_config, pm_result)
-            self.status_callback("✅ GPT-4 code generation complete")
+            current_time = datetime.now().strftime("%H:%M:%S")
+            self.status_callback("🏗️ GPT-4 agent started - System Architecture")
+            self.add_real_timeline_event(current_time, "🏗️ GPT-4 agent started - System Architecture")
+            
+            gpt4_prompt = f"""
+            Based on Claude's analysis: {pm_result[:800]}...
+            
+            Design the complete system architecture including:
+            - Technology stack and frameworks
+            - Database design and data models  
+            - API structure and endpoints
+            - Component architecture and relationships
+            """
+            
+            code_result = await self._execute_code_generator_agent(project_config, gpt4_prompt, pm_result)
+            completion_time = datetime.now().strftime("%H:%M:%S")
+            
+            self.status_callback("✅ GPT-4 architecture design complete")
+            self.add_real_timeline_event(completion_time, "✅ GPT-4 architecture design complete")
+            self.add_real_artifact("System Architecture by GPT-4", code_result)
             self.output_callback("Code Generator (GPT-4)", code_result)
             
             # Step 3: Real Gemini UI Design
-            self.status_callback("🎨 Gemini creating UI design...")
-            ui_result = await self._execute_ui_designer_agent(project_config, [pm_result, code_result])
+            current_time = datetime.now().strftime("%H:%M:%S")
+            self.status_callback("🎨 Gemini agent started - UI Design")
+            self.add_real_timeline_event(current_time, "🎨 Gemini agent started - UI Design")
+            
+            gemini_prompt = f"""
+            Create comprehensive UI design for: {project_config.get('description')}
+            Architecture: {code_result[:600]}...
+            
+            Design user interface including:
+            - Screen layouts and navigation
+            - Visual design and branding
+            - User experience flow
+            - Component specifications
+            """
+            
+            ui_result = await self._execute_ui_designer_agent(project_config, gemini_prompt, [pm_result, code_result])
+            completion_time = datetime.now().strftime("%H:%M:%S")
+            
             self.status_callback("✅ Gemini UI design complete")
+            self.add_real_timeline_event(completion_time, "✅ Gemini UI design complete")
+            self.add_real_artifact("UI Design by Gemini", ui_result)
             self.output_callback("UI Designer (Gemini)", ui_result)
             
             # Step 4: Real GPT-4 Test Generation
+            current_time = datetime.now().strftime("%H:%M:%S")
             self.status_callback("🧪 GPT-4 generating comprehensive tests...")
+            self.add_real_timeline_event(current_time, "🧪 GPT-4 started - Test Generation")
+            
             test_result = await self._execute_test_writer_agent(project_config, code_result)
+            completion_time = datetime.now().strftime("%H:%M:%S")
+            
             self.status_callback("✅ GPT-4 test generation complete")
+            self.add_real_timeline_event(completion_time, "✅ GPT-4 test generation complete")
+            self.add_real_artifact("Test Suite by GPT-4", test_result)
             self.output_callback("Test Writer (GPT-4)", test_result)
             
             # Step 5: Real Claude Code Review
+            current_time = datetime.now().strftime("%H:%M:%S")
             self.status_callback("🔍 Claude performing code review and optimization...")
+            self.add_real_timeline_event(current_time, "🔍 Claude started - Code Review")
+            
             debug_result = await self._execute_debugger_agent(project_config, [code_result, test_result])
-            self.status_callback("🎉 All AI agents completed successfully! Real project ready.")
+            completion_time = datetime.now().strftime("%H:%M:%S")
+            
+            self.status_callback("✅ Claude code review complete")
+            self.add_real_timeline_event(completion_time, "✅ Claude code review complete")
+            self.add_real_artifact("Code Review by Claude", debug_result)
             self.output_callback("Debugger (Claude)", debug_result)
             
-            completion_time = datetime.now().strftime("%H:%M:%S")
-            self.status_callback(f"✨ Real AI collaboration completed at {completion_time}")
+            # Final completion
+            final_time = datetime.now().strftime("%H:%M:%S")
+            self.status_callback("🎉 Real AI multi-agent collaboration completed!")
+            self.add_real_timeline_event(final_time, "🎉 Multi-agent collaboration completed")
             
             return {
                 "status": "completed",
                 "execution_id": self.execution_id,
-                "completion_time": completion_time,
+                "completion_time": final_time,
                 "agents_executed": [
                     "Project Manager (Claude)",
                     "Code Generator (GPT-4)", 
@@ -118,12 +244,15 @@ class RealExecutionEngine:
                     "code_review": debug_result
                 },
                 "real_execution": True,
-                "total_api_calls": 5
+                "total_api_calls": 5,
+                "timeline_events": len(st.session_state.live_timeline),
+                "real_artifacts": len(st.session_state.real_artifacts)
             }
             
         except Exception as e:
             error_time = datetime.now().strftime("%H:%M:%S")
             self.status_callback(f"❌ Execution failed at {error_time}: {str(e)}")
+            self.add_real_timeline_event(error_time, f"❌ Error: {str(e)}")
             return {
                 "status": "failed",
                 "execution_id": self.execution_id,

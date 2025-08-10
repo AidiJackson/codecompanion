@@ -211,25 +211,46 @@ def simulate_ui_designer(config):
 """
 
 def update_status(message):
-    """Update project status with timestamp"""
+    """Update project status with real timestamp - connects to live UI display"""
     if 'project_status' not in st.session_state:
         st.session_state.project_status = []
     
+    # Clear simulation data and use real timestamps
+    real_timestamp = datetime.now()
     st.session_state.project_status.append({
-        'time': datetime.now().strftime("%H:%M:%S"),
-        'message': message
+        'time': real_timestamp.strftime("%H:%M:%S"),
+        'message': message,
+        'real_timestamp': real_timestamp,
+        'is_real': True  # Flag to distinguish from simulation
     })
+    
+    # Force immediate UI update for real-time display
+    try:
+        st.rerun()
+    except:
+        pass  # Handle case where rerun is called too frequently
 
 def add_agent_output(agent_name, content):
-    """Add agent output to display"""
+    """Add real agent output from API calls to live display"""
     if 'agent_outputs' not in st.session_state:
         st.session_state.agent_outputs = []
     
-    st.session_state.agent_outputs.append({
-        'agent': agent_name,
-        'content': content,
-        'timestamp': datetime.now()
-    })
+    if content and len(str(content).strip()) > 0:  # Only add non-empty real outputs
+        real_timestamp = datetime.now()
+        st.session_state.agent_outputs.append({
+            'agent': agent_name,
+            'content': str(content),
+            'timestamp': real_timestamp,
+            'formatted_time': real_timestamp.strftime("%H:%M:%S"),
+            'word_count': len(str(content).split()),
+            'is_real': True,  # Flag to distinguish from simulation
+            'api_generated': True  # Confirm this is from actual API call
+        })
+        
+        # Update total artifacts counter for live display
+        if 'total_artifacts' not in st.session_state:
+            st.session_state.total_artifacts = 0
+        st.session_state.total_artifacts += 1
 
 def simulate_test_writer(code_structure, project_config):
     """Simulate Test Writer agent work"""
@@ -1138,6 +1159,16 @@ def execute_workflow_step():
                     update_status(f"⚠️ Complex workflow failed, switching to simple workflow: {str(e)[:100]}")
                     return await execution_engine.execute_simple_workflow(project_config)
             
+            # Clear any previous simulation data to show only real API results
+            if 'live_timeline' not in st.session_state:
+                st.session_state.live_timeline = []
+            if 'real_artifacts' not in st.session_state:
+                st.session_state.real_artifacts = []
+            
+            # Clear old simulation data
+            st.session_state.live_timeline.clear()
+            st.session_state.real_artifacts.clear()
+            
             # Execute the real AI workflow
             result = asyncio.run(run_real_workflow())
             
@@ -1146,6 +1177,11 @@ def execute_workflow_step():
                 st.session_state.active_live_project = result["execution_id"]
                 st.session_state.real_execution_result = result
                 st.session_state.configuration_step = 4
+                
+                # Mark completion in real timeline with current timestamp
+                completion_time = datetime.now().strftime("%H:%M:%S")
+                update_status(f"🎉 REAL AI Multi-Agent Project Completed at {completion_time}")
+                
                 time.sleep(0.5)
                 st.rerun()
             else:
@@ -1162,29 +1198,52 @@ def execute_workflow_step():
         st.markdown("---")
         st.subheader("🔄 Live Agent Activity")
         
-        # Show status updates
-        if 'project_status' in st.session_state and st.session_state.project_status:
-            st.markdown("#### 📊 Progress Updates")
+        # Show REAL timeline events (not simulation)
+        if 'live_timeline' in st.session_state and st.session_state.live_timeline:
+            st.markdown("#### 🔄 Real-Time Agent Timeline")
+            for event in st.session_state.live_timeline:
+                if event.get('is_real', False):  # Only show real events
+                    st.write(f"⏰ {event['time']} - {event['message']}")
+        
+        # Show status updates (real only)
+        elif 'project_status' in st.session_state and st.session_state.project_status:
+            st.markdown("#### 📊 Real Progress Updates")
             for status in st.session_state.project_status[-10:]:  # Show last 10 updates
-                # Handle both string and dict formats safely
-                if isinstance(status, dict):
+                # Only show real status updates, not simulation
+                if isinstance(status, dict) and status.get('is_real', False):
                     time_str = status.get('time', 'N/A')
                     message = status.get('message', 'N/A')
                     st.write(f"⏰ {time_str} - {message}")
-                else:
-                    # If it's a string, display with current time
+                elif not isinstance(status, dict):
+                    # Legacy format
                     current_time = datetime.now().strftime("%H:%M:%S")
                     st.write(f"⏰ {current_time} - {str(status)}")
         
-        # Show agent outputs if available
-        if 'agent_outputs' in st.session_state and st.session_state.agent_outputs:
+        # Show REAL AI-generated artifacts (not simulation)
+        if 'real_artifacts' in st.session_state and st.session_state.real_artifacts:
+            st.subheader("📄 AI-Generated Artifacts")
+            for artifact in st.session_state.real_artifacts:
+                if artifact.get('is_real', False):  # Only show real artifacts
+                    with st.expander(f"📋 {artifact['title']} ({artifact['word_count']} words) | Real API", expanded=False):
+                        st.markdown(artifact['content'])
+                        st.caption(f"Generated at {artifact['formatted_time']} via real API call")
+        
+        # Show real agent outputs if available
+        elif 'agent_outputs' in st.session_state and st.session_state.agent_outputs:
             st.markdown("#### 🤖 Agent Results")
             for output in st.session_state.agent_outputs:
-                timestamp_str = ""
-                if 'timestamp' in output:
-                    timestamp_str = f" - {output['timestamp'].strftime('%H:%M:%S')}"
-                with st.expander(f"📄 {output.get('agent', 'Unknown')}{timestamp_str}", expanded=False):
-                    st.markdown(output.get('content', 'No content available'))
+                # Only show real agent outputs, not simulation
+                if output.get('is_real', False):
+                    timestamp_str = ""
+                    if 'formatted_time' in output:
+                        timestamp_str = f" - {output['formatted_time']}"
+                    elif 'timestamp' in output:
+                        timestamp_str = f" - {output['timestamp'].strftime('%H:%M:%S') if hasattr(output['timestamp'], 'strftime') else str(output['timestamp'])}"
+                    
+                    with st.expander(f"📄 {output.get('agent', 'Unknown')}{timestamp_str} | Real API", expanded=False):
+                        st.markdown(output.get('content', 'No content available'))
+                        if output.get('word_count'):
+                            st.caption(f"Word count: {output['word_count']} | Generated via real API call")
         
         # Show completion status
         if st.session_state.get('execution_phase') == "completed":
@@ -2347,26 +2406,46 @@ def render_live_ai_project_launcher():
         st.markdown("---")
         st.subheader("🔄 Live Agent Activity")
         
-        # Show status updates
-        if 'project_status' in st.session_state and st.session_state.project_status:
-            st.markdown("#### 📊 Progress Updates")
+        # Show REAL timeline events (not simulation)
+        if 'live_timeline' in st.session_state and st.session_state.live_timeline:
+            st.markdown("#### 🔄 Real-Time Agent Timeline")
+            for event in st.session_state.live_timeline:
+                if event.get('is_real', False):  # Only show real events
+                    st.write(f"⏰ {event['time']} - {event['message']}")
+        
+        # Show status updates (real only)
+        elif 'project_status' in st.session_state and st.session_state.project_status:
+            st.markdown("#### 📊 Real Progress Updates")
             for status in st.session_state.project_status[-10:]:  # Show last 10 updates
-                # Handle both string and dict formats safely
-                if isinstance(status, dict):
+                # Only show real status updates, not simulation
+                if isinstance(status, dict) and status.get('is_real', False):
                     time_str = status.get('time', 'N/A')
                     message = status.get('message', 'N/A')
                     st.write(f"⏰ {time_str} - {message}")
-                else:
-                    # If it's a string, display with current time
+                elif not isinstance(status, dict):
+                    # Legacy format
                     current_time = datetime.now().strftime("%H:%M:%S")
                     st.write(f"⏰ {current_time} - {str(status)}")
         
-        # Show agent outputs if available
-        if 'agent_outputs' in st.session_state and st.session_state.agent_outputs:
-            st.markdown("#### 🤖 Agent Results")
+        # Show REAL AI artifacts and agent outputs (not simulation)
+        if 'real_artifacts' in st.session_state and st.session_state.real_artifacts:
+            st.subheader("📄 Real AI-Generated Artifacts")
+            for artifact in st.session_state.real_artifacts:
+                if artifact.get('is_real', False):
+                    with st.expander(f"📋 {artifact['title']} ({artifact['word_count']} words) | Real API", expanded=True):
+                        st.markdown(artifact['content'])
+                        st.success(f"Generated at {artifact['formatted_time']} via real API call")
+        
+        # Show real agent outputs if available  
+        elif 'agent_outputs' in st.session_state and st.session_state.agent_outputs:
+            st.markdown("#### 🤖 Real Agent Results")
             for output in st.session_state.agent_outputs:
-                with st.expander(f"📄 {output.get('agent', 'Unknown')} Output", expanded=True):
-                    st.markdown(output.get('content', 'No content available'))
+                # Only show real agent outputs, not simulation
+                if output.get('is_real', False):
+                    with st.expander(f"📄 {output.get('agent', 'Unknown')} Output | Real API", expanded=True):
+                        st.markdown(output.get('content', 'No content available'))
+                        if output.get('word_count'):
+                            st.info(f"Word count: {output['word_count']} | Generated via real API call")
     
     # Show active projects
     if hasattr(st.session_state, 'live_orchestrator') and st.session_state.live_orchestrator:

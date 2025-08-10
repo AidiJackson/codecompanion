@@ -57,6 +57,10 @@ class LiveOrchestrator:
         
         correlation_id = f"live_project_{uuid4().hex[:8]}"
         
+        # Initialize AI clients for real execution
+        from core.ai_clients import RealAIClients, AIClientConfig
+        self.ai_clients = RealAIClients(AIClientConfig())
+        
         # Create project workflow
         workflow = {
             'correlation_id': correlation_id,
@@ -68,10 +72,19 @@ class LiveOrchestrator:
             'current_phase': 0,
             'artifacts': [],
             'agent_assignments': {},
-            'quality_reviews': []
+            'quality_reviews': [],
+            'real_agent_results': []
         }
         
         self.active_workflows[correlation_id] = workflow
+        
+        # Start real agent execution
+        try:
+            await self._execute_real_agent_workflow(correlation_id, project_description, project_type)
+        except Exception as e:
+            logger.error(f"Failed to start real agent workflow: {e}")
+            workflow['status'] = 'error'
+            workflow['error'] = str(e)
         
         # Start agent workers
         await self.agent_orchestrator.start_workers()
@@ -163,6 +176,125 @@ class LiveOrchestrator:
             })
         
         return base_phases
+    
+    async def _execute_real_agent_workflow(self, correlation_id: str, project_description: str, project_type: str):
+        """Execute real AI agent workflow with API calls"""
+        from agents.base_agent import AgentInput, AgentType
+        
+        workflow = self.active_workflows[correlation_id]
+        
+        try:
+            # Phase 1: Project Manager (Claude) - Requirements Analysis
+            logger.info(f"Starting Project Manager phase for {correlation_id}")
+            pm_input = AgentInput(
+                task_id=f"{correlation_id}_requirements",
+                objective="Analyze project requirements and create detailed specifications",
+                context=f"Project: {project_description}\nType: {project_type}",
+                priority="high",
+                max_processing_time_minutes=10
+            )
+            
+            pm_result = await self.ai_clients.execute_agent(pm_input, AgentType.PROJECT_MANAGER)
+            workflow['real_agent_results'].append({
+                'agent': 'Project Manager (Claude)',
+                'phase': 'Requirements Analysis',
+                'result': pm_result.result,
+                'status': pm_result.status,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+            # Phase 2: Code Generator (GPT-4) - Implementation
+            logger.info(f"Starting Code Generator phase for {correlation_id}")
+            code_input = AgentInput(
+                task_id=f"{correlation_id}_implementation",
+                objective="Implement core functionality based on requirements",
+                context=f"Project: {project_description}\nRequirements: {pm_result.result}",
+                dependency_artifacts=[json.dumps(pm_result.result)],
+                priority="high",
+                max_processing_time_minutes=15
+            )
+            
+            code_result = await self.ai_clients.execute_agent(code_input, AgentType.CODE_GENERATOR)
+            workflow['real_agent_results'].append({
+                'agent': 'Code Generator (GPT-4)',
+                'phase': 'Implementation',
+                'result': code_result.result,
+                'status': code_result.status,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+            # Phase 3: UI Designer (Gemini) - Interface Design  
+            logger.info(f"Starting UI Designer phase for {correlation_id}")
+            ui_input = AgentInput(
+                task_id=f"{correlation_id}_ui_design",
+                objective="Design user interface and user experience",
+                context=f"Project: {project_description}\nImplementation: {code_result.result}",
+                dependency_artifacts=[json.dumps(code_result.result)],
+                priority="medium",
+                max_processing_time_minutes=10
+            )
+            
+            ui_result = await self.ai_clients.execute_agent(ui_input, AgentType.UI_DESIGNER)
+            workflow['real_agent_results'].append({
+                'agent': 'UI Designer (Gemini)',
+                'phase': 'UI Design',
+                'result': ui_result.result,
+                'status': ui_result.status,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+            # Phase 4: Test Writer (GPT-4) - Testing
+            logger.info(f"Starting Test Writer phase for {correlation_id}")
+            test_input = AgentInput(
+                task_id=f"{correlation_id}_testing",
+                objective="Create comprehensive testing strategy and test cases",
+                context=f"Project: {project_description}",
+                dependency_artifacts=[json.dumps(code_result.result), json.dumps(ui_result.result)],
+                priority="medium",
+                max_processing_time_minutes=12
+            )
+            
+            test_result = await self.ai_clients.execute_agent(test_input, AgentType.TEST_WRITER)
+            workflow['real_agent_results'].append({
+                'agent': 'Test Writer (GPT-4)', 
+                'phase': 'Testing Strategy',
+                'result': test_result.result,
+                'status': test_result.status,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+            # Phase 5: Debugger (Claude) - Code Review and Optimization
+            logger.info(f"Starting Debugger phase for {correlation_id}")
+            debug_input = AgentInput(
+                task_id=f"{correlation_id}_debugging",
+                objective="Review code quality, identify issues, and optimize performance",
+                context=f"Project: {project_description}",
+                dependency_artifacts=[json.dumps(code_result.result), json.dumps(test_result.result)],
+                priority="medium",
+                max_processing_time_minutes=10
+            )
+            
+            debug_result = await self.ai_clients.execute_agent(debug_input, AgentType.DEBUGGER)
+            workflow['real_agent_results'].append({
+                'agent': 'Debugger (Claude)',
+                'phase': 'Code Review & Optimization',
+                'result': debug_result.result,
+                'status': debug_result.status,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+            # Update workflow status
+            workflow['status'] = 'completed'
+            workflow['completion_time'] = datetime.now(timezone.utc)
+            workflow['artifacts_created'] = len(workflow['real_agent_results'])
+            
+            logger.info(f"Completed real agent workflow for {correlation_id}")
+            
+        except Exception as e:
+            logger.error(f"Real agent workflow failed for {correlation_id}: {e}")
+            workflow['status'] = 'failed'
+            workflow['error'] = str(e)
+            raise
     
     async def _execute_next_phase(self, correlation_id: str):
         """Execute the next phase in the workflow"""
@@ -434,3 +566,33 @@ class LiveOrchestrator:
                 workflow['status'] = 'stopped'
         
         logger.info("Live orchestrator stopped")
+    
+    def get_real_agent_results(self, correlation_id: str) -> List[Dict[str, Any]]:
+        """Get real agent execution results for a project"""
+        workflow = self.active_workflows.get(correlation_id)
+        if workflow:
+            return workflow.get('real_agent_results', [])
+        return []
+    
+    def get_project_progress(self, correlation_id: str) -> Dict[str, Any]:
+        """Get detailed project progress including real agent results"""
+        workflow = self.active_workflows.get(correlation_id)
+        if not workflow:
+            return {}
+        
+        real_results = workflow.get('real_agent_results', [])
+        total_phases = 5  # We have 5 phases in real execution
+        completed_phases = len(real_results)
+        
+        return {
+            'correlation_id': correlation_id,
+            'description': workflow.get('description', ''),
+            'status': workflow.get('status', 'unknown'),
+            'progress_percentage': (completed_phases / total_phases) * 100,
+            'phases_completed': completed_phases,
+            'total_phases': total_phases,
+            'real_agent_results': real_results,
+            'start_time': workflow.get('start_time'),
+            'completion_time': workflow.get('completion_time'),
+            'artifacts_created': len(real_results)
+        }

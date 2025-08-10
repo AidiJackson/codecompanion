@@ -894,43 +894,108 @@ def render_demo_monitoring():
             st.markdown(activity['status'])
 
 def render_real_monitoring(correlation_id):
-    """Real project monitoring interface"""
+    """Real project monitoring interface with actual AI agent results"""
     
     if hasattr(st.session_state, 'live_orchestrator') and st.session_state.live_orchestrator:
         try:
-            active_projects = st.session_state.live_orchestrator.get_all_live_projects()
+            # Get real agent results
+            real_results = st.session_state.live_orchestrator.get_real_agent_results(correlation_id)
+            project_progress = st.session_state.live_orchestrator.get_project_progress(correlation_id)
             
-            # Find current project
-            current_project = None
-            for project in active_projects:
-                if project['correlation_id'] == correlation_id:
-                    current_project = project
-                    break
-            
-            if current_project:
-                # Project details
-                col1, col2 = st.columns([2, 1])
+            if project_progress:
+                # Project overview
+                col1, col2, col3 = st.columns([2, 1, 1])
                 
                 with col1:
-                    st.markdown(f"**Description**: {current_project['description']}")
-                    st.markdown(f"**Current Phase**: {current_project['current_phase_name']}")
-                    st.progress(current_project['progress_percentage'] / 100)
-                    st.caption(f"Progress: {current_project['progress_percentage']:.1f}%")
+                    st.markdown(f"**Description**: {project_progress['description']}")
+                    status_emoji = "🟢" if project_progress['status'] == 'completed' else "🔄" if project_progress['status'] == 'active' else "🔴"
+                    st.markdown(f"**Status**: {status_emoji} {project_progress['status'].title()}")
                     
                 with col2:
-                    st.metric("Artifacts Created", current_project['artifacts_created'])
-                    st.metric("Current Phase", f"{current_project['current_phase']}/{current_project['total_phases']}")
+                    st.metric("Progress", f"{project_progress['progress_percentage']:.0f}%")
+                    st.progress(project_progress['progress_percentage'] / 100)
                     
-                # Agent assignments
-                if current_project['agent_assignments']:
-                    st.markdown("#### 🤖 Agent Assignments")
-                    for phase, agent in current_project['agent_assignments'].items():
-                        st.markdown(f"• **{phase}**: {agent}")
+                with col3:
+                    st.metric("Phases Complete", f"{project_progress['phases_completed']}/{project_progress['total_phases']}")
+                    st.metric("AI Agents", len(real_results))
+                
+                st.markdown("---")
+                
+                # Real Agent Results
+                if real_results:
+                    st.markdown("#### 🤖 Real AI Agent Collaboration Results")
+                    
+                    for i, result in enumerate(real_results):
+                        with st.expander(f"🎯 {result['agent']} - {result['phase']}", expanded=(i < 2)):
+                            col1, col2 = st.columns([3, 1])
+                            
+                            with col1:
+                                # Display agent result
+                                if isinstance(result['result'], dict):
+                                    if 'analysis' in result['result']:
+                                        st.markdown("**Analysis:**")
+                                        st.write(result['result']['analysis'])
+                                    
+                                    if 'tasks' in result['result']:
+                                        st.markdown("**Task Breakdown:**")
+                                        for task in result['result'].get('tasks', [])[:3]:  # Show first 3 tasks
+                                            if isinstance(task, dict):
+                                                st.markdown(f"• **{task.get('title', 'Task')}**: {task.get('description', 'No description')}")
+                                    
+                                    if 'approach' in result['result']:
+                                        st.markdown("**Technical Approach:**")
+                                        st.write(result['result']['approach'])
+                                    
+                                    if 'design_approach' in result['result']:
+                                        st.markdown("**Design Approach:**")
+                                        st.write(result['result']['design_approach'])
+                                    
+                                    if 'strategy' in result['result']:
+                                        st.markdown("**Testing Strategy:**")
+                                        st.write(result['result']['strategy'])
+                                    
+                                    # Show full result in JSON format
+                                    with st.expander("📋 Full Agent Output"):
+                                        st.json(result['result'])
+                                else:
+                                    st.write(str(result['result']))
+                            
+                            with col2:
+                                status_color = "🟢" if result['status'] == 'completed' else "🔴"
+                                st.markdown(f"**Status**: {status_color} {result['status']}")
+                                st.markdown(f"**Time**: {result['timestamp'][:19]}")
+                
+                else:
+                    st.info("🔄 AI agents are working on your project. Real results will appear here as they complete their tasks.")
+                    
+                    # Show loading animation
+                    with st.spinner("Real AI agents are collaborating on your project..."):
+                        import time
+                        time.sleep(1)  # Brief pause for effect
+                
+                # Project completion summary
+                if project_progress['status'] == 'completed':
+                    st.success("🎉 Project completed successfully!")
+                    st.markdown("#### 📊 Project Summary")
+                    
+                    summary_col1, summary_col2 = st.columns(2)
+                    with summary_col1:
+                        if project_progress.get('start_time'):
+                            st.markdown(f"**Started**: {project_progress['start_time']}")
+                        if project_progress.get('completion_time'):
+                            st.markdown(f"**Completed**: {project_progress['completion_time']}")
+                    
+                    with summary_col2:
+                        st.markdown(f"**Total Artifacts**: {project_progress['artifacts_created']}")
+                        st.markdown(f"**AI Models Used**: Claude, GPT-4, Gemini")
+            
             else:
-                st.warning(f"Project {correlation_id} not found in active projects")
+                st.warning(f"Project {correlation_id} not found")
                 
         except Exception as e:
-            st.error(f"Failed to get project status: {e}")
+            st.error(f"Failed to get real agent results: {e}")
+            st.markdown("**Error Details:**")
+            st.code(str(e))
             render_demo_monitoring()
     else:
         st.warning("Live orchestrator not available. Showing demo mode.")

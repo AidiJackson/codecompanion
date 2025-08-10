@@ -1409,11 +1409,56 @@ def render_project_launch():
                 st.warning("❌ No isolated execution found. Run isolated Claude call first.")
     
     with col3:
-        if st.button("🧹 Clear Isolated Data"):
+        if st.button("🧹 Clear All Real Data"):
+            # Clear isolated data
             for key in ['ISOLATED_REAL_STATUS', 'ISOLATED_REAL_OUTPUTS', 'isolated_executor', 'isolated_result']:
                 if key in st.session_state:
                     del st.session_state[key]
-            st.success("🧹 Isolated data cleared")
+            
+            # Clear direct UI data
+            for key in ['DIRECT_REAL_STATUS', 'DIRECT_REAL_OUTPUTS', 'DIRECT_REAL_ARTIFACTS']:
+                if key in st.session_state:
+                    del st.session_state[key]
+            
+            st.success("🧹 All real data cleared")
+    
+    # CRITICAL: DIRECT UI BYPASS TEST
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("🚀 TEST Direct UI Bypass", type="secondary"):
+            # Import direct UI updater
+            from core.direct_ui_updater import DirectUIUpdater
+            
+            # Clear any existing data first
+            for key in ['DIRECT_REAL_STATUS', 'DIRECT_REAL_OUTPUTS', 'DIRECT_REAL_ARTIFACTS']:
+                if key in st.session_state:
+                    st.session_state[key] = []
+            
+            # Create direct updater and test it
+            updater = DirectUIUpdater()
+            
+            # Test direct updates
+            updater.update_status_direct("Testing direct UI bypass system", "test_agent")
+            updater.add_agent_output_direct("Test Agent", "This is a test of the direct UI bypass system that completely skips the event bus and mock data generation. Current timestamp should be accurate.", 25)
+            updater.add_artifact_direct("Test Artifact", "This artifact was created using the direct UI bypass system, confirming that real API data can reach the UI without event bus interference.", "test")
+            
+            st.success("✅ Direct UI bypass test completed!")
+    
+    with col2:
+        if st.button("📊 Show Direct UI Summary"):
+            from core.direct_ui_updater import DirectUIUpdater
+            updater = DirectUIUpdater()
+            summary = updater.get_status_summary()
+            
+            st.json({
+                "execution_id": summary['execution_id'],
+                "status_updates": summary['status_count'],
+                "agent_outputs": summary['output_count'], 
+                "artifacts": summary['artifact_count'],
+                "total_items": summary['total_items'],
+                "last_update": summary['last_update']
+            })
 
     # Execute workflow if started
     if st.session_state.get('execution_started', False) and st.session_state.get('execution_phase') != "completed":
@@ -1583,8 +1628,38 @@ def execute_workflow_step():
                     current_time = datetime.now().strftime("%H:%M:%S")
                     st.write(f"⏰ {current_time} - {str(status)}")
         
-        # PRIORITY: Show ISOLATED real execution results first
-        if 'ISOLATED_REAL_STATUS' in st.session_state or 'ISOLATED_REAL_OUTPUTS' in st.session_state:
+        # HIGHEST PRIORITY: Show DIRECT UI BYPASS results (completely bypasses event bus)
+        if ('DIRECT_REAL_STATUS' in st.session_state or 
+            'DIRECT_REAL_OUTPUTS' in st.session_state or 
+            'DIRECT_REAL_ARTIFACTS' in st.session_state):
+            
+            st.subheader("🚀 DIRECT UI BYPASS RESULTS")
+            st.success("✅ Showing real API data via DIRECT UI updates (bypasses all event systems)")
+            
+            # Show direct status updates
+            if 'DIRECT_REAL_STATUS' in st.session_state and st.session_state.DIRECT_REAL_STATUS:
+                st.markdown("#### 📊 DIRECT Status Updates")
+                for status in st.session_state.DIRECT_REAL_STATUS:
+                    st.write(f"⏰ {status['time']} - {status['message']} | DIRECT | {status['source']}")
+            
+            # Show direct agent outputs
+            if 'DIRECT_REAL_OUTPUTS' in st.session_state and st.session_state.DIRECT_REAL_OUTPUTS:
+                st.markdown("#### 🤖 DIRECT Agent Outputs")
+                for output in st.session_state.DIRECT_REAL_OUTPUTS:
+                    with st.expander(f"📄 {output['agent']} - {output['time']} | DIRECT REAL", expanded=True):
+                        st.markdown(output['content'])
+                        st.caption(f"Word count: {output['word_count']} | DIRECT real API call | {output['source']}")
+            
+            # Show direct artifacts
+            if 'DIRECT_REAL_ARTIFACTS' in st.session_state and st.session_state.DIRECT_REAL_ARTIFACTS:
+                st.markdown("#### 📄 DIRECT AI Artifacts")
+                for artifact in st.session_state.DIRECT_REAL_ARTIFACTS:
+                    with st.expander(f"📋 {artifact['title']} - {artifact['time']} | DIRECT REAL", expanded=True):
+                        st.markdown(artifact['content'])
+                        st.caption(f"Word count: {artifact['word_count']} | DIRECT real API call | {artifact['source']}")
+        
+        # SECONDARY PRIORITY: Show ISOLATED real execution results  
+        elif 'ISOLATED_REAL_STATUS' in st.session_state or 'ISOLATED_REAL_OUTPUTS' in st.session_state:
             st.subheader("🔥 ISOLATED REAL EXECUTION RESULTS")
             
             # Show isolated status

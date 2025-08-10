@@ -107,8 +107,10 @@ class EventBus:
             self.redis.ping()
             logger.info("Connected to Redis successfully")
         except redis.ConnectionError:
-            logger.warning("Redis not available - using mock event bus")
+            logger.warning("Redis not available - DISABLING event bus completely")
             self.redis = None
+            # CRITICAL: Disable all event streaming when Redis unavailable
+            # This prevents mock events from interfering with real API data
         
         self.stream_prefix = "orchestra"
         self.consumer_groups: Dict[str, str] = {}
@@ -118,8 +120,9 @@ class EventBus:
         """Publish event to specified stream"""
         
         if not self.redis:
-            logger.info(f"Mock event published: {event.event_type} to {stream_type}")
-            return event.event_id
+            # CRITICAL: DO NOT publish mock events - they interfere with real API data
+            logger.info(f"Event bus disabled - skipping event: {event.event_type}")
+            return "disabled"  # Return indicator that event was not published
             
         try:
             stream_name = f"{self.stream_prefix}:{stream_type.value}"

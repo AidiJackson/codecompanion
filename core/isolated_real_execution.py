@@ -10,6 +10,7 @@ import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
 import streamlit as st
+from core.direct_ui_updater import DirectUIUpdater
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +21,11 @@ class IsolatedRealExecutor:
     """
     
     def __init__(self):
-        """Initialize with API clients"""
+        """Initialize with API clients and direct UI updater"""
         self.execution_id = f"isolated_{datetime.now().strftime('%H%M%S')}"
+        self.ui_updater = DirectUIUpdater()
         logger.info(f"🔧 IsolatedRealExecutor initialized: {self.execution_id}")
+        self.ui_updater.update_status_direct("Isolated Real Executor initialized", "system")
     
     def check_api_keys(self) -> Dict[str, bool]:
         """Check which API keys are available"""
@@ -35,16 +38,15 @@ class IsolatedRealExecutor:
         return keys
     
     def add_real_status(self, message: str):
-        """Add real status with current timestamp - NO simulation interference"""
+        """Add real status using direct UI updater - bypasses all event systems"""
+        self.ui_updater.update_status_direct(message, "isolated_executor")
+        logger.info(f"📢 DIRECT UI STATUS: {message}")
+        
+        # Also maintain backward compatibility
         current_time = datetime.now().strftime("%H:%M:%S")
-        
-        logger.info(f"📢 ISOLATED STATUS: {current_time} - {message}")
-        
-        # Ensure session state exists
         if 'ISOLATED_REAL_STATUS' not in st.session_state:
             st.session_state.ISOLATED_REAL_STATUS = []
         
-        # Add ONLY real event
         st.session_state.ISOLATED_REAL_STATUS.append({
             'time': current_time,
             'message': message,
@@ -52,27 +54,24 @@ class IsolatedRealExecutor:
             'source': 'ISOLATED_REAL_EXECUTOR',
             'execution_id': self.execution_id
         })
-        
-        # Force UI update
-        st.rerun()
     
     def add_real_output(self, agent_name: str, content: str):
-        """Add real agent output - NO simulation interference"""
+        """Add real agent output using direct UI updater"""
+        word_count = len(content.split())
+        self.ui_updater.add_agent_output_direct(agent_name, content, word_count)
+        logger.info(f"🤖 DIRECT UI OUTPUT: {agent_name} - {len(content)} chars")
+        
+        # Also maintain backward compatibility
         current_time = datetime.now().strftime("%H:%M:%S")
-        
-        logger.info(f"🤖 ISOLATED OUTPUT: {agent_name} - {len(content)} chars")
-        
-        # Ensure session state exists
         if 'ISOLATED_REAL_OUTPUTS' not in st.session_state:
             st.session_state.ISOLATED_REAL_OUTPUTS = []
         
-        # Add ONLY real output
         st.session_state.ISOLATED_REAL_OUTPUTS.append({
             'agent': agent_name,
             'content': content,
             'time': current_time,
             'timestamp_obj': datetime.now(),
-            'word_count': len(content.split()),
+            'word_count': word_count,
             'source': 'ISOLATED_REAL_EXECUTOR',
             'execution_id': self.execution_id
         })

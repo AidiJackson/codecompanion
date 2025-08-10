@@ -10,6 +10,8 @@ CodeCompanion Orchestra is an advanced multi-agent AI development system featuri
 
 **COMPREHENSIVE SCHEMA SYSTEM (August 10, 2025):** Built complete JSON Schema-based multi-agent system with artifact-driven communication, event-sourced orchestration, and data-driven model routing. Implemented structured schemas for artifacts, ledgers, routing decisions, and agent I/O contracts with full Pydantic validation.
 
+**REAL-TIME EVENT STREAMING INTEGRATION (August 10, 2025):** Enhanced system with production-grade Redis Streams event-sourced orchestration. Added FastAPI backend with WebSocket endpoints, real-time artifact creation/validation, event replay capability, and live collaboration feeds. System now supports both mock mode (without Redis) and full production mode with persistent event streaming.
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -35,15 +37,18 @@ Preferred communication style: Simple, everyday language.
 - **Manual Controls**: Added "Continue Orchestra", "Execute All Agents", and "Next Agent" buttons for manual progression
 
 ### Core System Components
+- **Real-Time Event Bus (Redis Streams)**: Production-grade event streaming with consumer groups, automatic retries, and stream monitoring
 - **Event-Sourced Orchestrator**: Immutable event stream managing workflow state with full auditability, replay capability, and time-travel debugging
+- **FastAPI Backend**: WebSocket endpoints for real-time UI updates, REST APIs for artifact operations, agent registration, and health monitoring
 - **Data-Driven Model Router**: Capability vector-based routing with multi-objective optimization (quality, cost, latency) and load balancing
 - **Artifact Handler**: Type-safe artifact validation, serialization, and dependency tracking with comprehensive quality scoring
 - **Schema System**: Complete JSON Schema framework with Pydantic validation for artifacts, ledgers, routing decisions, and agent contracts
-- **Project Initiation Panel**: Comprehensive interface for project description, type selection, complexity levels, and agent preview with estimated completion times
+- **Stream Consumers**: Specialized consumers for orchestration, metrics collection, UI updates, and conflict detection
 - **Live Orchestration Dashboard**: Real-time agent activity monitoring, collaboration feeds, progress tracking, and visual workflow management
+- **Event Replay System**: Time-travel debugging with correlation-based filtering and chronological event reconstruction
 - **Project Memory**: SQLite-based persistent storage for project context, agent interactions, and conversation history
 - **Communication Protocol**: Structured message system with priority levels, correlation IDs, and response requirements
-- **File Management**: Comprehensive file operations including project structure creation, code generation, and file packaging
+- **WebSocket Integration**: Real-time bidirectional communication between Streamlit frontend and FastAPI backend
 
 ### Stability and Safety Systems
 - **Error Handler**: Comprehensive error handling with exponential backoff, circuit breakers, API timeouts, and user-friendly error messages

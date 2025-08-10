@@ -1,0 +1,57 @@
+ADD REAL-TIME EVENT-SOURCED ORCHESTRATION WITH REDIS STREAMS:
+
+Enhance the existing system with production-grade event streaming and real-time collaboration:
+
+NEW REQUIREMENTS:
+Add to requirements.txt:
+- redis
+- redis-streams
+- asyncio-redis
+- fastapi
+- uvicorn
+
+EVENT STREAMING ARCHITECTURE:
+1. Event Bus (Redis Streams):
+   - tasks: task creation, assignment, completion
+   - artifacts: artifact creation, validation, approval
+   - reviews: peer review requests, approvals, conflicts
+   - metrics: performance data, routing decisions
+
+2. Event Schema:
+{
+  "event_id": "evt_12345",
+  "correlation_id": "task_142", 
+  "event_type": "artifact_created",
+  "timestamp": "2025-08-10T09:15:23Z",
+  "agent_id": "claude_agent_1",
+  "payload": {artifact_data},
+  "metadata": {"confidence": 0.85, "cost_tokens": 1200}
+}
+
+3. Stream Consumers:
+   - OrchestatorConsumer: coordinates workflow progression
+   - RouterConsumer: updates model performance metrics
+   - UIConsumer: broadcasts real-time updates to interface
+   - MetricsConsumer: collects performance analytics
+
+REAL-TIME FEATURES:
+- Live artifact stream showing creation/updates in real-time
+- Agent activity dashboard with current work assignments
+- Event replay capability for debugging workflows
+- Automatic workflow progression based on artifact completion
+- Real-time conflict detection when agents disagree
+
+FASTAPI BACKEND:
+- WebSocket endpoints for real-time UI updates
+- REST endpoints for artifact CRUD operations
+- Event streaming endpoints for workflow monitoring
+- Agent registration and health check endpoints
+
+ENHANCED STREAMLIT UI:
+- Real-time event feed with live updates
+- Agent collaboration timeline showing handoffs
+- Live workflow progress with automatic stage transitions
+- Interactive artifact approval/rejection workflow
+- Performance analytics dashboard with routing decisions
+
+Integrate this with the existing artifact schemas and create a working demonstration of real-time multi-agent collaboration with event replay capability.

@@ -12,9 +12,13 @@ Demonstrates the complete artifact-driven communication system with:
 import streamlit as st
 import asyncio
 import json
+import requests
+
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 import logging
+import threading
+import time
 
 # Schema imports
 from schemas.artifacts import ArtifactType, SpecDoc, DesignDoc, CodePatch, TestPlan, EvalReport, Runbook
@@ -25,6 +29,7 @@ from schemas.routing import ModelType, TaskType, TaskComplexity, ModelRouter, MO
 from core.orchestrator import EventSourcedOrchestrator, EventType, WorkflowEvent
 from core.router import DataDrivenRouter, RoutingContext
 from core.artifacts import ArtifactValidator, ArtifactHandler
+from core.event_streaming import RealTimeEventOrchestrator, EventBus, StreamEvent, EventType as StreamEventType, EventStreamType
 
 # Agent imports
 from agents.base_agent import BaseAgent, AgentInput, AgentOutput, AgentCapability, AgentType
@@ -59,6 +64,18 @@ def init_session_state():
         
     if 'demo_data' not in st.session_state:
         st.session_state.demo_data = create_demo_data()
+    
+    if 'real_time_orchestrator' not in st.session_state:
+        try:
+            st.session_state.real_time_orchestrator = RealTimeEventOrchestrator("streamlit_workflow")
+        except:
+            st.session_state.real_time_orchestrator = None
+    
+    if 'api_connected' not in st.session_state:
+        st.session_state.api_connected = check_api_connection()
+    
+    if 'event_stream' not in st.session_state:
+        st.session_state.event_stream = []
 
 def create_demo_data() -> Dict[str, Any]:
     """Create demonstration data showing the schema system"""
@@ -185,13 +202,26 @@ def main():
     st.title("🎼 CodeCompanion Orchestra v3")
     st.markdown("**Comprehensive JSON Schema-based Multi-Agent AI Development System**")
     
+    # API Status indicator
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col1:
+        api_status = "🟢 Connected" if st.session_state.api_connected else "🔴 Disconnected"
+        st.markdown(f"**API Status**: {api_status}")
+    with col2:
+        redis_status = "🟢 Available" if st.session_state.real_time_orchestrator and st.session_state.real_time_orchestrator.event_bus.redis else "🟡 Mock Mode"
+        st.markdown(f"**Event Streaming**: {redis_status}")
+    with col3:
+        event_count = len(st.session_state.event_stream)
+        st.markdown(f"**Live Events**: {event_count}")
+
     # Main navigation
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "📋 Schema Demonstration",
         "🎯 Task & Artifact Management", 
         "🤖 Agent Orchestration",
         "📊 Routing & Performance",
-        "⚡ Live Workflow Monitor"
+        "⚡ Live Workflow Monitor",
+        "🌊 Event Streaming (New)"
     ])
     
     with tab1:
@@ -208,6 +238,9 @@ def main():
     
     with tab5:
         render_workflow_monitor()
+    
+    with tab6:
+        render_event_streaming_dashboard()
 
 def render_schema_demo():
     """Demonstrate the comprehensive schema system"""
@@ -237,7 +270,7 @@ def render_schema_demo():
             # Show example artifact
             st.markdown("### Example: SpecDoc Schema")
             example_spec = st.session_state.demo_data["artifacts"]["spec_doc"]
-            st.json(example_spec.dict())
+            st.json(example_spec.model_dump())
             
         elif schema_type == "Task Ledgers":
             st.markdown("### Task Ledger Components")
@@ -250,7 +283,7 @@ def render_schema_demo():
             """)
             
             example_task = st.session_state.demo_data["task"]
-            st.json(example_task.dict())
+            st.json(example_task.model_dump())
             
         elif schema_type == "Model Routing":
             st.markdown("### Routing Decision Framework")
@@ -264,7 +297,7 @@ def render_schema_demo():
             # Show model capabilities
             for model_capability in MODEL_CAPABILITIES[:2]:
                 st.markdown(f"**{model_capability.display_name}**")
-                st.json(model_capability.dict())
+                st.json(model_capability.model_dump())
                 break
     
     with col2:
@@ -378,7 +411,7 @@ def render_task_management():
                 st.markdown(f"**Version**: {artifact.version}")
                 
                 if st.button(f"View {artifact_name}", key=f"view_{artifact_name}"):
-                    st.json(artifact.dict())
+                    st.json(artifact.model_dump())
 
 def render_agent_orchestration():
     """Agent orchestration and workflow management"""
@@ -442,7 +475,7 @@ def render_agent_orchestration():
                 quality_threshold=0.9,
                 submitted_by="orchestrator"
             )
-            st.json(agent_input.dict())
+            st.json(agent_input.model_dump())
     
     with col2:
         st.subheader("🔄 Workflow Events")
@@ -693,6 +726,206 @@ def create_artifact_template(artifact_type: ArtifactType) -> Dict[str, Any]:
         })
     
     return base_template
+
+def check_api_connection() -> bool:
+    """Check if FastAPI server is available"""
+    try:
+        response = requests.get("http://localhost:8000/api/health", timeout=2)
+        return response.status_code == 200
+    except:
+        return False
+
+def render_event_streaming_dashboard():
+    """Real-time event streaming dashboard with Redis Streams"""
+    
+    st.header("🌊 Real-Time Event Streaming Dashboard")
+    st.markdown("**Production-grade event-sourced orchestration with Redis Streams**")
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.subheader("📡 Event Stream Control")
+        
+        if st.session_state.api_connected:
+            st.success("FastAPI Backend Connected")
+            
+            # Start workflow controls
+            st.markdown("### Start New Workflow")
+            workflow_name = st.text_input("Workflow Name", value="E-commerce API Development")
+            
+            if st.button("🚀 Start Real-Time Workflow"):
+                try:
+                    # Create task data
+                    tasks = [
+                        {
+                            "task_id": "spec_generation",
+                            "title": "Generate API Specification",
+                            "goal": "Create comprehensive API spec",
+                            "description": "Generate detailed API specification with endpoints and schemas"
+                        },
+                        {
+                            "task_id": "design_architecture", 
+                            "title": "Design System Architecture",
+                            "goal": "Create system design",
+                            "description": "Design scalable architecture with microservices"
+                        }
+                    ]
+                    
+                    # Start workflow via API
+                    response = requests.post("http://localhost:8000/api/workflows/start", 
+                                           json={"tasks": tasks, "workflow_name": workflow_name})
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        st.success(f"Workflow started! Correlation ID: {data['correlation_id']}")
+                        st.session_state.current_correlation_id = data['correlation_id']
+                    else:
+                        st.error(f"Failed to start workflow: {response.text}")
+                
+                except Exception as e:
+                    st.error(f"Error starting workflow: {e}")
+            
+            # Artifact creation
+            st.markdown("### Create Artifact")
+            artifact_type = st.selectbox("Artifact Type", [at.value for at in ArtifactType])
+            agent_id = st.selectbox("Creating Agent", ["claude_agent", "gpt4_agent", "gemini_agent"])
+            
+            if st.button("📄 Create Real-Time Artifact"):
+                try:
+                    correlation_id = st.session_state.get('current_correlation_id', 'demo_correlation')
+                    
+                    # Create artifact via API
+                    artifact_content = {
+                        "title": f"Real-time {artifact_type}",
+                        "confidence": 0.9,
+                        "content": f"Generated {artifact_type} with real-time event streaming"
+                    }
+                    
+                    response = requests.post("http://localhost:8000/api/artifacts/create",
+                                           json={
+                                               "artifact_type": artifact_type,
+                                               "content": artifact_content,
+                                               "agent_id": agent_id,
+                                               "correlation_id": correlation_id
+                                           })
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        st.success(f"Artifact created: {data['artifact_id']}")
+                        st.json(data)
+                    else:
+                        st.error(f"Failed to create artifact: {response.text}")
+                
+                except Exception as e:
+                    st.error(f"Error creating artifact: {e}")
+        
+        else:
+            st.error("FastAPI Backend Not Available")
+            st.markdown("""
+            To enable real-time features:
+            1. Start the FastAPI server: `python api_server.py`
+            2. Optionally start Redis for full event streaming
+            3. Refresh this page
+            """)
+    
+    with col2:
+        st.subheader("📊 Real-Time Statistics")
+        
+        if st.button("🔄 Refresh Stats"):
+            if st.session_state.api_connected:
+                try:
+                    response = requests.get("http://localhost:8000/api/stats/real-time")
+                    if response.status_code == 200:
+                        stats = response.json()
+                        st.json(stats)
+                    else:
+                        st.error("Failed to get stats")
+                except Exception as e:
+                    st.error(f"Stats error: {e}")
+            else:
+                # Show mock stats
+                mock_stats = {
+                    "workflow_id": "mock_workflow",
+                    "mock_mode": True,
+                    "message": "Start FastAPI server for real-time stats"
+                }
+                st.json(mock_stats)
+        
+        # Event stream display
+        st.subheader("🌊 Live Event Stream")
+        
+        if st.session_state.get('current_correlation_id'):
+            correlation_id = st.session_state.current_correlation_id
+            
+            if st.button("📜 Get Workflow Events"):
+                try:
+                    response = requests.get(f"http://localhost:8000/api/workflows/{correlation_id}/events")
+                    if response.status_code == 200:
+                        data = response.json()
+                        st.markdown(f"**Events for {correlation_id}:**")
+                        
+                        for event in data.get('events', []):
+                            with st.expander(f"{event['event_type']} - {event['timestamp'][:19]}"):
+                                st.json(event)
+                    else:
+                        st.error("Failed to get events")
+                except Exception as e:
+                    st.error(f"Events error: {e}")
+        else:
+            st.info("Start a workflow to see live events")
+    
+    # Event replay section
+    st.subheader("🔄 Event Replay & Time Travel")
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown("### Event Replay Controls")
+        replay_correlation = st.text_input("Correlation ID for Replay", 
+                                         value=st.session_state.get('current_correlation_id', ''))
+        
+        if st.button("🎬 Replay Events"):
+            if replay_correlation and st.session_state.api_connected:
+                try:
+                    response = requests.get(f"http://localhost:8000/api/workflows/{replay_correlation}/events")
+                    if response.status_code == 200:
+                        data = response.json()
+                        st.success(f"Found {data['count']} events for replay")
+                        
+                        # Display events chronologically
+                        st.markdown("### Event Timeline")
+                        for i, event in enumerate(data.get('events', [])):
+                            st.markdown(f"**{i+1}.** {event['event_type']} at {event['timestamp'][:19]}")
+                            if event.get('agent_id'):
+                                st.markdown(f"   👤 Agent: {event['agent_id']}")
+                            if event.get('payload'):
+                                with st.expander("View Event Data"):
+                                    st.json(event['payload'])
+                except Exception as e:
+                    st.error(f"Replay error: {e}")
+    
+    with col2:
+        st.markdown("### Real-Time Collaboration Feed")
+        
+        if st.session_state.real_time_orchestrator:
+            st.info("Event streaming system ready")
+            
+            # Simulate some real-time events for demo
+            if st.button("🎭 Simulate Agent Activity"):
+                # Add mock events to session state
+                mock_events = [
+                    {"type": "agent_started", "agent": "claude_agent", "task": "spec_generation"},
+                    {"type": "artifact_created", "agent": "claude_agent", "artifact": "spec_doc_001"},
+                    {"type": "review_requested", "artifact": "spec_doc_001", "reviewer": "gpt4_agent"},
+                    {"type": "agent_started", "agent": "gpt4_agent", "task": "design_architecture"}
+                ]
+                
+                st.session_state.event_stream.extend(mock_events)
+                
+                for event in mock_events:
+                    st.markdown(f"🔄 **{event['type']}** - {event.get('agent', 'system')}")
+        else:
+            st.warning("Event streaming not initialized")
 
 if __name__ == "__main__":
     main()

@@ -30,75 +30,201 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Initialize session state
-if "agents" not in st.session_state:
-    st.session_state.agents = {}
-if "orchestrator" not in st.session_state:
-    st.session_state.orchestrator = None
-if "memory" not in st.session_state:
-    st.session_state.memory = ProjectMemory()
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-if "current_project" not in st.session_state:
-    st.session_state.current_project = None
-if "agent_status" not in st.session_state:
-    st.session_state.agent_status = {}
-if "project_files" not in st.session_state:
-    st.session_state.project_files = {}
-if "active_project" not in st.session_state:
-    st.session_state.active_project = None
-if "workflow_status" not in st.session_state:
-    st.session_state.workflow_status = None
-if "workflow_orchestrator" not in st.session_state:
-    st.session_state.workflow_orchestrator = None
+# Initialize session state with comprehensive error handling
+from utils.session_manager import init_session_safely, get_session_value, set_session_value
+from utils.error_handler import log_user_action, logger
+
+# Initialize session safely
+try:
+    if not init_session_safely():
+        st.error("Failed to initialize session. Please refresh the page.")
+        st.stop()
+except Exception as e:
+    logger.error(f"Critical error during session initialization: {str(e)}")
+    st.error("Critical initialization error. Please refresh the page and try again.")
+    st.stop()
 
 def initialize_agents():
-    """Initialize all agents with multi-model integration"""
-    if not st.session_state.agents:
-        st.session_state.agents = {
-            "project_manager": ProjectManagerAgent(),
-            "code_generator": CodeGeneratorAgent(),
-            "ui_designer": UIDesignerAgent(),
-            "test_writer": TestWriterAgent(),
-            "debugger": DebuggerAgent()
-        }
-        st.session_state.orchestrator = AgentOrchestrator(st.session_state.agents, st.session_state.memory)
-        st.session_state.workflow_orchestrator = WorkflowOrchestrator(st.session_state.agents)
+    """Initialize all agents with comprehensive error handling"""
+    from utils.error_handler import safe_api_call, logger
+    from utils.session_manager import session_manager
+    
+    try:
+        # Check if already initialized
+        if get_session_value('agents') and get_session_value('orchestrator'):
+            return True
         
-        # Initialize agent status
-        for agent_name in st.session_state.agents:
-            st.session_state.agent_status[agent_name] = {
-                "status": "idle",
-                "progress": 0,
-                "current_task": "",
-                "last_activity": None
-            }
+        # Initialize through session manager (it handles errors internally)
+        session_manager._initialize_agents_safely()
+        
+        log_user_action("agents_initialized", {"success": True})
+        return True
+        
+    except Exception as e:
+        logger.error(f"Critical error initializing agents: {str(e)}")
+        st.error("Failed to initialize AI agents. Please refresh the page.")
+        log_user_action("agents_initialization_failed", {"error": str(e)})
+        return False
 
 def update_agent_status(agent_name: str, status: str, progress: int = 0, task: str = ""):
-    """Update agent status and trigger UI refresh"""
-    st.session_state.agent_status[agent_name] = {
-        "status": status,
-        "progress": progress,
-        "current_task": task,
-        "last_activity": datetime.now()
-    }
+    """Update agent status with comprehensive error handling"""
+    from utils.error_handler import logger
+    
+    try:
+        # Validate inputs
+        if not agent_name or not isinstance(agent_name, str):
+            logger.warning(f"Invalid agent name: {agent_name}")
+            return False
+            
+        if not isinstance(progress, int) or progress < 0 or progress > 100:
+            progress = max(0, min(100, int(progress))) if isinstance(progress, (int, float)) else 0
+        
+        # Get current agent status safely
+        agent_status = get_session_value('agent_status', {})
+        
+        # Update status
+        agent_status[agent_name] = {
+            "status": str(status),
+            "progress": progress,
+            "current_task": str(task)[:200],  # Limit task description length
+            "last_activity": datetime.now()
+        }
+        
+        # Save back to session state
+        set_session_value('agent_status', agent_status)
+        
+        log_user_action("agent_status_updated", {
+            "agent": agent_name, 
+            "status": status, 
+            "progress": progress
+        })
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error updating agent status for {agent_name}: {str(e)}")
+        return False
 
 def main():
-    st.title("🤖 CodeCompanion - Multi-Agent AI Development System")
-    st.markdown("### Live collaboration between specialized AI agents")
+    """Main application with comprehensive error handling and stability measures"""
+    from utils.error_handler import log_user_action, get_error_help_message
+    from utils.session_manager import validate_session, cleanup_session, emergency_reset, partial_reset, session_manager
     
-    # Initialize agents
-    initialize_agents()
+    try:
+        st.title("🤖 CodeCompanion - Multi-Agent AI Development System")
+        st.markdown("### Live collaboration between specialized AI agents")
+        
+        # Add emergency controls in sidebar
+        with st.sidebar:
+            render_emergency_controls()
+        
+        # Validate session state
+        validation_results = validate_session()
+        failed_validations = [k for k, v in validation_results.items() if not v]
+        
+        if failed_validations:
+            st.warning(f"Session validation issues detected: {', '.join(failed_validations)}")
+            if st.button("🔧 Fix Session Issues"):
+                partial_reset()
+                st.rerun()
+        
+        # Initialize agents with error handling
+        if not initialize_agents():
+            st.error("Failed to initialize AI agents. Please try the emergency reset.")
+            return
+        
+        # Periodic memory cleanup
+        if get_session_value('error_count', 0) > 5:
+            cleanup_session()
+            session_manager.increment_error_count()
+        
+        # Check if we have an active orchestrated project
+        active_project = get_session_value('active_project')
+        if active_project:
+            render_live_orchestration_dashboard()
+        else:
+            render_project_initiation_panel()
+            
+        log_user_action("main_page_rendered", {"active_project": bool(active_project)})
+        
+    except Exception as e:
+        logger.error(f"Critical error in main(): {str(e)}")
+        session_manager.increment_error_count()
+        
+        st.error("A critical error occurred. Please use the emergency controls.")
+        st.exception(e)
+        
+        # Show emergency controls prominently
+        st.markdown("---")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("🔄 Partial Reset", type="primary"):
+                partial_reset()
+                st.rerun()
+        with col2:
+            if st.button("🚨 Emergency Reset", type="secondary"):
+                emergency_reset()
+                st.rerun()
+        with col3:
+            if st.button("🧹 Clear Memory"):
+                cleanup_session()
+                st.rerun()
+
+def render_emergency_controls():
+    """Render emergency controls in sidebar"""
+    from utils.session_manager import session_manager, validate_session, cleanup_session
     
-    # Check if we have an active orchestrated project
-    if st.session_state.active_project:
-        render_live_orchestration_dashboard()
+    st.markdown("## 🚨 Emergency Controls")
+    
+    # Session health check
+    session_info = session_manager.get_session_info()
+    error_count = session_info.get('error_count', 0)
+    
+    if error_count > 0:
+        st.warning(f"Errors detected: {error_count}")
     else:
-        render_project_initiation_panel()
+        st.success("Session healthy")
+    
+    # Emergency buttons
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🔄 Partial Reset", help="Reset problematic state while keeping chat history"):
+            partial_reset()
+            st.success("Partial reset completed")
+            st.rerun()
+    
+    with col2:
+        if st.button("🚨 Full Reset", help="Complete session reset (clears everything)"):
+            emergency_reset()
+            st.success("Emergency reset completed")
+            st.rerun()
+    
+    if st.button("🧹 Memory Cleanup", help="Clean up old data to free memory"):
+        cleanup_session()
+        st.success("Memory cleanup completed")
+        st.rerun()
+    
+    # Session info expander
+    with st.expander("📊 Session Info", expanded=False):
+        for key, value in session_info.items():
+            st.text(f"{key}: {value}")
+    
+    # Validation status
+    with st.expander("🔍 Validation Status", expanded=False):
+        validation_results = validate_session()
+        for key, valid in validation_results.items():
+            status = "✅" if valid else "❌"
+            st.text(f"{status} {key}")
     
     # Secondary tabs for additional functionality
     st.markdown("---")
-    tab1, tab2, tab3, tab4 = st.tabs(["💬 Agent Chat", "📊 Collaboration Dashboard", "📁 Project Files", "⚙️ Settings"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "💬 Agent Chat", 
+        "📊 Collaboration Dashboard", 
+        "📁 Project Files", 
+        "🏥 System Health",
+        "⚙️ Settings"
+    ])
     
     with tab1:
         render_chat_interface()
@@ -111,6 +237,10 @@ def main():
         render_project_files()
     
     with tab4:
+        from components.stability_monitor import render_stability_monitor
+        render_stability_monitor()
+    
+    with tab5:
         render_settings()
 
 def render_chat_interface():
@@ -158,89 +288,281 @@ def render_chat_interface():
                 st.markdown(message['content'])
             st.markdown("---")
     
-    # User input
+    # User input with enhanced safety
     st.markdown("### ✍️ New Request")
-    user_input = st.text_area("Describe your development task:", height=100, 
-                             placeholder="e.g., 'Create a web app for task management with user authentication'")
     
-    col1, col2 = st.columns([1, 4])
+    # Input validation info
+    st.caption("💡 Tip: Be specific and clear. Max 5000 characters.")
+    
+    user_input = st.text_area(
+        "Describe your development task:", 
+        height=100, 
+        max_chars=5000,
+        placeholder="e.g., 'Create a web app for task management with user authentication'",
+        help="Describe what you want to build. The AI agents will collaborate to create it."
+    )
+    
+    # Character count
+    if user_input:
+        char_count = len(user_input)
+        if char_count > 4000:
+            st.warning(f"Input length: {char_count}/5000 characters (getting close to limit)")
+        else:
+            st.caption(f"Characters: {char_count}/5000")
+    
+    col1, col2, col3 = st.columns([1, 1, 3])
+    
     with col1:
-        if st.button("🚀 Submit", disabled=not user_input.strip()):
-            process_user_request(user_input.strip())
+        submit_disabled = not user_input.strip() or len(user_input.strip()) < 10
+        if st.button("🚀 Submit", 
+                    disabled=submit_disabled,
+                    help="Submit your request to the AI agents"):
+            if process_user_request(user_input.strip()):
+                st.balloons()
     
     with col2:
-        if st.button("🤝 Get Team Consensus", disabled=not user_input.strip()):
+        consensus_disabled = not user_input.strip() or len(user_input.strip()) < 10
+        if st.button("🤝 Get Team Consensus", 
+                    disabled=consensus_disabled,
+                    help="Get input from multiple AI agents before proceeding"):
             get_agent_consensus(user_input.strip())
+    
+    with col3:
+        # Emergency stop button
+        if st.button("⏹️ Stop All Operations", 
+                    type="secondary",
+                    help="Emergency stop for all running operations"):
+            emergency_stop_operations()
 
 def process_user_request(request: str):
-    """Process user request through the multi-agent system"""
-    # Add user message to chat history
-    st.session_state.chat_history.append({
-        "role": "user",
-        "content": request,
-        "timestamp": datetime.now().isoformat()
-    })
-    
-    # Update UI to show processing
-    st.info("🤖 AI agents are collaborating on your request...")
+    """Process user request with comprehensive error handling and stability measures"""
+    from utils.error_handler import validate_input, safe_api_call, get_error_help_message, log_user_action
+    from utils.session_manager import session_manager
     
     try:
-        # Process through orchestrator
-        if st.session_state.orchestrator:
-            with st.spinner("Multi-agent processing in progress..."):
-                result = st.session_state.orchestrator.process_request(request)
-                
-                # Add agent response to chat history
-                st.session_state.chat_history.append({
-                    "role": "assistant", 
-                    "content": result.get("response", "No response generated"),
-                    "agent": result.get("agent", "System"),
-                    "model": result.get("model_used", "Unknown"),
-                    "timestamp": datetime.now().isoformat()
-                })
-                
-                # Handle any generated files
-                if "files" in result:
-                    st.session_state.project_files.update(result["files"])
-                
-                st.success("✅ Task completed by AI agents!")
-                st.rerun()
+        # Validate input
+        validation = validate_input(request, max_length=5000)
+        if not validation['valid']:
+            st.error(f"Input validation failed: {validation['error']}")
+            return False
+        
+        sanitized_request = validation['sanitized']
+        
+        # Add user message to chat history safely
+        chat_history = get_session_value('chat_history', [])
+        
+        # Limit chat history length
+        if len(chat_history) > 100:
+            chat_history = chat_history[-100:]
+            set_session_value('chat_history', chat_history)
+        
+        chat_history.append({
+            "role": "user",
+            "content": sanitized_request,
+            "timestamp": datetime.now().isoformat()
+        })
+        set_session_value('chat_history', chat_history)
+        
+        log_user_action("user_request_submitted", {"request_length": len(sanitized_request)})
+        
+        # Show progress with timeout
+        progress_container = st.empty()
+        progress_container.info("🤖 AI agents are collaborating on your request...")
+        
+        # Get orchestrator safely
+        orchestrator = get_session_value('orchestrator')
+        if not orchestrator:
+            st.error("AI system not ready. Please refresh the page.")
+            session_manager.increment_error_count()
+            return False
+        
+        # Process with timeout and error handling
+        def _process_request():
+            return orchestrator.process_request(sanitized_request)
+        
+        result = safe_api_call(
+            _process_request,
+            service_name="orchestrator_process",
+            timeout=45  # 45 second timeout
+        )
+        
+        progress_container.empty()
+        
+        if result['success']:
+            response_data = result.get('data', {})
+            
+            # Add agent response to chat history
+            chat_history.append({
+                "role": "assistant", 
+                "content": response_data.get("response", result.get('content', "Task completed successfully")),
+                "agent": response_data.get("agent", "System"),
+                "model": response_data.get("model_used", "Unknown"),
+                "timestamp": datetime.now().isoformat()
+            })
+            set_session_value('chat_history', chat_history)
+            
+            # Handle any generated files safely
+            if "files" in response_data and response_data["files"]:
+                project_files = get_session_value('project_files', {})
+                project_files.update(response_data["files"])
+                set_session_value('project_files', project_files)
+            
+            st.success("✅ Task completed by AI agents!")
+            log_user_action("user_request_completed", {"success": True})
+            st.rerun()
+            return True
+            
+        else:
+            error_type = result.get('error_type', 'unknown')
+            error_help = get_error_help_message(error_type)
+            
+            st.error(f"Processing failed: {error_help}")
+            
+            # Add error message to chat
+            chat_history.append({
+                "role": "assistant", 
+                "content": f"I encountered an error: {error_help}",
+                "agent": "System",
+                "error": True,
+                "timestamp": datetime.now().isoformat()
+            })
+            set_session_value('chat_history', chat_history)
+            
+            session_manager.increment_error_count()
+            log_user_action("user_request_failed", {"error_type": error_type})
+            return False
+            
     except Exception as e:
-        st.error(f"Error processing request: {str(e)}")
+        logger.error(f"Critical error processing user request: {str(e)}")
+        session_manager.increment_error_count()
+        
+        st.error("A critical error occurred while processing your request.")
+        st.info("Please try:")
+        st.info("1. Using simpler language")
+        st.info("2. Breaking your request into smaller parts") 
+        st.info("3. Using the 'Clear Chat History' button")
+        st.info("4. Refreshing the page if problems persist")
+        
+        log_user_action("user_request_critical_error", {"error": str(e)})
+        return False
 
 def get_agent_consensus(question: str):
-    """Get consensus from multiple agents"""
-    st.info("🤝 Consulting agent team for consensus...")
+    """Get consensus from multiple agents with comprehensive error handling"""
+    from utils.error_handler import validate_input, safe_api_call, log_user_action
+    from utils.session_manager import session_manager
     
     try:
-        # This would integrate with the orchestrator's consensus feature
-        with st.spinner("Building team consensus..."):
-            time.sleep(2)  # Simulate processing time
+        # Validate input
+        validation = validate_input(question, max_length=2000)
+        if not validation['valid']:
+            st.error(f"Input validation failed: {validation['error']}")
+            return False
+        
+        sanitized_question = validation['sanitized']
+        log_user_action("consensus_requested", {"question_length": len(sanitized_question)})
+        
+        st.info("🤝 Consulting agent team for consensus...")
+        
+        # Get agents safely
+        agents = get_session_value('agents', {})
+        if len(agents) < 3:
+            st.error("Not enough AI agents available. Please refresh the page.")
+            return False
+        
+        progress_bar = st.progress(0)
+        consensus_container = st.empty()
+        
+        def _build_consensus():
+            # Simulate consensus building with multiple agents
+            responses = {}
+            agent_names = list(agents.keys())[:4]  # Limit to 4 agents for consensus
             
-            # Add consensus result to chat
-            consensus_response = f"""
-            ## 🤝 Agent Team Consensus
-
-            **Question:** {question}
-
-            **Project Manager:** Strategic analysis suggests focusing on scalable architecture and clear milestones...
-            **Code Generator:** Implementation should prioritize clean, maintainable code with proper documentation...
-            **Test Writer:** Quality assurance strategy should include comprehensive testing at all levels...
-
-            **Team Consensus:** Proceed with a balanced approach that addresses architecture, implementation, and quality assurance.
-            """
+            for i, agent_name in enumerate(agent_names):
+                try:
+                    agent = agents[agent_name]
+                    response = agent.process_request(f"Provide your expert opinion on: {sanitized_question}")
+                    responses[agent_name] = response.get('content', 'No response')
+                    
+                    progress_bar.progress((i + 1) / len(agent_names))
+                    consensus_container.info(f"Getting input from {agent_name.replace('_', ' ').title()}...")
+                    
+                except Exception as e:
+                    logger.warning(f"Error getting consensus from {agent_name}: {str(e)}")
+                    responses[agent_name] = f"Unable to get response from {agent_name}"
             
-            st.session_state.chat_history.append({
+            return responses
+        
+        result = safe_api_call(
+            _build_consensus,
+            service_name="agent_consensus",
+            timeout=60
+        )
+        
+        progress_bar.empty()
+        consensus_container.empty()
+        
+        if result['success']:
+            responses = result.get('data', {})
+            
+            # Format consensus response
+            consensus_response = f"## 🤝 Agent Team Consensus\n\n**Question:** {sanitized_question}\n\n"
+            
+            for agent_name, response in responses.items():
+                agent_title = agent_name.replace('_', ' ').title()
+                preview = response[:200] + "..." if len(response) > 200 else response
+                consensus_response += f"**{agent_title}:** {preview}\n\n"
+            
+            consensus_response += "**Team Recommendation:** Based on the above analysis, proceed with a collaborative approach that combines the strengths of each perspective."
+            
+            # Add to chat history
+            chat_history = get_session_value('chat_history', [])
+            chat_history.append({
                 "role": "assistant",
                 "content": consensus_response,
                 "agent": "Agent Team Consensus",
                 "timestamp": datetime.now().isoformat()
             })
+            set_session_value('chat_history', chat_history)
             
             st.success("✅ Team consensus reached!")
+            log_user_action("consensus_completed", {"success": True})
             st.rerun()
+            return True
+            
+        else:
+            error_help = get_error_help_message(result.get('error_type', 'unknown'))
+            st.error(f"Consensus building failed: {error_help}")
+            session_manager.increment_error_count()
+            log_user_action("consensus_failed", {"error_type": result.get('error_type')})
+            return False
+            
     except Exception as e:
-        st.error(f"Error building consensus: {str(e)}")
+        logger.error(f"Critical error building consensus: {str(e)}")
+        session_manager.increment_error_count()
+        st.error("Unable to build consensus. Please try again or refresh the page.")
+        log_user_action("consensus_critical_error", {"error": str(e)})
+        return False
+
+def emergency_stop_operations():
+    """Emergency stop for all running operations"""
+    try:
+        # Clear any running operations
+        set_session_value('workflow_status', 'stopped')
+        
+        # Reset agent statuses
+        agent_status = get_session_value('agent_status', {})
+        for agent_name in agent_status:
+            agent_status[agent_name]['status'] = 'stopped'
+            agent_status[agent_name]['current_task'] = 'Operation stopped by user'
+        set_session_value('agent_status', agent_status)
+        
+        st.warning("🛑 All operations have been stopped.")
+        log_user_action("emergency_stop", {"success": True})
+        
+    except Exception as e:
+        logger.error(f"Error during emergency stop: {str(e)}")
+        st.error("Error stopping operations. Please use the emergency reset.")
+        log_user_action("emergency_stop_failed", {"error": str(e)})
 
 def render_project_files():
     """Render project files interface"""
@@ -270,46 +592,164 @@ def render_project_files():
             st.success("Download feature would be implemented here")
 
 def render_settings():
-    """Render application settings"""
+    """Render application settings with enhanced safety controls"""
+    from utils.session_manager import cleanup_session, partial_reset, emergency_reset, session_manager
+    from utils.error_handler import log_user_action
+    
     st.markdown("## ⚙️ Application Settings")
     
+    # Safety Controls Section
+    st.markdown("### 🛡️ Safety & Stability Controls")
+    
+    safety_col1, safety_col2, safety_col3 = st.columns(3)
+    
+    with safety_col1:
+        if st.button("🧹 Clean Memory", help="Remove old data to free up memory"):
+            cleanup_session()
+            st.success("Memory cleanup completed!")
+            log_user_action("memory_cleanup", {"source": "settings"})
+            st.rerun()
+    
+    with safety_col2:
+        if st.button("🔄 Partial Reset", help="Reset problematic state while keeping important data"):
+            partial_reset()
+            st.success("Partial reset completed!")
+            log_user_action("partial_reset", {"source": "settings"})
+            st.rerun()
+    
+    with safety_col3:
+        if st.button("🚨 Emergency Reset", help="Complete system reset (clears everything)"):
+            emergency_reset()
+            st.success("Emergency reset completed!")
+            log_user_action("emergency_reset", {"source": "settings"})
+            st.rerun()
+    
+    # Agent Configuration Section
     st.markdown("### 🤖 Agent Specializations")
     st.info("Each agent is specialized for specific development tasks.")
     
-    # Show current agent roles
-    assignments = {
-        "📋 Project Manager": "Strategic planning, requirement analysis, team coordination",
-        "💻 Code Generator": "Backend development, algorithms, APIs, database design",
-        "🎨 UI Designer": "Frontend development, user experience, visual design",
-        "🧪 Test Writer": "Quality assurance, test generation, validation",
-        "🔍 Debugger": "Code analysis, bug detection, performance optimization"
-    }
+    agents = get_session_value('agents', {})
+    if agents:
+        for agent_name, agent in agents.items():
+            try:
+                agent_title = agent_name.replace('_', ' ').title()
+                agent_role = getattr(agent, 'role', 'Unknown Role')
+                agent_spec = getattr(agent, 'specialization', 'No specialization defined')
+                
+                with st.expander(f"🤖 {agent_title}"):
+                    st.write(f"**Role:** {agent_role}")
+                    st.write(f"**Specialization:** {agent_spec}")
+                    
+                    # Agent health check
+                    try:
+                        status_info = agent.get_status_info() if hasattr(agent, 'get_status_info') else {}
+                        if status_info:
+                            st.json(status_info)
+                    except Exception:
+                        st.caption("Status information unavailable")
+            except Exception as e:
+                st.error(f"Error displaying {agent_name}: {str(e)}")
+    else:
+        st.warning("No agents loaded. Please refresh the page.")
     
-    for agent, role in assignments.items():
-        st.write(f"**{agent}:** {role}")
+    # Data Management Section  
+    st.markdown("### 🗂️ Data Management")
     
-    st.markdown("### 🔄 System Actions")
+    data_col1, data_col2, data_col3 = st.columns(3)
     
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🧹 Clear Chat History"):
-            st.session_state.chat_history = []
+    with data_col1:
+        chat_history = get_session_value('chat_history', [])
+        if st.button(f"🧹 Clear Chat History ({len(chat_history)} msgs)"):
+            set_session_value('chat_history', [])
             st.success("Chat history cleared!")
+            log_user_action("chat_history_cleared", {"message_count": len(chat_history)})
             st.rerun()
     
-    with col2:
-        if st.button("🗂️ Clear Project Files"):
-            st.session_state.project_files = {}
+    with data_col2:
+        project_files = get_session_value('project_files', {})
+        if st.button(f"🗂️ Clear Project Files ({len(project_files)} files)"):
+            set_session_value('project_files', {})
             st.success("Project files cleared!")
+            log_user_action("project_files_cleared", {"file_count": len(project_files)})
             st.rerun()
     
-    st.markdown("### 📊 System Information")
-    st.write(f"**Active Agents:** {len(st.session_state.agents)}")
-    st.write(f"**Chat Messages:** {len(st.session_state.chat_history)}")
-    st.write(f"**Project Files:** {len(st.session_state.project_files)}")
+    with data_col3:
+        if st.button("🔄 Reset Agent Status"):
+            agent_status = get_session_value('agent_status', {})
+            for agent_name in agent_status:
+                agent_status[agent_name] = {
+                    "status": "idle",
+                    "progress": 0,
+                    "current_task": "",
+                    "last_activity": None
+                }
+            set_session_value('agent_status', agent_status)
+            st.success("Agent statuses reset!")
+            st.rerun()
     
-    st.markdown("### 🏥 System Health")
-    st.write("**Status:** ✅ All systems operational")
+    # System Information Section
+    st.markdown("### 📊 System Information")
+    
+    try:
+        session_info = session_manager.get_session_info()
+        
+        info_col1, info_col2 = st.columns(2)
+        
+        with info_col1:
+            st.metric("Active Agents", session_info.get('agents_loaded', 'Unknown'))
+            st.metric("Chat Messages", session_info.get('chat_messages', 0))
+            st.metric("Project Files", session_info.get('project_files_count', 0))
+        
+        with info_col2:
+            st.metric("Session ID", session_info.get('session_id', 'Unknown'))
+            st.metric("Error Count", session_info.get('error_count', 0))
+            st.metric("Memory Loaded", "✅" if session_info.get('memory_loaded') else "❌")
+        
+        # Detailed session info
+        with st.expander("🔍 Detailed Session Info", expanded=False):
+            st.json(session_info)
+            
+    except Exception as e:
+        st.error(f"Error getting system information: {str(e)}")
+    
+    # Performance Settings
+    st.markdown("### ⚡ Performance Settings")
+    
+    perf_col1, perf_col2 = st.columns(2)
+    
+    with perf_col1:
+        max_chat_history = st.slider(
+            "Max Chat History Length", 
+            min_value=50, 
+            max_value=200, 
+            value=100,
+            help="Limit chat history to prevent memory issues"
+        )
+        
+        if st.button("Apply Chat Limit"):
+            chat_history = get_session_value('chat_history', [])
+            if len(chat_history) > max_chat_history:
+                set_session_value('chat_history', chat_history[-max_chat_history:])
+                st.success(f"Chat history trimmed to {max_chat_history} messages")
+                st.rerun()
+    
+    with perf_col2:
+        max_project_files = st.slider(
+            "Max Project Files",
+            min_value=10,
+            max_value=50, 
+            value=20,
+            help="Limit project files to prevent memory issues"
+        )
+        
+        if st.button("Apply File Limit"):
+            project_files = get_session_value('project_files', {})
+            if len(project_files) > max_project_files:
+                # Keep the most recent files
+                sorted_files = list(project_files.items())[-max_project_files:]
+                set_session_value('project_files', dict(sorted_files))
+                st.success(f"Project files trimmed to {max_project_files} files")
+                st.rerun()
 
 def render_project_initiation_panel():
     """Render the main project initiation interface"""

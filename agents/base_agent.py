@@ -63,29 +63,79 @@ class BaseAgent(ABC):
     
     async def call_llm(self, messages: List[Dict[str, str]], temperature: float = 0.7, task_context: str = "") -> str:
         """Make a call to the optimal AI model through orchestrator"""
-        try:
+        from utils.error_handler import safe_api_call, circuit_breaker
+        
+        @circuit_breaker
+        def _make_api_call():
             # Get optimal model for this agent type
             model_name = orchestrator.get_optimal_model(self.agent_type, task_context)
             
             # Generate response using the orchestrator
-            response = await orchestrator.generate_response(
+            return orchestrator.generate_response(
                 model_name=model_name,
                 messages=messages,
                 agent_type=self.agent_type,
                 task_id=f"{self.agent_id}_{int(datetime.now().timestamp())}"
             )
-            
-            return response["content"]
-            
-        except Exception as e:
-            return f"Error communicating with AI model: {str(e)}. Please check your API keys."
+        
+        result = safe_api_call(_make_api_call, service_name=f"agent_{self.name.lower().replace(' ', '_')}")
+        
+        if result['success']:
+            return result.get('data', {}).get('content', result.get('content', 'No response'))
+        else:
+            return result.get('content', f"Error: {result.get('error', 'Unknown error')}")
     
     def call_llm_sync(self, messages: List[Dict[str, str]], temperature: float = 0.7, task_context: str = "") -> str:
-        """Synchronous version of call_llm for compatibility"""
+        """Synchronous version of call_llm with comprehensive error handling"""
+        from utils.error_handler import safe_api_call, circuit_breaker, validate_input, get_error_help_message
+        
         try:
-            return asyncio.run(self.call_llm(messages, temperature, task_context))
+            # Validate input messages
+            if not messages or not isinstance(messages, list):
+                return "Error: Invalid message format provided."
+            
+            # Validate message content length
+            total_content = " ".join([msg.get('content', '') for msg in messages])
+            validation = validate_input(total_content, max_length=50000)  # 50k char limit
+            
+            if not validation['valid']:
+                return f"Error: {validation['error']}"
+            
+            @circuit_breaker
+            def _make_sync_api_call():
+                # Get optimal model for this agent type
+                model_name = orchestrator.get_optimal_model(self.agent_type, task_context)
+                
+                # Generate response using the orchestrator
+                response = asyncio.run(orchestrator.generate_response(
+                    model_name=model_name,
+                    messages=messages,
+                    agent_type=self.agent_type,
+                    task_id=f"{self.agent_id}_{int(datetime.now().timestamp())}"
+                ))
+                
+                return response
+            
+            result = safe_api_call(
+                _make_sync_api_call, 
+                service_name=f"agent_{self.name.lower().replace(' ', '_')}",
+                timeout=30
+            )
+            
+            if result['success']:
+                response_data = result.get('data', {})
+                if isinstance(response_data, dict):
+                    return response_data.get('content', str(response_data))
+                else:
+                    return str(response_data)
+            else:
+                error_help = get_error_help_message(result.get('error_type', 'unknown'))
+                return f"[{self.name}] {error_help}"
+                
         except Exception as e:
-            return f"Error communicating with AI model: {str(e)}"
+            from utils.error_handler import logger
+            logger.error(f"Error in call_llm_sync for {self.name}: {str(e)}")
+            return f"[{self.name}] Unable to process request due to a technical error. Please try again or contact support."
     
     def add_to_history(self, request: str, response: str):
         """Add interaction to conversation history"""

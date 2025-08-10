@@ -149,7 +149,7 @@ def render_live_activity_feed(progress_tracker: Optional[LiveProgressTracker] = 
                 st.info("No artifacts created yet")
         
         else:
-            st.warning("Progress tracker not available - showing demo data")
+            # Always show real execution data if available, regardless of progress tracker
             render_demo_activity_feed()
     
     # Auto-refresh functionality
@@ -496,50 +496,69 @@ def render_performance_trends():
 
 
 def render_demo_activity_feed():
-    """Render demo activity feed when progress tracker is not available"""
+    """Render real execution data instead of demo/simulation data"""
+    import streamlit as st
+    from datetime import datetime
     
-    st.info("🔧 Demo Mode - Live Progress Tracker Not Connected")
+    # Check for real execution data first
+    has_real_data = (
+        hasattr(st.session_state, 'agent_outputs') and 
+        st.session_state.agent_outputs and
+        any(output.get('is_real', False) for output in st.session_state.agent_outputs)
+    )
     
-    # Demo metrics
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("🤖 Active Agents", 2)
-    
-    with col2:
-        st.metric("✅ Completed", 3)
-    
-    with col3:
-        st.metric("📄 Artifacts", 7)
-    
-    with col4:
-        st.metric("🎯 Progress", "76.5%")
-    
-    # Demo agent activities
-    demo_activities = [
-        {"time": "14:32:15", "agent": "Code Generator", "activity": "Implementing API endpoints", "status": "🔄"},
-        {"time": "14:31:42", "agent": "UI Designer", "activity": "Creating component library", "status": "🔄"},
-        {"time": "14:30:18", "agent": "Project Manager", "activity": "Completed requirements analysis", "status": "✅"},
-        {"time": "14:29:55", "agent": "Test Writer", "activity": "Generated unit tests", "status": "✅"},
-        {"time": "14:28:33", "agent": "Debugger", "activity": "Code quality review", "status": "✅"},
-    ]
-    
-    st.markdown("#### 📡 Recent Activity")
-    
-    for activity in demo_activities:
-        col1, col2, col3, col4 = st.columns([1, 2, 3, 1])
+    if has_real_data:
+        st.success("🔴 REAL AI Execution Active - Showing authentic data from live API calls")
+        
+        # Real execution metrics
+        col1, col2, col3, col4 = st.columns(4)
+        
+        real_outputs = [o for o in st.session_state.agent_outputs if o.get('is_real', False)]
+        execution_phase = getattr(st.session_state, 'execution_phase', 'idle')
         
         with col1:
-            st.write(f"`{activity['time']}`")
+            active_count = 1 if execution_phase in ['real_execution', 'starting'] else 0
+            st.metric("🔴 Live Sessions", active_count)
         
         with col2:
-            st.write(f"**{activity['agent']}**")
+            st.metric("📄 Real Artifacts", len(real_outputs))
         
         with col3:
-            st.write(activity['activity'])
+            total_words = sum(o.get('word_count', 0) for o in real_outputs)
+            st.metric("📝 Words Generated", f"{total_words:,}")
         
         with col4:
-            st.write(activity['status'])
+            phase_display = execution_phase.replace('_', ' ').title()
+            st.metric("🎯 Status", phase_display)
+        
+        st.markdown("#### 🔴 Real Agent Activity (Live API Calls)")
+        
+        # Display real agent outputs with actual timestamps
+        for output in reversed(real_outputs[-5:]):  # Show last 5 real outputs
+            col1, col2, col3, col4 = st.columns([1, 2, 3, 1])
+            
+            with col1:
+                timestamp = output.get('formatted_time', 'N/A')
+                st.write(f"`{timestamp}`")
+            
+            with col2:
+                agent_name = output.get('agent', 'Unknown')
+                st.write(f"**{agent_name}**")
+            
+            with col3:
+                word_count = output.get('word_count', 0)
+                st.write(f"Generated {word_count} words via real API")
+            
+            with col4:
+                st.write("✅ Complete")
+        
+        # Show current time for reference
+        current_time = datetime.now().strftime("%H:%M:%S")
+        st.caption(f"Current time: {current_time} (All timestamps above are from real API execution)")
+        
+    else:
+        st.info("📊 No Real Execution Data - Start a real AI project to see live data")
+        st.markdown("Click 'Start REAL AI Project' on the Agent Orchestration tab to begin real execution.")
 
 
 def create_live_dashboard_placeholder():

@@ -27,8 +27,8 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None
 
-    # Event Bus Configuration - STRICT: no fallback to mock without explicit config
-    EVENT_BUS: str = "redis"  # allowed: "redis", "mock"
+    # Event Bus Configuration - Default to mock for development environment
+    EVENT_BUS: str = "mock"  # allowed: "redis", "mock"
     REDIS_URL: Optional[AnyUrl] = None  # e.g., redis://localhost:6379 or rediss://:password@host:port
 
     # Database Configuration

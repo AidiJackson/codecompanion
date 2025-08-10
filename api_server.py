@@ -25,6 +25,7 @@ from schemas.artifacts import ArtifactType, ArtifactBase, SpecDoc, DesignDoc, Co
 from schemas.ledgers import TaskLedger, TaskStatus, Priority
 from schemas.routing import ModelType, TaskType
 from core.artifacts import ArtifactHandler, ArtifactValidator
+from settings import Settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ orchestrator: Optional[RealTimeEventOrchestrator] = None
 artifact_handler = ArtifactHandler()
 artifact_validator = ArtifactValidator()
 active_connections: List[WebSocket] = []
+settings = Settings()
 
 
 class WebSocketMessage(BaseModel):
@@ -66,6 +68,11 @@ class WorkflowStartRequest(BaseModel):
     """Request to start new workflow"""
     tasks: List[Dict[str, Any]]
     workflow_name: str = "default"
+
+
+class SimulateTaskRequest(BaseModel):
+    """Request to simulate task for development testing"""
+    objective: str
 
 
 @app.on_event("startup")
@@ -175,7 +182,14 @@ async def start_workflow(request: WorkflowStartRequest, background_tasks: Backgr
                 goal=task_data.get("goal", ""),
                 description=task_data.get("description", ""),
                 status=TaskStatus.PENDING,
-                priority=Priority.MEDIUM
+                priority=Priority.MEDIUM,
+                acceptance_tests=[],
+                success_criteria=["Task completion"],
+                expected_artifacts=[],
+                estimated_duration=60,
+                actual_duration=None,
+                started_at=None,
+                completed_at=None
             )
             tasks.append(task)
         
@@ -236,6 +250,7 @@ async def create_artifact(request: ArtifactCreateRequest):
                     correlation_id=request.correlation_id,
                     event_type=EventType.ARTIFACT_CREATED,
                     agent_id=request.agent_id,
+                    task_id=f"task_{uuid4().hex[:8]}",
                     artifact_id=artifact_data["artifact_id"],
                     payload=artifact_data,
                     metadata={
@@ -354,6 +369,8 @@ async def register_agent(agent_data: Dict[str, Any]):
             correlation_id="system",
             event_type=EventType.AGENT_REGISTERED,
             agent_id=agent_id,
+            task_id=f"reg_{uuid4().hex[:8]}",
+            artifact_id=f"agent_reg_{uuid4().hex[:8]}",
             payload=agent_data,
             metadata={"registration_time": datetime.now().isoformat()}
         )
@@ -367,22 +384,96 @@ async def register_agent(agent_data: Dict[str, Any]):
     }
 
 
-@app.get("/api/health")
+@app.get("/health")
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint with event bus and database status"""
     
-    health_status = {
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "components": {
-            "orchestrator": orchestrator is not None,
-            "artifact_handler": True,
-            "websocket_connections": len(active_connections),
-            "redis_available": orchestrator.event_bus.redis is not None if orchestrator else False
-        }
+    # Check Redis connection
+    redis_ok = False
+    if orchestrator and hasattr(orchestrator, 'event_bus'):
+        try:
+            # Try to access the event bus redis connection
+            redis_ok = (
+                settings.EVENT_BUS == "redis" and 
+                hasattr(orchestrator.event_bus, 'redis') and 
+                orchestrator.event_bus.redis is not None
+            )
+        except:
+            redis_ok = False
+    
+    # Check database connection
+    db_ok = True  # Assume SQLite is always OK since it's file-based
+    try:
+        import sqlite3
+        # Quick test of database connection
+        with sqlite3.connect(settings.get_database_url().replace("sqlite:///", "")):
+            pass
+    except:
+        db_ok = False
+    
+    return {
+        "ok": True,
+        "event_bus": settings.EVENT_BUS,
+        "redis_ok": redis_ok,
+        "db_ok": db_ok
     }
+
+
+@app.post("/simulate_task")
+async def simulate_task(request: SimulateTaskRequest):
+    """Simulate task creation for development testing only"""
     
-    return health_status
+    if not orchestrator:
+        raise HTTPException(status_code=503, detail="Orchestrator not available")
+    
+    try:
+        # Generate random task ID
+        task_id = f"sim_task_{uuid4().hex[:8]}"
+        
+        # Create a simulated task event
+        event = StreamEvent(
+            correlation_id=f"sim_workflow_{uuid4().hex[:8]}",
+            event_type=EventType.TASK_CREATED,
+            task_id=task_id,
+            payload={
+                "task_id": task_id,
+                "objective": request.objective,
+                "status": "created",
+                "priority": "medium",
+                "created_at": datetime.now().isoformat()
+            },
+            metadata={
+                "source": "simulate_task_endpoint",
+                "environment": "development"
+            }
+        )
+        
+        # Publish to TASKS stream
+        await orchestrator.event_bus.publish_event(EventStreamType.TASKS, event)
+        
+        # Also broadcast to WebSocket clients
+        ws_message = WebSocketMessage(
+            type="task_simulated",
+            payload={
+                "task_id": task_id,
+                "objective": request.objective,
+                "correlation_id": event.correlation_id
+            }
+        )
+        
+        for connection in active_connections:
+            try:
+                await connection.send_json(ws_message.dict())
+            except:
+                pass  # Handle disconnected clients gracefully
+        
+        logger.info(f"Simulated task created: {task_id} - {request.objective}")
+        
+        return {"task_id": task_id}
+        
+    except Exception as e:
+        logger.error(f"Failed to simulate task: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

@@ -998,6 +998,44 @@ def render_project_configuration():
         if complexity_level != st.session_state.complexity_level:
             st.session_state.complexity_level = complexity_level
     
+    # Real-time pricing preview when project type or complexity changes
+    st.markdown("---")
+    st.markdown("#### 💰 Estimated Project Metrics (Live Preview)")
+    
+    # Define project phases for pricing calculation
+    workflow_preview = {
+        "web_application": 6,  # 6 phases
+        "api": 5,              # 5 phases  
+        "ui_application": 5,   # 5 phases
+        "data_pipeline": 5,    # 5 phases
+        "mobile_app": 5        # 5 phases
+    }
+    
+    complexity_multipliers = {
+        "Simple": 1.0,
+        "Medium": 1.5,
+        "Complex": 2.2,
+        "Advanced": 3.0
+    }
+    
+    base_phases = workflow_preview.get(st.session_state.project_type, 6)
+    multiplier = complexity_multipliers[st.session_state.complexity_level]
+    estimated_time = int(base_phases * 8 * multiplier)  # minutes
+    estimated_cost = round(base_phases * 0.50 * multiplier, 2)  # USD
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("Estimated Time", f"{estimated_time} minutes")
+    
+    with col2:
+        st.metric("Estimated Cost", f"${estimated_cost}")
+    
+    with col3:
+        st.metric("Total Phases", f"{base_phases}")
+    
+    st.caption(f"💡 Cost varies by project type and complexity. {st.session_state.project_type.replace('_', ' ').title()} projects have {base_phases} phases with {st.session_state.complexity_level.lower()} complexity multiplier.")
+    
     # Configuration validation
     current_description = st.session_state.project_description or ""
     config_valid = (

@@ -73,6 +73,11 @@ def init_session_state():
     if 'artifact_handler' not in st.session_state:
         st.session_state.artifact_handler = ArtifactHandler()
     
+    # Initialize typed artifact system
+    if 'typed_artifact_handler' not in st.session_state:
+        from core.artifact_handler import TypedArtifactHandler
+        st.session_state.typed_artifact_handler = TypedArtifactHandler()
+    
     if 'active_workflow' not in st.session_state:
         st.session_state.active_workflow = None
         
@@ -248,8 +253,9 @@ def main():
         st.markdown(f"**Live Events**: {event_count}")
 
     # Main navigation
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "🤖 Intelligent Router",
+        "🎯 Typed Artifact System",
         "📋 Schema Demonstration",
         "🎯 Task & Artifact Management", 
         "🤖 Agent Orchestration",
@@ -262,21 +268,24 @@ def main():
         render_intelligent_router()
     
     with tab2:
-        render_schema_demo()
+        render_typed_artifacts_page()
     
     with tab3:
-        render_task_management()
+        render_schema_demo()
     
     with tab4:
+        render_task_management()
+    
+    with tab5:
         render_agent_orchestration()
         
-    with tab5:
+    with tab6:
         render_routing_dashboard()
     
-    with tab6:
+    with tab7:
         render_workflow_monitor()
     
-    with tab7:
+    with tab8:
         render_event_streaming_dashboard()
 
 def render_schema_demo():
@@ -1234,6 +1243,160 @@ def check_api_connection() -> bool:
     except Exception as e:
         logger.error(f"API connection check failed: {e}")
         return False
+
+def render_typed_artifacts_page():
+    """Render the Typed Artifact System demonstration page"""
+    st.header("🎯 Typed Artifact System")
+    st.markdown("""
+    **Enhanced multi-agent collaboration with strict schema enforcement**
+    
+    This system provides structured handoffs, conflict resolution, and quality tracking 
+    for AI agent collaboration through typed artifacts.
+    """)
+    
+    # Import the integration module
+    try:
+        from integration_typed_artifacts import TypedArtifactOrchestrator
+        
+        # Initialize orchestrator
+        if 'typed_orchestrator' not in st.session_state:
+            st.session_state.typed_orchestrator = TypedArtifactOrchestrator()
+        
+        orchestrator = st.session_state.typed_orchestrator
+        
+        # Get current metrics
+        metrics = orchestrator.get_system_metrics()
+        
+        # Display key metrics
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Total Artifacts", metrics['artifacts']['total_artifacts'])
+        
+        with col2:
+            st.metric("Avg Quality", f"{metrics['artifacts']['avg_quality']:.2f}")
+        
+        with col3:
+            st.metric("Handoff Success", f"{metrics['handoffs'].get('success_rate', 1.0):.1%}")
+        
+        with col4:
+            st.metric("System Health", f"{metrics['system_health']['score']:.2f}")
+        
+        # System health indicator
+        health = metrics['system_health']
+        health_color = {
+            'excellent': '🟢',
+            'good': '🟡', 
+            'fair': '🟠',
+            'poor': '🔴'
+        }.get(health['level'], '⚪')
+        
+        st.markdown(f"**System Health:** {health_color} {health['level'].title()} ({health['score']:.2f})")
+        
+        if health['issues']:
+            st.warning("**Issues Detected:**\n" + "\n".join(f"• {issue}" for issue in health['issues']))
+        
+        if health['recommendations']:
+            st.info("**Recommendations:**\n" + "\n".join(f"• {rec}" for rec in health['recommendations']))
+        
+        # Demo section
+        st.subheader("🚀 Live Demonstration")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("Create Sample SpecDoc", type="primary"):
+                # Create a sample SpecDoc
+                spec_data = {
+                    "title": "Sample E-commerce Platform",
+                    "objective": "Build a modern e-commerce platform with user authentication and product catalog",
+                    "scope": "Full-stack web application",
+                    "requirements": [
+                        {
+                            "id": "REQ-001",
+                            "description": "User authentication system with secure login",
+                            "priority": "high"
+                        }
+                    ],
+                    "acceptance_criteria": ["Users can register and login securely"],
+                    "business_value": "Increase online sales by 30%"
+                }
+                
+                result = orchestrator.create_artifact_from_agent_output(
+                    agent_id="project_manager",
+                    agent_output=str(spec_data),
+                    artifact_type="SpecDoc",
+                    context={"demo": True}
+                )
+                
+                if result['success']:
+                    st.success(f"Created SpecDoc: {result['artifact_id']}")
+                    st.json({
+                        "artifact_id": result['artifact_id'],
+                        "confidence": result['confidence'],
+                        "quality_score": result['quality_score']
+                    })
+                else:
+                    st.error(f"Failed to create artifact: {result['details']}")
+        
+        with col2:
+            if st.button("Run Conflict Detection"):
+                artifact_ids = list(st.session_state.typed_artifacts.get('artifacts', {}).keys())
+                
+                if len(artifact_ids) >= 2:
+                    result = orchestrator.detect_and_resolve_conflicts(artifact_ids[-2:])
+                    
+                    st.info(f"Checked {len(artifact_ids)} artifacts for conflicts")
+                    if result['conflicts_found'] > 0:
+                        st.warning(f"Found {result['conflicts_found']} conflicts")
+                        for conflict in result['conflicts']:
+                            st.write(f"• {conflict['conflict_type']}: {conflict['description']}")
+                    else:
+                        st.success("No conflicts detected")
+                else:
+                    st.info("Need at least 2 artifacts to detect conflicts")
+        
+        # Artifacts breakdown
+        if metrics['artifacts']['total_artifacts'] > 0:
+            st.subheader("📊 Artifact Analytics")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write("**By Type:**")
+                for artifact_type, count in metrics['artifacts']['by_type'].items():
+                    st.write(f"• {artifact_type}: {count}")
+            
+            with col2:
+                st.write("**By Agent:**")
+                for agent, count in metrics['artifacts']['by_agent'].items():
+                    st.write(f"• {agent}: {count}")
+        
+        # Recent activity
+        st.subheader("🔄 Recent Activity")
+        
+        if 'typed_artifacts' in st.session_state:
+            recent_artifacts = list(st.session_state.typed_artifacts['artifacts'].values())[-5:]
+            if recent_artifacts:
+                for artifact_data in recent_artifacts:
+                    artifact = artifact_data['artifact']
+                    with st.expander(f"{artifact['artifact_type']}: {artifact.get('title', 'Untitled')}"):
+                        st.write(f"**ID:** {artifact['artifact_id']}")
+                        st.write(f"**Created by:** {artifact['created_by']}")
+                        st.write(f"**Confidence:** {artifact_data['confidence_metrics']['overall_confidence']:.2f}")
+                        st.write(f"**Quality:** {artifact_data['validation_result']['quality_score']:.2f}")
+            else:
+                st.info("No artifacts created yet")
+        else:
+            st.info("No artifacts created yet")
+        
+    except ImportError as e:
+        st.error(f"Could not load Typed Artifact System: {e}")
+        st.info("The typed artifact system components may not be properly installed.")
+    except Exception as e:
+        st.error(f"Error in Typed Artifact System: {e}")
+        st.code(str(e))
+
 
 def render_event_streaming_dashboard():
     """Real-time event streaming dashboard with Redis Streams"""

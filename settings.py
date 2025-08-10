@@ -9,12 +9,12 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: Optional[str] = None
 
     # Bus
-    EVENT_BUS: str = "redis"            # overridden by ENV/Secrets
+    EVENT_BUS: str = "mock"             # overridden by ENV/Secrets
     REDIS_URL: Optional[str] = None     # rediss://... from Upstash
 
     # DB & app
     DATABASE_URL: str = "sqlite:///./data/codecompanion.db"
-    STREAMLIT_DEBUG: bool = False
+    STREAMLIT_DEBUG: bool = True        # Enable debug mode for MockBus
     LOG_LEVEL: str = "INFO"
 
     # Helpers used elsewhere

@@ -25,6 +25,20 @@ import openai
 from startup_logs_strict import log_startup_configuration
 log_startup_configuration()
 
+# Initialize log consumer (runs once at startup)
+_consumer_initialized = False
+if not _consumer_initialized:
+    import asyncio
+    from workers.log_consumer import run as run_logger
+    try:
+        loop = asyncio.get_event_loop()
+        loop.create_task(run_logger())
+        _consumer_initialized = True
+    except RuntimeError:
+        # No running loop, start one
+        threading.Thread(target=lambda: asyncio.run(run_logger()), daemon=True).start()
+        _consumer_initialized = True
+
 # Schema imports
 from schemas.artifacts import ArtifactType, SpecDoc, DesignDoc, CodePatch, TestPlan, EvalReport, Runbook
 from schemas.ledgers import TaskLedger, ProgressLedger, WorkItem, TaskStatus, Priority

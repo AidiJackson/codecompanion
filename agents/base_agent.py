@@ -130,3 +130,109 @@ class BaseAgent(ABC):
                     return agent_type
         
         return None
+
+    def process_request(self, request: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Process a request with real API calls to AI models"""
+        context = context or {}
+        
+        try:
+            # Get health checker and working client
+            from core.api_health_checker import APIHealthChecker
+            health_checker = APIHealthChecker()
+            health_checker.initialize_clients()
+            
+            # Map agent model preferences
+            service_mapping = {
+                "PROJECT_MANAGER": "anthropic",  # Use Claude for planning
+                "CODE_GENERATOR": "openai",      # Use GPT-4 for coding  
+                "UI_DESIGNER": "openai",         # Use GPT-4 for design
+                "TEST_WRITER": "google",         # Use Gemini for testing
+                "DEBUGGER": "anthropic"          # Use Claude for debugging
+            }
+            
+            service = service_mapping.get(self.agent_type, "openai")
+            client = health_checker.get_working_client(service)
+            
+            if not client:
+                return {
+                    "content": f"[{self.name}] AI model not available. Please test API connections in the dashboard.",
+                    "files": {},
+                    "error": f"Service {service} connection failed"
+                }
+            
+            # Create agent-specific system prompt
+            system_prompt = f"{self.get_system_prompt()}"
+            if context.get('project_context'):
+                system_prompt += f"\n\nProject Context: {context['project_context']}"
+            
+            # Make actual API call based on service
+            if service == "openai":
+                response = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": request}
+                    ],
+                    max_tokens=1500,
+                    temperature=0.7
+                )
+                content = response.choices[0].message.content
+                
+            elif service == "anthropic":
+                response = client.messages.create(
+                    model="claude-3-5-sonnet-20241022",
+                    max_tokens=1500,
+                    temperature=0.7,
+                    system=system_prompt,
+                    messages=[{"role": "user", "content": request}]
+                )
+                content = response.content[0].text if response.content else "No response"
+                
+            elif service == "google":
+                full_prompt = f"{system_prompt}\n\nUser request: {request}"
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=full_prompt
+                )
+                content = response.text if response.text else "No response"
+            
+            else:
+                content = f"[{self.name}] Service {service} not supported"
+            
+            # Process the response
+            processed_response = {
+                "content": content,
+                "files": {},
+                "metadata": {
+                    "agent": self.name,
+                    "agent_type": self.agent_type,
+                    "service_used": service,
+                    "timestamp": datetime.now().isoformat(),
+                    "request_length": len(request)
+                }
+            }
+            
+            # Add to history
+            self.add_to_history(request, content)
+            
+            # Check if handoff is needed
+            handoff_target = self.should_handoff(request, context)
+            if handoff_target:
+                processed_response["handoff_suggestion"] = handoff_target
+            
+            return processed_response
+            
+        except Exception as e:
+            error_response = {
+                "content": f"[{self.name}] Error processing request: {str(e)}",
+                "files": {},
+                "error": str(e),
+                "metadata": {
+                    "agent": self.name,
+                    "timestamp": datetime.now().isoformat(),
+                    "error_type": type(e).__name__
+                }
+            }
+            
+            self.add_to_history(request, f"Error: {str(e)}")
+            return error_response

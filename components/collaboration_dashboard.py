@@ -264,41 +264,69 @@ def render_live_collaboration_feed():
 
 
 def render_model_health_status():
-    """Render model health and status indicators"""
-    st.markdown("### 🏥 Model Health Status")
+    """Render the health status of AI models with real API testing"""
+    st.markdown("### 🏥 AI Model Health Status")
     
-    stats = orchestrator.get_model_statistics()
+    # Import here to avoid circular imports
+    from core.api_health_checker import APIHealthChecker
     
+    # Get or create health checker in session state
+    if "api_health_checker" not in st.session_state:
+        st.session_state.api_health_checker = APIHealthChecker()
+    
+    health_checker = st.session_state.api_health_checker
+    
+    # Add refresh button
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button("🔄 Test APIs", help="Test all API connections"):
+            with st.spinner("Testing API connections..."):
+                health_status = health_checker.run_full_health_check()
+                st.session_state.api_health_status = health_status
+                st.success("API tests completed!")
+    
+    # Get current health status
+    if "api_health_status" not in st.session_state:
+        st.session_state.api_health_status = health_checker.health_status
+    
+    health_status = st.session_state.api_health_status
+    
+    # Convert to display format
+    models_health = {
+        "GPT-4": {
+            "status": "Healthy" if health_status["openai"]["status"] == "healthy" else "Error",
+            "success_rate": health_status["openai"]["success_rate"],
+            "response_time": "Normal" if health_status["openai"]["status"] == "healthy" else "N/A",
+            "error": health_status["openai"].get("error")
+        },
+        "Claude": {
+            "status": "Healthy" if health_status["anthropic"]["status"] == "healthy" else "Error", 
+            "success_rate": health_status["anthropic"]["success_rate"],
+            "response_time": "Normal" if health_status["anthropic"]["status"] == "healthy" else "N/A",
+            "error": health_status["anthropic"].get("error")
+        },
+        "Gemini": {
+            "status": "Healthy" if health_status["google"]["status"] == "healthy" else "Error",
+            "success_rate": health_status["google"]["success_rate"], 
+            "response_time": "Normal" if health_status["google"]["status"] == "healthy" else "N/A",
+            "error": health_status["google"].get("error")
+        }
+    }
+
+    # Display health status cards
     cols = st.columns(3)
-    model_info = [
-        ("gpt4", "GPT-4", "🔵", 0),
-        ("claude", "Claude", "🟣", 1), 
-        ("gemini", "Gemini", "🔴", 2)
-    ]
     
-    for model_key, model_name, color, col_idx in model_info:
-        with cols[col_idx]:
-            if model_key in stats:
-                model_stats = stats[model_key]
-                
-                if model_stats["is_connected"]:
-                    st.success(f"{color} {model_name} Online")
-                    
-                    # Health indicators
-                    reliability = model_stats["reliability"]
-                    if reliability > 90:
-                        health_status = "🟢 Excellent"
-                    elif reliability > 75:
-                        health_status = "🟡 Good"
-                    else:
-                        health_status = "🔴 Needs Attention"
-                    
-                    st.write(f"**Health:** {health_status}")
-                    st.write(f"**Response Time:** {model_stats['avg_response_time']}s")
-                    st.write(f"**Success Rate:** {model_stats['reliability']}%")
-                    
-                else:
-                    st.error(f"{color} {model_name} Offline")
-                    st.write("Check API key configuration")
+    for i, (model_name, health_info) in enumerate(models_health.items()):
+        with cols[i]:
+            status = health_info["status"]
+            
+            if status == "Healthy":
+                st.success(f"🟢 {model_name}")
+                st.metric("Success Rate", f"{health_info['success_rate']}%")
+                st.metric("Response Time", health_info['response_time'])
             else:
-                st.warning(f"{color} {model_name} Not Configured")
+                st.error(f"🔴 {model_name}")
+                st.metric("Success Rate", f"{health_info['success_rate']}%")
+                if health_info.get('error'):
+                    st.caption(f"Error: {health_info['error']}")
+                st.caption("⚠️ Check API key in environment variables")

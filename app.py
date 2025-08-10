@@ -19,6 +19,7 @@ from typing import Dict, List, Optional, Any
 import logging
 import threading
 import time
+import openai
 
 # Schema imports
 from schemas.artifacts import ArtifactType, SpecDoc, DesignDoc, CodePatch, TestPlan, EvalReport, Runbook
@@ -1136,11 +1137,20 @@ def create_artifact_template(artifact_type: ArtifactType) -> Dict[str, Any]:
     return base_template
 
 def check_api_connection() -> bool:
-    """Check if FastAPI server is available"""
+    """Check if OpenAI API key is available"""
     try:
-        response = requests.get("http://localhost:8000/api/health", timeout=2)
-        return response.status_code == 200
-    except:
+        # Check if OpenAI API key is available
+        api_key = os.environ.get('OPENAI_API_KEY')
+        if not api_key:
+            return False
+        
+        # Basic validation - should start with 'sk-' and be reasonable length
+        if api_key.startswith('sk-') and len(api_key) > 20:
+            return True
+        
+        return False
+    except Exception as e:
+        logger.error(f"API connection check failed: {e}")
         return False
 
 def render_event_streaming_dashboard():

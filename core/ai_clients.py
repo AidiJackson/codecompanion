@@ -255,30 +255,26 @@ class RealAIClients:
             
             return AgentOutput(
                 request_id=agent_input.request_id,
-                task_id=agent_input.task_id,
-                agent_type=agent_type,
-                status="completed",
-                result=result_data,
-                reasoning=f"Claude {agent_type.value} analysis completed",
+                processing_duration=30.0,
+                agent_id=f"claude_{agent_type.value}",
+                model_used=ModelType.CLAUDE_SONNET,
+                artifact=result_data,
                 confidence=0.9,
-                artifacts_produced=[],
-                next_recommended_agents=[],
-                processing_time_seconds=30.0
+                quality_score=0.9,
+                completeness_score=0.9
             )
             
         except Exception as e:
             logger.error(f"Claude agent execution failed: {e}")
             return AgentOutput(
                 request_id=agent_input.request_id,
-                task_id=agent_input.task_id,
-                agent_type=agent_type,
-                status="failed",
-                result={"error": str(e)},
-                reasoning=f"Claude execution failed: {e}",
+                processing_duration=0.0,
+                agent_id=f"claude_{agent_type.value}",
+                model_used=ModelType.CLAUDE_SONNET,
+                artifact={"error": str(e)},
                 confidence=0.0,
-                artifacts_produced=[],
-                next_recommended_agents=[],
-                processing_time_seconds=0.0
+                quality_score=0.0,
+                completeness_score=0.0
             )
     
     async def call_gpt4_agent(self, agent_input: AgentInput, agent_type: AgentType) -> AgentOutput:
@@ -327,30 +323,26 @@ class RealAIClients:
             
             return AgentOutput(
                 request_id=agent_input.request_id,
-                task_id=agent_input.task_id,
-                agent_type=agent_type,
-                status="completed",
-                result=result_data,
-                reasoning=f"GPT-4 {agent_type.value} implementation completed",
+                processing_duration=25.0,
+                agent_id=f"gpt4_{agent_type.value}",
+                model_used=ModelType.GPT4O,
+                artifact=result_data,
                 confidence=0.9,
-                artifacts_produced=[],
-                next_recommended_agents=[],
-                processing_time_seconds=25.0
+                quality_score=0.9,
+                completeness_score=0.9
             )
             
         except Exception as e:
             logger.error(f"GPT-4 agent execution failed: {e}")
             return AgentOutput(
                 request_id=agent_input.request_id,
-                task_id=agent_input.task_id,
-                agent_type=agent_type,
-                status="failed",
-                result={"error": str(e)},
-                reasoning=f"GPT-4 execution failed: {e}",
+                processing_duration=0.0,
+                agent_id=f"gpt4_{agent_type.value}",
+                model_used=ModelType.GPT4O,
+                artifact={"error": str(e)},
                 confidence=0.0,
-                artifacts_produced=[],
-                next_recommended_agents=[],
-                processing_time_seconds=0.0
+                quality_score=0.0,
+                completeness_score=0.0
             )
     
     async def call_gemini_agent(self, agent_input: AgentInput, agent_type: AgentType) -> AgentOutput:
@@ -391,30 +383,26 @@ class RealAIClients:
             
             return AgentOutput(
                 request_id=agent_input.request_id,
-                task_id=agent_input.task_id,
-                agent_type=agent_type,
-                status="completed",
-                result=result_data,
-                reasoning=f"Gemini {agent_type.value} design completed",
+                processing_duration=20.0,
+                agent_id=f"gemini_{agent_type.value}",
+                model_used=ModelType.GEMINI_FLASH,
+                artifact=result_data,
                 confidence=0.9,
-                artifacts_produced=[],
-                next_recommended_agents=[],
-                processing_time_seconds=20.0
+                quality_score=0.9,
+                completeness_score=0.9
             )
             
         except Exception as e:
             logger.error(f"Gemini agent execution failed: {e}")
             return AgentOutput(
                 request_id=agent_input.request_id,
-                task_id=agent_input.task_id,
-                agent_type=agent_type,
-                status="failed",
-                result={"error": str(e)},
-                reasoning=f"Gemini execution failed: {e}",
+                processing_duration=0.0,
+                agent_id=f"gemini_{agent_type.value}",
+                model_used=ModelType.GEMINI_FLASH,
+                artifact={"error": str(e)},
                 confidence=0.0,
-                artifacts_produced=[],
-                next_recommended_agents=[],
-                processing_time_seconds=0.0
+                quality_score=0.0,
+                completeness_score=0.0
             )
     
     async def execute_agent(self, agent_input: AgentInput, agent_type: AgentType) -> AgentOutput:

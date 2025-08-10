@@ -59,6 +59,10 @@ class EventType(str, Enum):
     AGENT_COMPLETED = "agent_completed"
     AGENT_ERROR = "agent_error"
     
+    # Workflow events
+    WORKFLOW_STARTED = "workflow_started"
+    WORKFLOW_COMPLETED = "workflow_completed"
+    
     # Metrics events
     PERFORMANCE_METRIC = "performance_metric"
     ROUTING_DECISION = "routing_decision"

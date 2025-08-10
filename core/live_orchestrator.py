@@ -93,6 +93,9 @@ class LiveOrchestrator:
         project_event = StreamEvent(
             correlation_id=correlation_id,
             event_type=EventType.WORKFLOW_STARTED,
+            agent_id="live_orchestrator",
+            task_id=f"{correlation_id}_workflow",
+            artifact_id=f"{correlation_id}_workflow_spec",
             payload={
                 'project_description': project_description,
                 'project_type': project_type,
@@ -188,18 +191,20 @@ class LiveOrchestrator:
             logger.info(f"Starting Project Manager phase for {correlation_id}")
             pm_input = AgentInput(
                 task_id=f"{correlation_id}_requirements",
+                correlation_id=correlation_id,
                 objective="Analyze project requirements and create detailed specifications",
                 context=f"Project: {project_description}\nType: {project_type}",
-                priority="high",
-                max_processing_time_minutes=10
+                requested_artifact=ArtifactType.SPEC_DOC,
+                max_processing_time=600,  # 10 minutes in seconds
+                submitted_by="live_orchestrator"
             )
             
             pm_result = await self.ai_clients.execute_agent(pm_input, AgentType.PROJECT_MANAGER)
             workflow['real_agent_results'].append({
                 'agent': 'Project Manager (Claude)',
                 'phase': 'Requirements Analysis',
-                'result': pm_result.result,
-                'status': pm_result.status,
+                'result': pm_result.artifact,
+                'status': pm_result.quality_score > 0.5,
                 'timestamp': datetime.now().isoformat()
             })
             
@@ -207,19 +212,21 @@ class LiveOrchestrator:
             logger.info(f"Starting Code Generator phase for {correlation_id}")
             code_input = AgentInput(
                 task_id=f"{correlation_id}_implementation",
+                correlation_id=correlation_id,
                 objective="Implement core functionality based on requirements",
-                context=f"Project: {project_description}\nRequirements: {pm_result.result}",
-                dependency_artifacts=[json.dumps(pm_result.result)],
-                priority="high",
-                max_processing_time_minutes=15
+                context=f"Project: {project_description}\nRequirements: {pm_result.artifact}",
+                dependency_artifacts=[json.dumps(pm_result.artifact)],
+                requested_artifact=ArtifactType.CODE_PATCH,
+                max_processing_time=900,  # 15 minutes in seconds
+                submitted_by="live_orchestrator"
             )
             
             code_result = await self.ai_clients.execute_agent(code_input, AgentType.CODE_GENERATOR)
             workflow['real_agent_results'].append({
                 'agent': 'Code Generator (GPT-4)',
                 'phase': 'Implementation',
-                'result': code_result.result,
-                'status': code_result.status,
+                'result': code_result.artifact,
+                'status': code_result.quality_score > 0.5,
                 'timestamp': datetime.now().isoformat()
             })
             
@@ -227,19 +234,21 @@ class LiveOrchestrator:
             logger.info(f"Starting UI Designer phase for {correlation_id}")
             ui_input = AgentInput(
                 task_id=f"{correlation_id}_ui_design",
+                correlation_id=correlation_id,
                 objective="Design user interface and user experience",
-                context=f"Project: {project_description}\nImplementation: {code_result.result}",
-                dependency_artifacts=[json.dumps(code_result.result)],
-                priority="medium",
-                max_processing_time_minutes=10
+                context=f"Project: {project_description}\nImplementation: {code_result.artifact}",
+                dependency_artifacts=[json.dumps(code_result.artifact)],
+                requested_artifact=ArtifactType.DESIGN_DOC,
+                max_processing_time=600,  # 10 minutes in seconds
+                submitted_by="live_orchestrator"
             )
             
             ui_result = await self.ai_clients.execute_agent(ui_input, AgentType.UI_DESIGNER)
             workflow['real_agent_results'].append({
                 'agent': 'UI Designer (Gemini)',
                 'phase': 'UI Design',
-                'result': ui_result.result,
-                'status': ui_result.status,
+                'result': ui_result.artifact,
+                'status': ui_result.quality_score > 0.5,
                 'timestamp': datetime.now().isoformat()
             })
             
@@ -247,19 +256,21 @@ class LiveOrchestrator:
             logger.info(f"Starting Test Writer phase for {correlation_id}")
             test_input = AgentInput(
                 task_id=f"{correlation_id}_testing",
+                correlation_id=correlation_id,
                 objective="Create comprehensive testing strategy and test cases",
                 context=f"Project: {project_description}",
-                dependency_artifacts=[json.dumps(code_result.result), json.dumps(ui_result.result)],
-                priority="medium",
-                max_processing_time_minutes=12
+                dependency_artifacts=[json.dumps(code_result.artifact), json.dumps(ui_result.artifact)],
+                requested_artifact=ArtifactType.TEST_PLAN,
+                max_processing_time=720,  # 12 minutes in seconds
+                submitted_by="live_orchestrator"
             )
             
             test_result = await self.ai_clients.execute_agent(test_input, AgentType.TEST_WRITER)
             workflow['real_agent_results'].append({
                 'agent': 'Test Writer (GPT-4)', 
                 'phase': 'Testing Strategy',
-                'result': test_result.result,
-                'status': test_result.status,
+                'result': test_result.artifact,
+                'status': test_result.quality_score > 0.5,
                 'timestamp': datetime.now().isoformat()
             })
             
@@ -267,19 +278,21 @@ class LiveOrchestrator:
             logger.info(f"Starting Debugger phase for {correlation_id}")
             debug_input = AgentInput(
                 task_id=f"{correlation_id}_debugging",
+                correlation_id=correlation_id,
                 objective="Review code quality, identify issues, and optimize performance",
                 context=f"Project: {project_description}",
-                dependency_artifacts=[json.dumps(code_result.result), json.dumps(test_result.result)],
-                priority="medium",
-                max_processing_time_minutes=10
+                dependency_artifacts=[json.dumps(code_result.artifact), json.dumps(test_result.artifact)],
+                requested_artifact=ArtifactType.SPEC_DOC,
+                max_processing_time=600,  # 10 minutes in seconds
+                submitted_by="live_orchestrator"
             )
             
             debug_result = await self.ai_clients.execute_agent(debug_input, AgentType.DEBUGGER)
             workflow['real_agent_results'].append({
                 'agent': 'Debugger (Claude)',
                 'phase': 'Code Review & Optimization',
-                'result': debug_result.result,
-                'status': debug_result.status,
+                'result': debug_result.artifact,
+                'status': debug_result.quality_score > 0.5,
                 'timestamp': datetime.now().isoformat()
             })
             
@@ -343,6 +356,9 @@ class LiveOrchestrator:
                 task_event = StreamEvent(
                     correlation_id=correlation_id,
                     event_type=EventType.TASK_CREATED,
+                    agent_id=selected_agent,
+                    task_id=task_data['task_id'],
+                    artifact_id=f"{task_data['task_id']}_artifact",
                     payload=task_data,
                     metadata={'phase': phase['phase_id'], 'live_execution': True}
                 )
@@ -407,6 +423,8 @@ class LiveOrchestrator:
                 correlation_id=correlation_id,
                 event_type=EventType.TASK_ASSIGNED,
                 agent_id=agent_id,
+                task_id=review_task['task_id'],
+                artifact_id=f"{review_task['task_id']}_artifact",
                 payload=review_task,
                 metadata={'quality_cascade': True, 'cascade_step': i}
             )
@@ -450,6 +468,9 @@ class LiveOrchestrator:
         completion_event = StreamEvent(
             correlation_id=correlation_id,
             event_type=EventType.WORKFLOW_COMPLETED,
+            agent_id="live_orchestrator",
+            task_id=f"{correlation_id}_workflow",
+            artifact_id=f"{correlation_id}_final_deliverables",
             payload={
                 'status': 'completed',
                 'total_phases': len(workflow['phases']),
@@ -484,7 +505,7 @@ class LiveOrchestrator:
         correlation_id = event.correlation_id
         workflow = self.active_workflows.get(correlation_id)
         
-        if workflow:
+        if workflow and event.agent_id:
             # Update router with agent performance
             await self.router.update_agent_performance(event.agent_id, {
                 'success': True,
@@ -498,10 +519,11 @@ class LiveOrchestrator:
         """Handle task failure events"""
         
         # Update router with failure
-        await self.router.update_agent_performance(event.agent_id, {
-            'success': False,
-            'error': event.payload.get('error', 'Unknown error')
-        })
+        if event.agent_id:
+            await self.router.update_agent_performance(event.agent_id, {
+                'success': False,
+                'error': event.payload.get('error', 'Unknown error')
+            })
         
         # Implement retry logic or escalation
         logger.warning(f"Task failed for agent {event.agent_id}: {event.payload.get('error')}")

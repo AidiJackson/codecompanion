@@ -355,8 +355,7 @@ def render_project_initiation_panel():
             "⚡ Complexity Level", 
             min_value=1, 
             max_value=3, 
-            value=2,
-            format=lambda x: complexity_mapping[x][1].value.title()
+            value=2
         )
         
         complexity_info = complexity_mapping[complexity_level]
@@ -461,52 +460,69 @@ def render_live_orchestration_dashboard():
         if st.button("🔄 Reset Project"):
             reset_orchestration()
     
-    # Get real-time status
-    status = st.session_state.workflow_orchestrator.get_real_time_status()
-    
-    # Overall progress
-    st.markdown("### 📊 Overall Progress")
-    progress_bar = st.progress(status['overall_progress'] / 100)
-    st.caption(f"Current Phase: **{status['current_phase']}** | {status['overall_progress']:.1f}% Complete")
+    # Get real-time status with error handling
+    try:
+        status = st.session_state.workflow_orchestrator.get_real_time_status()
+        
+        # Overall progress
+        st.markdown("### 📊 Overall Progress")
+        progress_value = max(0, min(100, status.get('overall_progress', 0))) / 100
+        progress_bar = st.progress(progress_value)
+        current_phase = status.get('current_phase', 'Initializing')
+        progress_percent = status.get('overall_progress', 0)
+        st.caption(f"Current Phase: **{current_phase}** | {progress_percent:.1f}% Complete")
+    except Exception as e:
+        st.error(f"Error getting status: {str(e)}")
+        status = {
+            'overall_progress': 0,
+            'agent_statuses': {},
+            'recent_communications': [],
+            'current_phase': 'Error'
+        }
     
     # Live Agent Activity Dashboard
     st.markdown("### 🤖 Live Agent Activity")
     
-    # Create agent status cards
-    agent_cols = st.columns(len(status['agent_statuses']))
-    
-    for i, (agent_name, agent_status) in enumerate(status['agent_statuses'].items()):
-        with agent_cols[i]:
-            # Agent icon mapping
-            agent_icons = {
-                "project_manager": "📋",
-                "code_generator": "💻",
-                "ui_designer": "🎨", 
-                "test_writer": "🧪",
-                "debugger": "🔍"
-            }
-            
-            icon = agent_icons.get(agent_name, "🤖")
-            status_color = {
-                "idle": "🔵",
-                "analyzing": "🟡",
-                "working": "🟢",
-                "collaborating": "🟠", 
-                "completed": "✅",
-                "error": "🔴"
-            }.get(agent_status['status'], "⚪")
-            
-            st.markdown(f"**{icon} {agent_name.replace('_', ' ').title()}**")
-            st.caption(f"Status: {status_color} {agent_status['status'].title()}")
-            
-            # Progress bar for each agent
-            if agent_status['progress'] > 0:
-                st.progress(agent_status['progress'] / 100)
-                st.caption(f"{agent_status['progress']}%")
-            
-            # Current task
-            if agent_status.get('current_task'):
-                st.caption(f"Task: {agent_status['current_task'][:50]}...")
+    # Create agent status cards with error handling
+    agent_statuses = status.get('agent_statuses', {})
+    if agent_statuses:
+        agent_cols = st.columns(len(agent_statuses))
+        
+        for i, (agent_name, agent_status) in enumerate(agent_statuses.items()):
+            with agent_cols[i]:
+                # Agent icon mapping
+                # Agent icon mapping
+                agent_icons = {
+                    "project_manager": "📋",
+                    "code_generator": "💻",
+                    "ui_designer": "🎨", 
+                    "test_writer": "🧪",
+                    "debugger": "🔍"
+                }
+                
+                icon = agent_icons.get(agent_name, "🤖")
+                status_color = {
+                    "idle": "🔵",
+                    "analyzing": "🟡",
+                    "working": "🟢",
+                    "collaborating": "🟠", 
+                    "completed": "✅",
+                    "error": "🔴"
+                }.get(agent_status['status'], "⚪")
+                
+                st.markdown(f"**{icon} {agent_name.replace('_', ' ').title()}**")
+                st.caption(f"Status: {status_color} {agent_status['status'].title()}")
+                
+                # Progress bar for each agent
+                if agent_status['progress'] > 0:
+                    st.progress(agent_status['progress'] / 100)
+                    st.caption(f"{agent_status['progress']}%")
+                
+                # Current task
+                if agent_status.get('current_task'):
+                    st.caption(f"Task: {agent_status['current_task'][:50]}...")
+    else:
+        st.info("🤖 Initializing agent status...")
     
     # Agent Collaboration Panel
     st.markdown("### 🗣️ Agent Collaboration Feed")
@@ -520,8 +536,12 @@ def render_live_orchestration_dashboard():
             st.info("🤖 Agents are preparing to collaborate...")
         else:
             for comm in communications[-5:]:  # Show last 5 messages
-                timestamp = datetime.fromisoformat(comm['timestamp']).strftime("%H:%M:%S")
-                st.markdown(f"**{timestamp}** | {comm['message']}")
+                try:
+                    timestamp = datetime.fromisoformat(comm['timestamp']).strftime("%H:%M:%S")
+                    message = comm.get('message', 'No message')
+                    st.markdown(f"**{timestamp}** | {message}")
+                except (ValueError, KeyError) as e:
+                    st.markdown(f"• {comm.get('message', 'Communication log entry')}")
     
     # Control buttons
     st.markdown("### 🎛️ Orchestra Controls")
@@ -538,7 +558,8 @@ def render_live_orchestration_dashboard():
             st.success("Orchestration paused")
     
     with col3:
-        if st.button("📥 Download Results", disabled=status['overall_progress'] < 100):
+        progress_value = status.get('overall_progress', 0)
+        if st.button("📥 Download Results", disabled=progress_value < 100):
             download_project_results()
 
 def execute_orchestration():
@@ -550,10 +571,12 @@ def execute_orchestration():
         orchestrator = st.session_state.workflow_orchestrator
         
         # Execute steps sequentially for demo
+        from core.workflow_orchestrator import AgentStatus
+        
         for step in orchestrator.workflow_steps:
-            if step.status.value == "idle":
+            if step.status == AgentStatus.IDLE:
                 # Simulate execution
-                step.status = step.status.__class__("working")
+                step.status = AgentStatus.WORKING
                 step.progress = 50
                 
                 # Add to communications
@@ -564,7 +587,7 @@ def execute_orchestration():
                 time.sleep(1)  # Simulate work
                 
                 step.progress = 100
-                step.status = step.status.__class__("completed")
+                step.status = AgentStatus.COMPLETED
                 
                 orchestrator.add_agent_communication(
                     f"{step.agent_type.value.replace('_', ' ').title()} completed task successfully!"
@@ -588,8 +611,16 @@ def reset_orchestration():
         st.session_state.workflow_orchestrator.current_project = None
         st.session_state.workflow_orchestrator.workflow_steps = []
         st.session_state.workflow_orchestrator.agent_communications = []
+        st.session_state.workflow_orchestrator.collaboration_log = []
     st.success("🔄 Project reset! Ready for new orchestration.")
     st.rerun()
+
+def handle_orchestration_error(error_msg: str):
+    """Handle orchestration errors gracefully"""
+    st.error(f"Orchestration Error: {error_msg}")
+    st.info("You can reset the project to start over or check the agent chat for more details.")
+    if st.button("🔄 Reset Project"):
+        reset_orchestration()
     
     # Sidebar for project configuration
     with st.sidebar:

@@ -1,26 +1,23 @@
 """
-Multi-Agent AI Development System
+Multi-agent system with structured I/O contracts and specialized AI model agents.
 
-This package contains specialized AI agents for collaborative software development:
-- ProjectManagerAgent: Central orchestrator and project planning
-- CodeGeneratorAgent: Backend and algorithm development
-- UIDesignerAgent: Frontend and user experience design
-- TestWriterAgent: Test case generation and quality assurance
-- DebuggerAgent: Code analysis and bug fixing
+Provides base agent architecture and specialized agents for different AI models
+with standardized input/output contracts and artifact-based communication.
 """
 
-from .base_agent import BaseAgent
-from .project_manager import ProjectManagerAgent
-from .code_generator import CodeGeneratorAgent
-from .ui_designer import UIDesignerAgent
-from .test_writer import TestWriterAgent
-from .debugger import DebuggerAgent
+from .base_agent import *
+from .claude_agent import *
+from .gpt4_agent import *
+from .gemini_agent import *
 
+__version__ = "1.0.0"
 __all__ = [
-    'BaseAgent',
-    'ProjectManagerAgent',
-    'CodeGeneratorAgent',
-    'UIDesignerAgent',
-    'TestWriterAgent',
-    'DebuggerAgent'
+    # Base agent
+    "BaseAgent", "AgentInput", "AgentOutput", "AgentCapability",
+    
+    # Specialized agents
+    "ClaudeAgent", "GPT4Agent", "GeminiAgent",
+    
+    # Agent types
+    "AgentType", "ProcessingResult"
 ]

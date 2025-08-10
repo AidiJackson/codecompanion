@@ -1,16 +1,22 @@
 """
-Core system components for the multi-agent AI development system
+Core orchestration system for multi-agent AI development.
 
-This package contains the core orchestration, communication, and memory
-management components that enable collaboration between AI agents.
+Provides event-sourced orchestration, data-driven model routing, and structured
+artifact handling for coordinated multi-agent workflows.
 """
 
-from .orchestrator import AgentOrchestrator
-from .communication import AgentCommunication
-from .memory import ProjectMemory
+from .orchestrator import *
+from .router import *
+from .artifacts import *
 
+__version__ = "1.0.0"
 __all__ = [
-    'AgentOrchestrator',
-    'AgentCommunication', 
-    'ProjectMemory'
+    # Orchestrator
+    "EventSourcedOrchestrator", "WorkflowEvent", "EventType", "OrchestratorState",
+    
+    # Router
+    "DataDrivenRouter", "RoutingContext", "ModelSelection",
+    
+    # Artifacts
+    "ArtifactValidator", "ArtifactHandler", "ValidationResult"
 ]

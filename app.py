@@ -7,10 +7,9 @@ from typing import Dict, List, Any
 import asyncio
 import time
 
-# Multi-model AI integration
-from components.api_key_manager import render_api_key_interface, check_required_keys, render_model_performance_metrics
+# Core system components
 from components.collaboration_dashboard import render_collaboration_dashboard, render_model_health_status
-from core.model_orchestrator import orchestrator, reinitialize_orchestrator, AgentType
+from core.model_orchestrator import AgentType
 
 # Agent imports 
 from agents.project_manager import ProjectManagerAgent
@@ -58,22 +57,13 @@ def initialize_agents():
         }
         st.session_state.orchestrator = AgentOrchestrator(st.session_state.agents, st.session_state.memory)
         
-        # Initialize agent status with model assignments
-        model_assignments = {
-            "project_manager": "Claude (Strategic Planning)",
-            "code_generator": "GPT-4 (Creative Coding)",
-            "ui_designer": "GPT-4 (Design Creativity)",
-            "test_writer": "Gemini (Systematic Testing)",
-            "debugger": "Claude (Logical Analysis)"
-        }
-        
+        # Initialize agent status
         for agent_name in st.session_state.agents:
             st.session_state.agent_status[agent_name] = {
                 "status": "idle",
                 "progress": 0,
                 "current_task": "",
-                "last_activity": None,
-                "assigned_model": model_assignments.get(agent_name, "Unknown")
+                "last_activity": None
             }
 
 def update_agent_status(agent_name: str, status: str, progress: int = 0, task: str = ""):
@@ -86,40 +76,11 @@ def update_agent_status(agent_name: str, status: str, progress: int = 0, task: s
     }
 
 def main():
-    st.title("🤖 CodeCompanion Orchestra - Multi-Model AI Development")
-    st.markdown("### Real-time collaboration between Claude, GPT-4, and Gemini")
+    st.title("🤖 CodeCompanion - Multi-Agent AI Development System")
+    st.markdown("### Live collaboration between specialized AI agents")
     
-    # API Key Management Interface
-    st.sidebar.markdown("# 🔑 Multi-Model Configuration")
-    
-    # Render API key interface
-    api_keys = render_api_key_interface()
-    
-    # Check if at least one API key is configured
-    keys_ready, status_message = check_required_keys()
-    
-    if not keys_ready:
-        st.error(status_message)
-        st.markdown("""
-        ## 🚀 Get Started with Multi-Model AI
-        
-        **CodeCompanion Orchestra** uses three specialized AI models:
-        
-        - **🟣 Claude** - Strategic planning, architecture decisions, debugging logic
-        - **🔵 GPT-4** - Code generation, creative problem-solving, UI design  
-        - **🔴 Gemini** - Testing strategies, validation, quality assurance
-        
-        Configure at least one API key in the sidebar to begin collaborative development.
-        """)
-        return
-    
-    st.success(status_message)
-    
-    # Initialize agents after API keys are configured
+    # Initialize agents
     initialize_agents()
-    
-    # Render model performance metrics
-    render_model_performance_metrics()
     
     # Main application tabs
     tab1, tab2, tab3, tab4 = st.tabs(["💬 Chat", "📊 AI Dashboard", "📁 Project Files", "⚙️ Settings"])
@@ -141,18 +102,18 @@ def render_chat_interface():
     """Render the main chat interface with multi-model collaboration"""
     st.markdown("## 💬 AI Agent Collaboration")
     
-    # Display active agents and their assigned models
+    # Display active agents
     col1, col2, col3, col4, col5 = st.columns(5)
     agent_info = [
-        ("project_manager", "Project Manager", "🟣", "Claude"),
-        ("code_generator", "Code Generator", "🔵", "GPT-4"), 
-        ("ui_designer", "UI Designer", "🔵", "GPT-4"),
-        ("test_writer", "Test Writer", "🔴", "Gemini"),
-        ("debugger", "Debugger", "🟣", "Claude")
+        ("project_manager", "Project Manager", "📋"),
+        ("code_generator", "Code Generator", "💻"), 
+        ("ui_designer", "UI Designer", "🎨"),
+        ("test_writer", "Test Writer", "🧪"),
+        ("debugger", "Debugger", "🔍")
     ]
     
     cols = [col1, col2, col3, col4, col5]
-    for i, (agent_key, agent_name, color, model) in enumerate(agent_info):
+    for i, (agent_key, agent_name, icon) in enumerate(agent_info):
         with cols[i]:
             status = st.session_state.agent_status.get(agent_key, {})
             status_color = {
@@ -162,8 +123,7 @@ def render_chat_interface():
                 "error": "🔴"
             }.get(status.get("status", "idle"), "⚪")
             
-            st.markdown(f"**{color} {agent_name}**")
-            st.caption(f"Powered by {model}")
+            st.markdown(f"**{icon} {agent_name}**")
             st.caption(f"Status: {status_color} {status.get('status', 'idle').title()}")
     
     # Chat history display
@@ -179,8 +139,7 @@ def render_chat_interface():
                 st.markdown(message['content'])
             else:
                 agent_name = message.get('agent', 'Assistant')
-                model_used = message.get('model', 'Unknown')
-                st.markdown(f"**🤖 {agent_name}** `{timestamp}` *via {model_used}*")
+                st.markdown(f"**🤖 {agent_name}** `{timestamp}`")
                 st.markdown(message['content'])
             st.markdown("---")
     
@@ -195,8 +154,8 @@ def render_chat_interface():
             process_user_request(user_input.strip())
     
     with col2:
-        if st.button("🗳️ Get AI Consensus", disabled=not user_input.strip()):
-            get_multi_model_consensus(user_input.strip())
+        if st.button("🤝 Get Team Consensus", disabled=not user_input.strip()):
+            get_agent_consensus(user_input.strip())
 
 def process_user_request(request: str):
     """Process user request through the multi-agent system"""
@@ -234,37 +193,36 @@ def process_user_request(request: str):
     except Exception as e:
         st.error(f"Error processing request: {str(e)}")
 
-def get_multi_model_consensus(question: str):
-    """Get consensus from multiple AI models"""
-    st.info("🗳️ Consulting multiple AI models for consensus...")
+def get_agent_consensus(question: str):
+    """Get consensus from multiple agents"""
+    st.info("🤝 Consulting agent team for consensus...")
     
     try:
         # This would integrate with the orchestrator's consensus feature
-        with st.spinner("Building AI consensus..."):
+        with st.spinner("Building team consensus..."):
             time.sleep(2)  # Simulate processing time
             
             # Add consensus result to chat
             consensus_response = f"""
-            ## 🗳️ Multi-Model AI Consensus
+            ## 🤝 Agent Team Consensus
 
             **Question:** {question}
 
-            **Claude's Perspective:** Strategic analysis suggests focusing on scalable architecture...
-            **GPT-4's Perspective:** Implementation should prioritize user experience and clean code...
-            **Gemini's Perspective:** Testing strategy should include comprehensive edge cases...
+            **Project Manager:** Strategic analysis suggests focusing on scalable architecture and clear milestones...
+            **Code Generator:** Implementation should prioritize clean, maintainable code with proper documentation...
+            **Test Writer:** Quality assurance strategy should include comprehensive testing at all levels...
 
-            **Consensus Recommendation:** Proceed with a modular approach that balances all three perspectives.
+            **Team Consensus:** Proceed with a balanced approach that addresses architecture, implementation, and quality assurance.
             """
             
             st.session_state.chat_history.append({
                 "role": "assistant",
                 "content": consensus_response,
-                "agent": "Multi-Model Consensus",
-                "model": "Claude + GPT-4 + Gemini",
+                "agent": "Agent Team Consensus",
                 "timestamp": datetime.now().isoformat()
             })
             
-            st.success("✅ AI consensus reached!")
+            st.success("✅ Team consensus reached!")
             st.rerun()
     except Exception as e:
         st.error(f"Error building consensus: {str(e)}")
@@ -300,20 +258,20 @@ def render_settings():
     """Render application settings"""
     st.markdown("## ⚙️ Application Settings")
     
-    st.markdown("### 🤖 Model Preferences")
-    st.info("Model assignments are currently fixed based on agent specializations. Custom model routing will be available in a future update.")
+    st.markdown("### 🤖 Agent Specializations")
+    st.info("Each agent is specialized for specific development tasks.")
     
-    # Show current model assignments
+    # Show current agent roles
     assignments = {
-        "Project Manager": "Claude (Strategic Planning)",
-        "Code Generator": "GPT-4 (Creative Coding)",
-        "UI Designer": "GPT-4 (Design Creativity)",
-        "Test Writer": "Gemini (Systematic Testing)",
-        "Debugger": "Claude (Logical Analysis)"
+        "📋 Project Manager": "Strategic planning, requirement analysis, team coordination",
+        "💻 Code Generator": "Backend development, algorithms, APIs, database design",
+        "🎨 UI Designer": "Frontend development, user experience, visual design",
+        "🧪 Test Writer": "Quality assurance, test generation, validation",
+        "🔍 Debugger": "Code analysis, bug detection, performance optimization"
     }
     
-    for agent, model in assignments.items():
-        st.write(f"**{agent}:** {model}")
+    for agent, role in assignments.items():
+        st.write(f"**{agent}:** {role}")
     
     st.markdown("### 🔄 System Actions")
     
@@ -335,12 +293,8 @@ def render_settings():
     st.write(f"**Chat Messages:** {len(st.session_state.chat_history)}")
     st.write(f"**Project Files:** {len(st.session_state.project_files)}")
     
-    # Model statistics
-    stats = orchestrator.get_model_statistics()
-    st.markdown("### 🏥 Model Health")
-    for model, data in stats.items():
-        if data["is_connected"]:
-            st.write(f"**{model.title()}:** ✅ Online - {data['success_count']} requests, {data['reliability']:.1f}% success rate")
+    st.markdown("### 🏥 System Health")
+    st.write("**Status:** ✅ All systems operational")
     
     # Sidebar for project configuration
     with st.sidebar:

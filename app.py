@@ -956,7 +956,10 @@ def render_project_launch():
             if st.session_state.project_description.strip():
                 try:
                     # Clear any previous status and initialize session state
-                    st.session_state.project_status = ["🚀 Starting project execution..."]
+                    st.session_state.project_status = [{
+                        'time': datetime.now().strftime("%H:%M:%S"),
+                        'message': "🚀 Starting project execution..."
+                    }]
                     st.session_state.execution_started = True
                     st.session_state.agent_outputs = []
                     
@@ -1005,7 +1008,15 @@ def render_project_launch():
         if 'project_status' in st.session_state and st.session_state.project_status:
             st.markdown("#### 📊 Progress Updates")
             for status in st.session_state.project_status[-10:]:  # Show last 10 updates
-                st.write(f"⏰ {status.get('time', 'N/A')} - {status.get('message', 'N/A')}")
+                # Handle both string and dict formats safely
+                if isinstance(status, dict):
+                    time_str = status.get('time', 'N/A')
+                    message = status.get('message', 'N/A')
+                    st.write(f"⏰ {time_str} - {message}")
+                else:
+                    # If it's a string, display with current time
+                    current_time = datetime.now().strftime("%H:%M:%S")
+                    st.write(f"⏰ {current_time} - {str(status)}")
         
         # Show agent outputs if available
         if 'agent_outputs' in st.session_state and st.session_state.agent_outputs:
@@ -2101,7 +2112,10 @@ def render_live_ai_project_launcher():
             if project_description.strip():
                 try:
                     # Clear any previous status and initialize session state
-                    st.session_state.project_status = ["🚀 Starting project execution..."]
+                    st.session_state.project_status = [{
+                        'time': datetime.now().strftime("%H:%M:%S"),
+                        'message': "🚀 Starting project execution..."
+                    }]
                     st.session_state.execution_started = True
                     st.session_state.agent_outputs = []
                     
@@ -2142,7 +2156,15 @@ def render_live_ai_project_launcher():
         if 'project_status' in st.session_state and st.session_state.project_status:
             st.markdown("#### 📊 Progress Updates")
             for status in st.session_state.project_status[-10:]:  # Show last 10 updates
-                st.write(f"⏰ {status.get('time', 'N/A')} - {status.get('message', 'N/A')}")
+                # Handle both string and dict formats safely
+                if isinstance(status, dict):
+                    time_str = status.get('time', 'N/A')
+                    message = status.get('message', 'N/A')
+                    st.write(f"⏰ {time_str} - {message}")
+                else:
+                    # If it's a string, display with current time
+                    current_time = datetime.now().strftime("%H:%M:%S")
+                    st.write(f"⏰ {current_time} - {str(status)}")
         
         # Show agent outputs if available
         if 'agent_outputs' in st.session_state and st.session_state.agent_outputs:

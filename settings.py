@@ -3,21 +3,20 @@ from typing import Optional, Dict
 
 class Settings(BaseSettings):
     # API keys
-    OPENROUTER_API_KEY: Optional[str] = None
-    OPENAI_API_KEY: Optional[str] = None
-    ANTHROPIC_API_KEY: Optional[str] = None
-    GEMINI_API_KEY: Optional[str] = None
+    OPENROUTER_API_KEY: Optional[str] = None   # for GPT-4 via OpenRouter
+    OPENAI_API_KEY: Optional[str] = None       # optional fallback
+    ANTHROPIC_API_KEY: Optional[str] = None    # Claude
+    GEMINI_API_KEY: Optional[str] = None       # Gemini
 
-    # Bus
-    EVENT_BUS: str = "mock"             # overridden by ENV/Secrets
-    REDIS_URL: Optional[str] = None     # rediss://... from Upstash
+    # Bus (kept for later; not used in this path)
+    EVENT_BUS: str = "redis"
+    REDIS_URL: Optional[str] = None
 
-    # DB & app
+    # App
     DATABASE_URL: str = "sqlite:///./data/codecompanion.db"
-    STREAMLIT_DEBUG: bool = True        # Enable debug mode for MockBus
+    STREAMLIT_DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
 
-    # Helpers used elsewhere
     def scrub_url(self, url: Optional[str] = None) -> str:
         val = url or self.DATABASE_URL
         try:

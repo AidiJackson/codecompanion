@@ -13,6 +13,7 @@ import streamlit as st
 import asyncio
 import json
 import requests
+import httpx
 import os
 from datetime import datetime
 from typing import Dict, List, Optional, Any
@@ -721,6 +722,57 @@ def create_demo_data() -> Dict[str, Any]:
         "complexity": complexity
     }
 
+def render_real_mode():
+    """Real Mode Interface with Live AI Models"""
+    st.title("CodeCompanion — Real Mode")
+    st.markdown("**Direct AI Model Pipeline (No Redis Required)**")
+    
+    from settings import settings
+    models = settings.get_available_models()
+    
+    st.subheader("📋 Available Models")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.write(f"Claude: {'✅' if models['claude'] else '❌'}")
+    with col2:
+        st.write(f"GPT-4: {'✅' if models['gpt4'] else '❌'}")
+    with col3:
+        st.write(f"Gemini: {'✅' if models['gemini'] else '❌'}")
+    
+    objective = st.text_input("Objective", placeholder="e.g., Add Google OAuth to Flask app")
+    
+    if st.button("🚀 Run Real Agents", type="primary"):
+        if not objective.strip():
+            st.warning("Please enter an objective.")
+        else:
+            with st.spinner("Calling real AI models..."):
+                async def go():
+                    async with httpx.AsyncClient(timeout=120) as client:
+                        r = await client.post("http://0.0.0.0:8000/run_real", json={"objective": objective.strip()})
+                        r.raise_for_status()
+                        return r.json()
+                
+                try:
+                    data = asyncio.run(go())
+                    
+                    if "artifacts" in data:
+                        st.success("✅ Real AI Pipeline Complete!")
+                        
+                        st.subheader("📊 Generated Artifacts")
+                        for i, artifact in enumerate(data["artifacts"]):
+                            with st.expander(f"{artifact['type']} — {artifact['agent']} (confidence {artifact['confidence']:.2f})"):
+                                st.code(artifact["content"], language="markdown")
+                        
+                        # Show model usage
+                        st.subheader("🤖 Model Usage")
+                        st.json(data["models"])
+                    else:
+                        st.error(f"Error: {data}")
+                
+                except Exception as e:
+                    st.error(f"API call failed: {e}")
+                    st.info("Make sure the API server is running on port 8000")
+
 def main():
     """Main application interface"""
     
@@ -735,16 +787,17 @@ def main():
         api_status = "🟢 Connected" if st.session_state.api_connected else "🔴 Disconnected"
         st.markdown(f"**API Status**: {api_status}")
     with col2:
-        redis_status = "🟢 Available" if st.session_state.real_time_orchestrator and st.session_state.real_time_orchestrator.event_bus.redis else "🟡 Mock Mode"
+        redis_status = "🟢 Available" if st.session_state.real_time_orchestrator and hasattr(st.session_state.real_time_orchestrator.event_bus, 'r') else "🟡 Mock Mode"
         st.markdown(f"**Event Streaming**: {redis_status}")
     with col3:
         event_count = len(st.session_state.event_stream)
         st.markdown(f"**Live Events**: {event_count}")
 
     # Main navigation
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
+        "🚀 Real Mode",
         "🤖 Intelligent Router",
-        "🎯 Typed Artifact System",
+        "🎯 Typed Artifact System", 
         "📋 Schema Demonstration",
         "🎯 Task & Artifact Management", 
         "🤖 Agent Orchestration",
@@ -756,33 +809,36 @@ def main():
     ])
     
     with tab1:
+        render_real_mode()
+        
+    with tab2:
         render_intelligent_router()
     
-    with tab2:
+    with tab3:
         render_typed_artifacts_page()
     
-    with tab3:
+    with tab4:
         render_schema_demo()
     
-    with tab4:
+    with tab5:
         render_task_management()
     
-    with tab5:
+    with tab6:
         render_agent_orchestration()
         
-    with tab6:
+    with tab7:
         render_routing_dashboard()
     
-    with tab7:
+    with tab8:
         render_workflow_monitor()
     
-    with tab8:
+    with tab9:
         render_event_streaming_dashboard()
     
-    with tab9:
+    with tab10:
         quality_monitoring_dashboard()
     
-    with tab10:
+    with tab11:
         render_database_dashboard()
 
 

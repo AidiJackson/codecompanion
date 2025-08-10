@@ -451,9 +451,12 @@ def render_live_orchestration_dashboard():
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Project Type", project['project_type'].replace('_', ' ').title())
+        project_type_str = str(project.get('project_type', 'unknown'))
+        project_type_title = project_type_str.replace('_', ' ').title()
+        st.metric("Project Type", project_type_title)
     with col2:
-        st.metric("Complexity", project['complexity'].title()) 
+        complexity_str = str(project.get('complexity', 'unknown'))
+        st.metric("Complexity", complexity_str.title()) 
     with col3:
         st.metric("Active Agents", len(project['required_agents']))
     with col4:
@@ -491,7 +494,6 @@ def render_live_orchestration_dashboard():
         for i, (agent_name, agent_status) in enumerate(agent_statuses.items()):
             with agent_cols[i]:
                 # Agent icon mapping
-                # Agent icon mapping
                 agent_icons = {
                     "project_manager": "📋",
                     "code_generator": "💻",
@@ -510,17 +512,26 @@ def render_live_orchestration_dashboard():
                     "error": "🔴"
                 }.get(agent_status['status'], "⚪")
                 
-                st.markdown(f"**{icon} {agent_name.replace('_', ' ').title()}**")
-                st.caption(f"Status: {status_color} {agent_status['status'].title()}")
+                # Ensure agent_name is a string
+                agent_name_str = str(agent_name) if not isinstance(agent_name, str) else agent_name
+                agent_title = agent_name_str.replace('_', ' ').title()
+                st.markdown(f"**{icon} {agent_title}**")
                 
-                # Progress bar for each agent
-                if agent_status['progress'] > 0:
-                    st.progress(agent_status['progress'] / 100)
-                    st.caption(f"{agent_status['progress']}%")
+                # Ensure status is a string
+                status_str = str(agent_status.get('status', 'idle'))
+                st.caption(f"Status: {status_color} {status_str.title()}")
                 
-                # Current task
-                if agent_status.get('current_task'):
-                    st.caption(f"Task: {agent_status['current_task'][:50]}...")
+                # Progress bar for each agent with safe access
+                progress_value = agent_status.get('progress', 0)
+                if isinstance(progress_value, (int, float)) and progress_value > 0:
+                    st.progress(min(100, max(0, progress_value)) / 100)
+                    st.caption(f"{progress_value}%")
+                
+                # Current task with safe string handling
+                current_task = agent_status.get('current_task')
+                if current_task:
+                    task_str = str(current_task) if not isinstance(current_task, str) else current_task
+                    st.caption(f"Task: {task_str[:50]}...")
     else:
         st.info("🤖 Initializing agent status...")
     
@@ -579,9 +590,12 @@ def execute_orchestration():
                 step.status = AgentStatus.WORKING
                 step.progress = 50
                 
-                # Add to communications
+                # Add to communications with safe string handling
+                agent_type_str = str(step.agent_type.value)
+                agent_title = agent_type_str.replace('_', ' ').title()
+                task_str = str(step.task)
                 orchestrator.add_agent_communication(
-                    f"{step.agent_type.value.replace('_', ' ').title()} started: {step.task[:50]}..."
+                    f"{agent_title} started: {task_str[:50]}..."
                 )
                 
                 time.sleep(1)  # Simulate work
@@ -590,7 +604,7 @@ def execute_orchestration():
                 step.status = AgentStatus.COMPLETED
                 
                 orchestrator.add_agent_communication(
-                    f"{step.agent_type.value.replace('_', ' ').title()} completed task successfully!"
+                    f"{agent_title} completed task successfully!"
                 )
                 
                 break  # Execute one step per click for demo

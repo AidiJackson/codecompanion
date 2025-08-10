@@ -1,0 +1,141 @@
+{
+  "git": {
+    "inside": true,
+    "dirty_files": 0,
+    "latest_commits": [
+      "431dde7 (HEAD -> main) Fix simulation interference by eliminating mock event bus",
+      "213e5f5 Ensure real API results display by bypassing the mock event bus",
+      "efb7c7e Add isolated real execution to bypass simulation systems",
+      "8acac5b Refine UI updates and introduce isolated real execution for agents",
+      "8d89c21 Saved your changes before starting work",
+      "a0fe24a Update project configuration to show live price and time estimates",
+      "09a0cb1 Show live AI execution data instead of demo content",
+      "2b3106c Display real AI execution data or simulation mode",
+      "df0da9f Improve project launch by adding task and work item details",
+      "205a4de Establish essential database infrastructure for data persistence"
+    ],
+    "default_branch": "main",
+    "latest_hash": "431dde7"
+  },
+  "structure": {
+    "important_files": [
+      "pyproject.toml", "uv.lock", ".streamlit/config.toml", ".replit",
+      "app.py", "api_server.py", "replit.md"
+    ],
+    "has": {
+      "package_json": false,
+      "pyproject": true,
+      "requirements": false,
+      "dockerfile": false,
+      "compose": false,
+      "replit": true
+    }
+  },
+  "runtime": {
+    "node": "not installed",
+    "npm": "not available",
+    "python": "3.11.13",
+    "entrypoints": ["streamlit run app.py --server.port 5000", "uvicorn api_server:app"]
+  },
+  "agents": [
+    {
+      "name": "Project Manager",
+      "path": "agents/project_manager.py",
+      "model_hint": "claude-3-5-sonnet",
+      "tools": ["requirements_analysis", "project_planning"],
+      "inputs": ["project_description", "requirements"],
+      "outputs": ["project_plan", "task_breakdown"]
+    },
+    {
+      "name": "Code Generator", 
+      "path": "agents/code_generator.py",
+      "model_hint": "gpt-4",
+      "tools": ["code_generation", "architecture_design"],
+      "inputs": ["specifications", "requirements"],
+      "outputs": ["source_code", "implementation_plan"]
+    },
+    {
+      "name": "Debugger",
+      "path": "agents/debugger.py", 
+      "model_hint": "claude-3-5-sonnet",
+      "tools": ["code_review", "bug_detection", "optimization"],
+      "inputs": ["source_code", "error_reports"],
+      "outputs": ["debug_report", "optimization_suggestions"]
+    },
+    {
+      "name": "Test Writer",
+      "path": "agents/test_writer.py",
+      "model_hint": "gpt-4", 
+      "tools": ["test_generation", "coverage_analysis"],
+      "inputs": ["source_code", "specifications"],
+      "outputs": ["test_suite", "coverage_report"]
+    },
+    {
+      "name": "UI Designer",
+      "path": "agents/ui_designer.py",
+      "model_hint": "gemini-1.5-pro",
+      "tools": ["ui_design", "user_experience"],
+      "inputs": ["requirements", "user_stories"],
+      "outputs": ["ui_mockups", "design_specifications"]
+    }
+  ],
+  "orchestration": {
+    "bus": "redis",
+    "frameworks": ["streamlit", "fastapi", "pydantic"],
+    "parallelism": "full",
+    "event_streaming": true,
+    "live_collaboration": true,
+    "real_time_updates": true
+  },
+  "artifacts": {
+    "schemas": ["CodePatch", "TestPlan", "SpecDoc", "DesignDoc", "Artifact", "Outcome", "Ledger"],
+    "gates": ["quality_cascade", "consensus_validation", "performance_tracking"],
+    "validation": "multi-stage"
+  },
+  "memory": {
+    "type": "sqlite",
+    "objects": ["artifacts", "outcomes", "performance_metrics", "session_data", "learning_data"],
+    "migrations": true,
+    "persistence": "database_manager"
+  },
+  "routing": {
+    "strategy": "hybrid",
+    "features": ["complexity", "model_capability", "cost", "latency", "quality_score"],
+    "learning": "thompson_sampling_bandit",
+    "intelligent_routing": true
+  },
+  "secrets": {
+    "ANTHROPIC_API_KEY": true,
+    "OPENAI_API_KEY": true,
+    "GEMINI_API_KEY": true,
+    "REDIS_URL": false,
+    "DATABASE_URL": false
+  },
+  "tests": {
+    "framework": "python-unittest",
+    "coverage": "integrated",
+    "types": ["unit", "integration", "performance"],
+    "quality_gates": true
+  },
+  "deployment": {
+    "dev_commands": ["streamlit run app.py --server.port 5000"],
+    "production_ready": true,
+    "platform": "replit",
+    "port": 5000,
+    "config_files": [".streamlit/config.toml", ".replit"]
+  },
+  "performance": {
+    "token_tracking": true,
+    "cost_monitoring": true,
+    "performance_store": "sqlite",
+    "quality_scoring": true,
+    "bandit_learning": true
+  },
+  "recent_fixes": {
+    "mock_event_bus_eliminated": "2025-08-10",
+    "real_api_integration": "working",
+    "simulation_interference": "resolved",
+    "direct_ui_bypass": "implemented",
+    "authentic_timestamps": "verified"
+  }
+}

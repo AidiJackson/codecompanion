@@ -1,0 +1,76 @@
+You are an expert repo auditor. Produce a compact, machine-readable project snapshot for a multi-agent AI system. 
+Goals:
+1) Detect tech stack, agents, orchestration, memory, routing, tests, and deployment.
+2) Emit a single JSON file: `state_report.json` at repo root.
+3) DO NOT print secrets; only show whether a secret exists (true/false).
+
+Steps (run as needed, skipping errors):
+
+[Repo & Git]
+- Run: git rev-parse --is-inside-work-tree || true
+- Run: git status --porcelain || true
+- Run: git log --oneline -n 10 || true
+- Record default branch and latest commit hash.
+
+[Structure]
+- Create a shallow tree (max depth 3) excluding node_modules, .venv, .git:
+  - Try: find . -maxdepth 3 -type f | sed 's|^\./||' | head -n 500
+  - Record presence of: package.json, pnpm-lock.yaml, requirements.txt, pyproject.toml, poetry.lock, Dockerfile, compose.yaml, .replit, replit.nix.
+
+[Runtime detection]
+- If package.json exists: 
+  - Run: jq -r '.name, .scripts, .dependencies, .devDependencies' package.json 2>/dev/null || cat package.json
+  - Run: node -v || true; npm -v || true
+- If Python (requirements.txt or pyproject.toml):
+  - Run: python3 -V || python -V
+  - Run: pip list || pip3 list
+- Detect proc entrypoint: search for FastAPI/Uvicorn, Flask, Node/Express, Next.js scripts.
+
+[Agents & Orchestration]
+- Grep for files/dirs named: agent, orchestrator, router, worker, playbook, artifacts, ledger, memory, bus, streams.
+- Extract a list of agents with:
+  - name, file path, model hints (gpt-4/claude/gemini/openrouter model ids), tools used, input/output artifact types.
+- Detect if using Redis/NATS/Kafka/LiteLLM/LangGraph/LangChain. Record versions if importable.
+
+[Artifacts & Gates]
+- Search for schemas (jsonschema/pydantic/zod) named: CodePatch, TestPlan, EvalReport, SpecDoc, DesignDoc.
+- Record CI/gates found: lint, type-check, unit, coverage thresholds, perf budgets, secret scan.
+
+[Memory]
+- Detect pgvector/Pinecone/Weaviate/Chroma/Redis search.
+- Record table/index names and migration presence (alembic/prisma/migrate).
+
+[Routing]
+- Look for “router” code: rules, bandit, weights. Record strategy (rules_only | bandit | hybrid) and feature signals used.
+
+[Secrets & Config]
+- List expected env keys (names only, NOT VALUES): e.g., OPENROUTER_API_KEY, ANTHROPIC_API_KEY, GOOGLE_CLIENT_ID, REDIS_URL, DATABASE_URL.
+- For each, report existence via env lookup (true/false).
+
+[Tests]
+- Detect unit/integration/e2e tests; run a safe, short test command if available:
+  - Try (in order): 
+    - npm test --silent -- -u || true
+    - pytest -q -k "not slow" || true
+- Summarize pass/fail counts if printed.
+
+[Deployment]
+- Record dev/start commands (.replit, Procfile, npm scripts, uvicorn/flask run).
+- Record any deploy config (Dockerfile, compose, Replit run config).
+
+[Performance/Costs (if present)]
+- Grep for token usage logging, rate limits, or per-call cost logging. Summarize if found.
+
+Output:
+- Write `state_report.json` with the structure:
+
+{
+  "git": { "inside": bool, "dirty_files": int, "latest_commits": ["..."], "default_branch": "main", "latest_hash": "..." },
+  "structure": { "important_files": [...], "has": { "package_json": bool, "pyproject": bool, "requirements": bool, "dockerfile": bool, "compose": bool, "replit": bool } },
+  "runtime": { "node": "vX", "npm": "vY", "python": "vZ", "entrypoints": ["..."] },
+  "agents": [ { "name": "...", "path": "...", "model_hint": "...", "tools": ["..."], "inputs": ["..."], "outputs": ["..."] } ],
+  "orchestration": { "bus": "redis|nats|kafka|none", "frameworks": ["liteLLM","langgraph",...], "parallelism": "sequential|partial|full" },
+  "artifacts": { "schemas": ["CodePatch","TestPlan",...], "gates": ["lint","unit","coverage>=X", "perf", "secretscan"] },
+  "memory": { "type": "pgvector|pinecone|weaviate|redis|none", "objects": ["tables/indexes"], "migrations": bool },
+  "routing": { "strategy": "rules_only|bandit|hybrid", "features": ["complexity","latency","cost","risk"] },
+  "secrets": { "OPENROUT

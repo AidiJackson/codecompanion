@@ -31,7 +31,7 @@ st.set_page_config(
 )
 
 # Initialize session state with comprehensive error handling
-from utils.session_manager import init_session_safely, get_session_value, set_session_value
+from utils.session_manager import init_session_safely, get_session_value, set_session_value, session_manager, validate_session, cleanup_session, partial_reset, emergency_reset
 from utils.error_handler import log_user_action, logger
 
 # Initialize session safely
@@ -174,7 +174,6 @@ def main():
 
 def render_emergency_controls():
     """Render emergency controls in sidebar"""
-    from utils.session_manager import session_manager, validate_session, cleanup_session
     
     st.markdown("## 🚨 Emergency Controls")
     

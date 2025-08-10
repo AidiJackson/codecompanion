@@ -41,6 +41,13 @@ from monitoring.performance_tracker import PerformanceTracker
 # Agent imports
 from agents.base_agent import BaseAgent, AgentInput, AgentOutput, AgentCapability, AgentType
 
+# Quality system imports
+from core.quality_cascade import QualityCascade, TaskComplexity as QualityTaskComplexity
+from core.consensus_validator import ConsensusValidator, ValidationDomain
+from core.learning_engine import ContinuousLearner, LearningMode
+from monitoring.quality_dashboard import quality_monitoring_dashboard
+from storage.performance_store import PerformanceStore
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -114,6 +121,23 @@ def init_session_state():
     
     if 'active_live_project' not in st.session_state:
         st.session_state.active_live_project = None
+    
+    # Initialize performance tracker
+    if 'performance_tracker' not in st.session_state:
+        st.session_state.performance_tracker = PerformanceTracker()
+    
+    # Initialize quality system components
+    if 'quality_cascade' not in st.session_state:
+        st.session_state.quality_cascade = QualityCascade()
+    
+    if 'consensus_validator' not in st.session_state:
+        st.session_state.consensus_validator = ConsensusValidator()
+    
+    if 'continuous_learner' not in st.session_state:
+        st.session_state.continuous_learner = ContinuousLearner()
+    
+    if 'performance_store' not in st.session_state:
+        st.session_state.performance_store = PerformanceStore()
 
 def create_demo_data() -> Dict[str, Any]:
     """Create demonstration data showing the schema system"""
@@ -253,7 +277,7 @@ def main():
         st.markdown(f"**Live Events**: {event_count}")
 
     # Main navigation
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
         "🤖 Intelligent Router",
         "🎯 Typed Artifact System",
         "📋 Schema Demonstration",
@@ -261,7 +285,8 @@ def main():
         "🤖 Agent Orchestration",
         "📊 Routing & Performance",
         "⚡ Live Workflow Monitor",
-        "🌊 Event Streaming (New)"
+        "🌊 Event Streaming (New)",
+        "🎯 Quality Dashboard"
     ])
     
     with tab1:
@@ -287,6 +312,9 @@ def main():
     
     with tab8:
         render_event_streaming_dashboard()
+    
+    with tab9:
+        quality_monitoring_dashboard()
 
 def render_schema_demo():
     """Demonstrate the comprehensive schema system"""

@@ -21,6 +21,10 @@ import threading
 import time
 import openai
 
+# Import and run strict config startup logging
+from startup_logs_strict import log_startup_configuration
+log_startup_configuration()
+
 # Schema imports
 from schemas.artifacts import ArtifactType, SpecDoc, DesignDoc, CodePatch, TestPlan, EvalReport, Runbook
 from schemas.ledgers import TaskLedger, ProgressLedger, WorkItem, TaskStatus, Priority

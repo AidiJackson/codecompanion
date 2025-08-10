@@ -1396,7 +1396,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.10.1" },
     { name = "pytest", specifier = ">=8.4.1" },
     { name = "pytest-asyncio", specifier = ">=1.1.0" },
-    { name = "redis", extras = ["hiredis"], specifier = ">=6.4.0" },
+    { name = "redis", extras = ["hiredis"], specifier = ">=5.0.1" },
     { name = "requests", specifier = ">=2.32.4" },
     { name = "scikit-learn", specifier = ">=1.7.1" },
     { name = "streamlit", specifier = ">=1.48.0" },

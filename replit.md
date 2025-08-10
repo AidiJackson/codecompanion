@@ -9,6 +9,7 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes
 - **August 10, 2025**: Added lightweight vector memory system with semantic search capabilities. Features OpenAI embeddings for high-quality similarity search, TF-IDF fallback when embeddings unavailable, and context handle system to store references instead of full text content.
 - **August 10, 2025**: Enhanced FastAPI backend with health check and development testing endpoints: GET /health returns event bus and database status, POST /simulate_task creates mock tasks for development testing.
+- **August 10, 2025**: Implemented strict configuration system with fail-fast validation and production Redis Streams bus. Created bus.py with RedisStreamsBus and MockBus classes, settings.py with strict validation, and constants.py with topic definitions. System fails immediately if misconfigured.
 
 ## System Architecture
 

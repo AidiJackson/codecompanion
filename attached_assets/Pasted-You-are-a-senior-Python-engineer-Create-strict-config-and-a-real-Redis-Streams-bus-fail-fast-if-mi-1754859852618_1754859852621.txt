@@ -1,0 +1,141 @@
+You are a senior Python engineer. Create strict config and a real Redis Streams bus, fail-fast if misconfigured.
+
+1) Create/overwrite settings.py:
+
+from pydantic import BaseSettings
+from typing import Optional
+
+class Settings(BaseSettings):
+    OPENROUTER_API_KEY: Optional[str] = None
+    ANTHROPIC_API_KEY: Optional[str] = None
+    GEMINI_API_KEY: Optional[str] = None
+
+    EVENT_BUS: str = "redis"           # "redis" or "mock"
+    REDIS_URL: Optional[str] = None
+
+    DATABASE_URL: Optional[str] = "sqlite:///./data/codecompanion.db"
+    STREAMLIT_DEBUG: bool = False
+
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+settings = Settings()
+
+2) Create/overwrite bus.py with Redis Streams + Mock, fail-fast factory:
+
+from __future__ import annotations
+import asyncio, json, time
+from typing import Any, Dict, Callable, Optional
+from dataclasses import dataclass
+from settings import settings
+
+@dataclass
+class Event:
+    topic: str
+    payload: Dict[str, Any]
+
+class BaseBus:
+    async def publish(self, event: Event) -> str: ...
+    async def subscribe(self, topic: str, group: str, consumer: str, handler: Callable[[Event], asyncio.Future]): ...
+    async def ensure_topic(self, topic: str): ...
+
+class RedisStreamsBus(BaseBus):
+    def __init__(self, url: str):
+        import redis.asyncio as redis
+        self.r = redis.from_url(url, decode_responses=True)
+    async def ping(self):
+        await self.r.ping()
+    async def ensure_topic(self, topic: str):
+        try:
+            await self.r.xgroup_create(name=topic, groupname="orchestrator", id="0-0", mkstream=True)
+        except Exception as e:
+            if "BUSYGROUP" not in str(e):
+                raise
+    async def publish(self, event: Event) -> str:
+        data = {"payload": json.dumps(event.payload)}
+        return await self.r.xadd(event.topic, data)
+    async def subscribe(self, topic: str, group: str, consumer: str, handler: Callable[[Event], asyncio.Future]):
+        await self.ensure_topic(topic)
+        while True:
+            msgs = await self.r.xreadgroup(groupname=group, consumername=consumer, streams={topic: ">"}, count=10, block=5000)
+            for _, entries in msgs or []:
+                for msg_id, fields in entries:
+                    try:
+                        payload = json.loads(fields["payload"])
+                        await handler(Event(topic=topic, payload=payload))
+                        await self.r.xack(topic, group, msg_id)
+                    except Exception:
+                        await self.r.xack(topic, group, msg_id)
+
+class MockBus(BaseBus):
+    def __init__(self):
+        self.queues = {}
+    async def ensure_topic(self, topic: str):
+        self.queues.setdefault(topic, asyncio.Queue())
+    async def publish(self, event: Event) -> str:
+        await self.ensure_topic(event.topic)
+        await self.queues[event.topic].put(event)
+        return str(time.time())
+    async def subscribe(self, topic: str, group: str, consumer: str, handler: Callable[[Event], asyncio.Future]):
+        await self.ensure_topic(topic)
+        q = self.queues[topic]
+        while True:
+            ev: Event = await q.get()
+            await handler(ev)
+
+def get_bus() -> BaseBus:
+    if settings.EVENT_BUS == "redis":
+        if not settings.REDIS_URL:
+            raise RuntimeError("EVENT_BUS=redis but REDIS_URL not set")
+        b = RedisStreamsBus(settings.REDIS_URL)
+        asyncio.get_event_loop().run_until_complete(b.ping())
+        return b
+    if settings.EVENT_BUS == "mock":
+        if not settings.STREAMLIT_DEBUG:
+            raise RuntimeError("MockBus selected but STREAMLIT_DEBUG is False. Refusing to run mock in non-debug mode.")
+        return MockBus()
+    raise RuntimeError(f"Unknown EVENT_BUS: {settings.EVENT_BUS}")
+
+# export singleton
+bus = get_bus()
+
+3) Add redis client to deps if missing:
+- If Python project uses requirements.txt, append: redis>=5.0.1
+- If using poetry/pyproject, add dependency accordingly.
+
+4) Create constants.py if not present:
+
+TOPIC_TASKS = "cc.tasks"
+TOPIC_ARTIFACTS = "cc.artifacts"
+TOPIC_REVIEWS = "cc.reviews"
+TOPIC_METRICS = "cc.metrics"
+
+5) In the main app bootstrap (where the orchestrator is built), replace any previous bus import with:
+from bus import bus, Event
+from constants import TOPIC_TASKS, TOPIC_ARTIFACTS, TOPIC_REVIEWS, TOPIC_METRICS
+
+6) Add a small health check file api.py (or extend it) with FastAPI:
+
+from fastapi import FastAPI
+from settings import settings
+from bus import bus
+import sqlite3
+
+app = FastAPI()
+
+@app.get("/health")
+async def health():
+    redis_ok = True
+    db_ok = True
+    try:
+        # quick SQLite check
+        conn = sqlite3.connect("./data/codecompanion.db")
+        conn.execute("select 1")
+        conn.close()
+    except Exception:
+        db_ok = False
+    # ping already happened at startup; if bus is MockBus this code wouldn't run (fail-fast)
+    return {"ok": redis_ok and db_ok, "event_bus": settings.EVENT_BUS, "db_ok": db_ok}
+
+Print a startup log line that includes EVENT_BUS and DATABASE_URL (with credentials scrubbed).

@@ -59,27 +59,30 @@ class MockBus(BaseBus):
             await handler(ev)
 
 def get_bus() -> BaseBus:
-    print(f"DEBUG: EVENT_BUS={settings.EVENT_BUS}, STREAMLIT_DEBUG={settings.STREAMLIT_DEBUG}, REDIS_URL={settings.REDIS_URL}")
-    
     if settings.EVENT_BUS == "redis":
         if not settings.REDIS_URL:
-            print("⚠️  EVENT_BUS=redis but REDIS_URL not set, falling back to MockBus")
-            if not settings.STREAMLIT_DEBUG:
-                print("⚠️  Enabling STREAMLIT_DEBUG for MockBus fallback")
-            return MockBus()
+            raise RuntimeError("EVENT_BUS=redis but REDIS_URL not set")
+
+        b = RedisStreamsBus(settings.REDIS_URL)
+
+        # Robust ping: works with or without an existing event loop (Streamlit thread safe)
+        import asyncio
         try:
-            b = RedisStreamsBus(settings.REDIS_URL)
-            asyncio.get_event_loop().run_until_complete(b.ping())
-            return b
-        except Exception as e:
-            print(f"⚠️  Redis connection failed: {e}, falling back to MockBus")
-            return MockBus()
-    
+            loop = asyncio.get_running_loop()
+            # Inside a running loop – schedule ping but do not block
+            loop.create_task(b.ping())
+        except RuntimeError:
+            # No running loop – run synchronously
+            asyncio.run(b.ping())
+
+        return b
+
     if settings.EVENT_BUS == "mock":
+        # Only allow MockBus explicitly in debug mode
         if not settings.STREAMLIT_DEBUG:
-            print("⚠️  MockBus selected but STREAMLIT_DEBUG is False, enabling it for development")
+            raise RuntimeError("MockBus selected but STREAMLIT_DEBUG is False")
         return MockBus()
-    
+
     raise RuntimeError(f"Unknown EVENT_BUS: {settings.EVENT_BUS}")
 
 # export singleton

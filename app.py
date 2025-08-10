@@ -142,10 +142,15 @@ def main():
         
         # Check if we have an active orchestrated project
         active_project = get_session_value('active_project')
-        if active_project:
-            render_live_orchestration_dashboard()
-        else:
-            render_project_initiation_panel()
+        try:
+            if active_project:
+                render_live_orchestration_dashboard()
+            else:
+                render_project_initiation_panel()
+        except Exception as render_error:
+            logger.error(f"Error rendering main content: {str(render_error)}")
+            st.error("Error displaying content. Please try refreshing the page.")
+            st.exception(render_error)
             
         log_user_action("main_page_rendered", {"active_project": bool(active_project)})
         
@@ -232,22 +237,47 @@ def render_emergency_controls():
         render_chat_interface()
     
     with tab2:
-        if st.session_state.workflow_orchestrator and st.session_state.active_project:
-            render_live_orchestration()
-        else:
-            render_project_initiation_panel()
+        try:
+            if st.session_state.workflow_orchestrator and st.session_state.active_project:
+                render_live_orchestration_dashboard()
+            else:
+                render_project_initiation_panel()
+        except Exception as tab_error:
+            st.error("Error loading Live Orchestra tab")
+            with st.expander("View Error Details"):
+                st.exception(tab_error)
     
     with tab3:
-        render_system_health()
+        try:
+            render_system_health()
+        except Exception as tab_error:
+            st.error("Error loading System Health tab")
+            with st.expander("View Error Details"):
+                st.exception(tab_error)
     
     with tab4:
-        render_collaboration_dashboard()
+        try:
+            render_collaboration_dashboard()
+        except Exception as tab_error:
+            st.error("Error loading Collaboration Dashboard tab")
+            with st.expander("View Error Details"):
+                st.exception(tab_error)
     
     with tab5:
-        render_project_files()
+        try:
+            render_project_files()
+        except Exception as tab_error:
+            st.error("Error loading Project Files tab")
+            with st.expander("View Error Details"):
+                st.exception(tab_error)
     
     with tab6:
-        render_settings()
+        try:
+            render_settings()
+        except Exception as tab_error:
+            st.error("Error loading Settings tab")
+            with st.expander("View Error Details"):
+                st.exception(tab_error)
 
 def render_chat_interface():
     """Render the main chat interface with multi-model collaboration"""

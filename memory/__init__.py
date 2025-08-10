@@ -1,0 +1,1 @@
+# Vector memory package for local vector storage

@@ -6,6 +6,9 @@ CodeCompanion Orchestra is an advanced multi-agent AI development system that or
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+- **August 10, 2025**: Added lightweight vector memory system with semantic search capabilities. Features OpenAI embeddings for high-quality similarity search, TF-IDF fallback when embeddings unavailable, and context handle system to store references instead of full text content.
+
 ## System Architecture
 
 ### Frontend Architecture
@@ -48,6 +51,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Data Storage Solutions
 - **SQLite Database Infrastructure**: Comprehensive persistence layer for artifacts, timeline events, project sessions, agent performance, bandit learning data, quality metrics, and router performance. Includes DatabaseManager for CRUD operations.
+- **Vector Memory System**: Lightweight local vector storage with semantic search capabilities using OpenAI embeddings (with TF-IDF fallback). Stores context handles instead of raw text to prevent memory bloat, enabling intelligent retrieval of agent interactions and artifacts.
 - **Session State**: In-memory storage for current project context.
 - **File System**: Local file operations for generated code and downloadable artifacts.
 - **Database Dashboard**: Interactive interface for status monitoring, testing, and analytics.

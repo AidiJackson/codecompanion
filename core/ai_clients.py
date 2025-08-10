@@ -16,8 +16,7 @@ import json
 # AI API clients
 import openai
 import anthropic
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 
 from schemas.artifacts import ArtifactBase, ArtifactType
 from agents.base_agent import AgentInput, AgentOutput, AgentType
@@ -34,8 +33,8 @@ class AIClientConfig(BaseModel):
     
     # Model configurations
     openai_model: str = Field(default="gpt-4o")
-    claude_model: str = Field(default="claude-sonnet-4-20250514")
-    gemini_model: str = Field(default="gemini-2.5-flash")
+    claude_model: str = Field(default="claude-3-5-sonnet-20241022")
+    gemini_model: str = Field(default="gemini-1.5-flash")
     
     # Request settings
     max_tokens: int = Field(default=4000)
@@ -206,7 +205,9 @@ class RealAIClients:
                 logger.info("Anthropic client initialized")
             
             if self.config.gemini_api_key:
-                self.gemini_client = genai.Client(api_key=self.config.gemini_api_key)
+                import google.generativeai as genai_config
+                genai_config.configure(api_key=self.config.gemini_api_key)
+                self.gemini_client = genai_config
                 logger.info("Gemini client initialized")
                 
         except Exception as e:
@@ -363,10 +364,10 @@ class RealAIClients:
                 raise ValueError(f"Gemini not configured for agent type: {agent_type}")
             
             # Call Gemini API
-            response = self.gemini_client.models.generate_content(
-                model=self.config.gemini_model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
+            model = self.gemini_client.GenerativeModel(self.config.gemini_model)
+            response = model.generate_content(
+                prompt,
+                generation_config=self.gemini_client.GenerationConfig(
                     temperature=self.config.temperature,
                     max_output_tokens=self.config.max_tokens,
                     response_mime_type="application/json"

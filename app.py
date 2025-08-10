@@ -51,6 +51,12 @@ from core.learning_engine import ContinuousLearner, LearningMode
 from monitoring.quality_dashboard import quality_monitoring_dashboard
 from storage.performance_store import PerformanceStore
 
+# Database imports
+from storage.database_manager import DatabaseManager
+from database.setup import initialize_database
+import uuid
+import pandas as pd
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -63,6 +69,49 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Initialize database on app startup
+@st.cache_resource
+def get_database_manager():
+    """Initialize database manager singleton"""
+    try:
+        # Initialize database structure
+        initialize_database()
+        # Create database manager
+        db_manager = DatabaseManager()
+        logger.info("✅ Database infrastructure initialized successfully")
+        return db_manager
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        st.error(f"Database initialization failed: {e}")
+        return None
+
+# Get database manager instance
+db = get_database_manager()
+
+def get_or_create_session_id():
+    """Get or create a unique session ID for database operations"""
+    if 'session_id' not in st.session_state:
+        st.session_state.session_id = str(uuid.uuid4())
+        
+        # Create project session in database
+        if db is not None:
+            try:
+                project_description = st.session_state.get('project_description', 'Multi-Agent AI System')
+                project_type = st.session_state.get('project_type', 'AI Development')
+                complexity = st.session_state.get('project_complexity', 'Medium')
+                
+                db.create_project_session(
+                    session_id=st.session_state.session_id,
+                    project_description=project_description,
+                    project_type=project_type,
+                    complexity=complexity
+                )
+                logger.info(f"Created database session: {st.session_state.session_id}")
+            except Exception as e:
+                logger.warning(f"Failed to create database session: {e}")
+    
+    return st.session_state.session_id
 
 def execute_project_sync(project_config):
     """Execute complete workflow with all 5 agents and live updates"""
@@ -211,18 +260,33 @@ def simulate_ui_designer(config):
 """
 
 def update_status(message):
-    """Update project status with real timestamp - connects to live UI display"""
+    """Update project status with real timestamp - connects to live UI display and database"""
     if 'project_status' not in st.session_state:
         st.session_state.project_status = []
     
     # Clear simulation data and use real timestamps
     real_timestamp = datetime.now()
-    st.session_state.project_status.append({
+    status_entry = {
         'time': real_timestamp.strftime("%H:%M:%S"),
         'message': message,
         'real_timestamp': real_timestamp,
         'is_real': True  # Flag to distinguish from simulation
-    })
+    }
+    
+    st.session_state.project_status.append(status_entry)
+    
+    # Save to database if available
+    if db is not None:
+        try:
+            session_id = get_or_create_session_id()
+            db.save_timeline_event(
+                session_id=session_id,
+                timestamp=real_timestamp.strftime("%H:%M:%S"),
+                message=message,
+                event_type="status_update"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save status to database: {e}")
     
     # Force immediate UI update for real-time display
     try:
@@ -231,21 +295,63 @@ def update_status(message):
         pass  # Handle case where rerun is called too frequently
 
 def add_agent_output(agent_name, content):
-    """Add real agent output from API calls to live display"""
+    """Add real agent output from API calls to live display and database"""
     if 'agent_outputs' not in st.session_state:
         st.session_state.agent_outputs = []
     
     if content and len(str(content).strip()) > 0:  # Only add non-empty real outputs
         real_timestamp = datetime.now()
-        st.session_state.agent_outputs.append({
+        content_str = str(content)
+        word_count = len(content_str.split())
+        
+        output_entry = {
             'agent': agent_name,
-            'content': str(content),
+            'content': content_str,
             'timestamp': real_timestamp,
             'formatted_time': real_timestamp.strftime("%H:%M:%S"),
-            'word_count': len(str(content).split()),
+            'word_count': word_count,
             'is_real': True,  # Flag to distinguish from simulation
             'api_generated': True  # Confirm this is from actual API call
-        })
+        }
+        
+        st.session_state.agent_outputs.append(output_entry)
+        
+        # Save to database if available
+        if db is not None:
+            try:
+                session_id = get_or_create_session_id()
+                # Calculate quality score (simple heuristic based on content length and structure)
+                quality_score = min(0.9, max(0.3, word_count / 500))
+                
+                # Save artifact to database
+                artifact_id = db.save_artifact(
+                    project_id=session_id,
+                    artifact_type="agent_output",
+                    title=f"{agent_name} Output",
+                    content=content_str,
+                    agent_name=agent_name,
+                    quality_score=quality_score
+                )
+                
+                # Update agent performance
+                db.update_agent_performance(
+                    model_name=agent_name,
+                    task_type="content_generation",
+                    success=True,
+                    quality_score=quality_score
+                )
+                
+                # Save timeline event
+                db.save_timeline_event(
+                    session_id=session_id,
+                    timestamp=real_timestamp.strftime("%H:%M:%S"),
+                    message=f"{agent_name} generated artifact (ID: {artifact_id})",
+                    agent_name=agent_name,
+                    event_type="artifact_created"
+                )
+                
+            except Exception as e:
+                logger.warning(f"Failed to save agent output to database: {e}")
         
         # Update total artifacts counter for live display
         if 'total_artifacts' not in st.session_state:
@@ -547,7 +653,7 @@ def main():
         st.markdown(f"**Live Events**: {event_count}")
 
     # Main navigation
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
         "🤖 Intelligent Router",
         "🎯 Typed Artifact System",
         "📋 Schema Demonstration",
@@ -556,7 +662,8 @@ def main():
         "📊 Routing & Performance",
         "⚡ Live Workflow Monitor",
         "🌊 Event Streaming (New)",
-        "🎯 Quality Dashboard"
+        "🎯 Quality Dashboard",
+        "🗄️ Database Infrastructure"
     ])
     
     with tab1:
@@ -585,6 +692,10 @@ def main():
     
     with tab9:
         quality_monitoring_dashboard()
+    
+    with tab10:
+        render_database_dashboard()
+
 
 def render_schema_demo():
     """Demonstrate the comprehensive schema system"""
@@ -2822,6 +2933,130 @@ def render_intelligent_router():
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error resetting data: {e}")
+
+
+def render_database_dashboard():
+    """Database status and management dashboard"""
+    st.header("🗄️ Database Infrastructure Dashboard")
+    
+    if db is None:
+        st.error("Database manager not available")
+        return
+    
+    # Database status overview
+    st.subheader("📊 Database Status")
+    
+    try:
+        db_stats = db.get_database_stats()
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Total Artifacts", db_stats.get('artifacts_count', 0))
+        with col2:
+            st.metric("Timeline Events", db_stats.get('timeline_events_count', 0))
+        with col3:
+            st.metric("Project Sessions", db_stats.get('project_sessions_count', 0))
+        with col4:
+            st.metric("Performance Records", db_stats.get('agent_performance_count', 0))
+        
+        # Recent artifacts activity
+        st.subheader("📈 Recent Activity")
+        recent_activity = db_stats.get('recent_artifacts', [])
+        
+        if recent_activity:
+            for activity in recent_activity:
+                st.markdown(f"**{activity['date']}**: {activity['count']} artifacts created")
+        else:
+            st.info("No recent artifact activity")
+        
+        # Agent performance metrics
+        st.subheader("🤖 Agent Performance")
+        performance_data = db.get_agent_performance()
+        
+        if performance_data:
+            performance_df = pd.DataFrame(performance_data)
+            st.dataframe(performance_df)
+        else:
+            st.info("No agent performance data available")
+        
+        # Current session info
+        st.subheader("🆔 Current Session")
+        session_id = get_or_create_session_id()
+        session_info = db.get_project_session(session_id)
+        
+        if session_info:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.json({
+                    "Session ID": session_info['session_id'][:8] + "...",
+                    "Status": session_info['status'],
+                    "Created": session_info['created_at']
+                })
+            with col2:
+                st.json({
+                    "Project Type": session_info['project_type'],
+                    "Complexity": session_info['complexity'],
+                    "Total Artifacts": session_info['total_artifacts']
+                })
+        
+        # Test database functionality
+        st.subheader("🧪 Test Database Operations")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("➕ Test Create Artifact"):
+                try:
+                    session_id = get_or_create_session_id()
+                    artifact_id = db.save_artifact(
+                        project_id=session_id,
+                        artifact_type="test",
+                        title="Test Artifact",
+                        content="This is a test artifact to verify database functionality.",
+                        agent_name="Test Agent",
+                        quality_score=0.8
+                    )
+                    st.success(f"Test artifact created with ID: {artifact_id}")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Test failed: {e}")
+        
+        with col2:
+            if st.button("⏰ Test Timeline Event"):
+                try:
+                    session_id = get_or_create_session_id()
+                    event_id = db.save_timeline_event(
+                        session_id=session_id,
+                        timestamp=datetime.now().strftime("%H:%M:%S"),
+                        message="Test timeline event",
+                        agent_name="Test Agent",
+                        event_type="test"
+                    )
+                    st.success(f"Test timeline event created with ID: {event_id}")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Test failed: {e}")
+        
+        # Database actions
+        st.subheader("🔧 Database Actions")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("🗑️ Cleanup Old Data"):
+                try:
+                    db.cleanup_old_data(days_to_keep=7)
+                    st.success("Old data cleaned up successfully")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Cleanup failed: {e}")
+        
+        with col2:
+            if st.button("📊 Refresh Stats"):
+                st.rerun()
+                
+    except Exception as e:
+        st.error(f"Database dashboard error: {e}")
+        logger.error(f"Database dashboard error: {e}")
 
 
 if __name__ == "__main__":

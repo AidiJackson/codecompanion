@@ -87,6 +87,70 @@ class DatabaseManager:
         finally:
             conn.close()
     
+    def get_recent_artifacts(self, since_timestamp: Optional[datetime] = None,
+                           task_id: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+        """Get recent artifacts with optional filtering by time and task ID"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            query = """
+                SELECT id, artifact_type, title, content, agent_name, 
+                       quality_score, word_count, created_at, 
+                       COALESCE(metadata, '{}') as metadata,
+                       COALESCE(0.8, quality_score/10.0) as confidence_score
+                FROM artifacts 
+                WHERE 1=1
+            """
+            params = []
+            
+            if since_timestamp:
+                query += " AND created_at >= ?"
+                params.append(since_timestamp.isoformat())
+            
+            if task_id:
+                query += " AND (metadata LIKE ? OR title LIKE ?)"
+                params.extend([f'%{task_id}%', f'%{task_id}%'])
+                
+            query += " ORDER BY created_at DESC LIMIT ?"
+            params.append(limit)
+            
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            
+            artifacts = []
+            for row in rows:
+                # Parse metadata if it's a JSON string
+                metadata = row['metadata']
+                if isinstance(metadata, str) and metadata.strip():
+                    try:
+                        metadata = json.loads(metadata)
+                    except json.JSONDecodeError:
+                        metadata = {}
+                else:
+                    metadata = {}
+                
+                artifacts.append({
+                    'id': row['id'],
+                    'artifact_type': row['artifact_type'],
+                    'title': row['title'],
+                    'content': row['content'],
+                    'agent_name': row['agent_name'],
+                    'quality_score': row['quality_score'],
+                    'confidence_score': row['confidence_score'],
+                    'word_count': row['word_count'],
+                    'created_at': row['created_at'],
+                    'metadata': metadata
+                })
+            
+            return artifacts
+            
+        except Exception as e:
+            logger.error(f"Error fetching recent artifacts: {e}")
+            return []
+        finally:
+            conn.close()
+
     def get_project_artifacts(self, project_id: str) -> List[Dict]:
         """Get all artifacts for a project"""
         conn = self.get_connection()

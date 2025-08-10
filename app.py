@@ -1773,27 +1773,78 @@ def execute_workflow_step():
                 st.rerun()
 
 def render_live_monitoring():
-    """Step 4: Enhanced Live Project Monitoring with Real-Time Collaboration"""
+    """Step 4: Live Project Monitoring with Real Database Polling"""
     
     st.subheader("📊 Step 4: Live Project Monitoring")
     
-    # Initialize live collaboration systems if not already done
-    if 'live_collaboration_engine' not in st.session_state:
-        from core.event_streaming import LiveCollaborationEngine
-        st.session_state.live_collaboration_engine = LiveCollaborationEngine()
+    # Import the new live status panel
+    from ui.live_status_panel import render_live_monitoring_dashboard
     
-    if 'live_progress_tracker' not in st.session_state:
-        from core.progress_tracker import LiveProgressTracker
-        live_tracker = LiveProgressTracker(st.session_state.live_collaboration_engine.event_bus)
-        st.session_state.live_progress_tracker = live_tracker
+    # Get current task ID if available
+    task_id = st.session_state.get('current_task_id', None)
     
-    if 'parallel_execution_engine' not in st.session_state:
-        from core.parallel_execution import ParallelExecutionEngine
-        st.session_state.parallel_execution_engine = ParallelExecutionEngine(
-            st.session_state.live_collaboration_engine.event_bus
-        )
+    if not st.session_state.get('execution_started', False):
+        st.info("⏳ Start project execution to see live monitoring data")
+        # Still show status panel even without execution
+        render_live_monitoring_dashboard(db, task_id=task_id)
+        return
     
-    if st.session_state.active_live_project:
+    # Render comprehensive live monitoring dashboard
+    render_live_monitoring_dashboard(db, task_id=task_id)
+    
+    # Legacy data comparison for debugging
+    with st.expander("🔧 Debug: Compare Data Sources", expanded=False):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("**Session State Data**")
+            session_status_count = len(st.session_state.get('project_status', []))
+            session_output_count = len(st.session_state.get('agent_outputs', []))
+            st.write(f"Status updates: {session_status_count}")
+            st.write(f"Agent outputs: {session_output_count}")
+            
+        with col2:
+            st.write("**Database Data**") 
+            from datetime import timedelta
+            recent_artifacts = db.get_recent_artifacts(since_timestamp=datetime.now() - timedelta(hours=1))
+            db_artifact_count = len(recent_artifacts)
+            st.write(f"Recent artifacts: {db_artifact_count}")
+            
+            if recent_artifacts:
+                latest = recent_artifacts[0]
+                st.write(f"Latest: {latest['artifact_type']} by {latest['agent_name']}")
+    
+    # Control panel
+    st.markdown("---")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        auto_refresh = st.checkbox("🔄 Auto-refresh (1s)", value=True, key="auto_refresh_monitoring")
+    
+    with col2:
+        if st.button("🔄 Refresh Now", key="manual_refresh"):
+            st.rerun()
+    
+    with col3:
+        if st.button("🧹 Clear Cache", key="clear_cache"):
+            # Clear Streamlit caches to force fresh data
+            st.cache_data.clear()
+            st.cache_resource.clear()
+            st.success("Cache cleared")
+            st.rerun()
+    
+    with col4:
+        current_time = datetime.now().strftime("%H:%M:%S")
+        st.write(f"🕐 {current_time}")
+    
+    # Auto-refresh implementation with 1 second polling
+    if auto_refresh:
+        time.sleep(1)
+        st.rerun()
+
+    # Show legacy project data if available 
+    if st.session_state.get('active_live_project'):
         correlation_id = st.session_state.active_live_project
         
         # Enhanced Project Header with Live Collaboration Status

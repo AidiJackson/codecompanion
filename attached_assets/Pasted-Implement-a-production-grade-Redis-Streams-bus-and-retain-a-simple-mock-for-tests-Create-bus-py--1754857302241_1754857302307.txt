@@ -1,0 +1,87 @@
+Implement a production-grade Redis Streams bus and retain a simple mock for tests.
+
+Create bus.py with:
+
+from __future__ import annotations
+import asyncio, json, time
+from typing import Any, Dict, Optional, Callable, List
+from dataclasses import dataclass
+from settings import settings
+
+@dataclass
+class Event:
+    topic: str
+    payload: Dict[str, Any]
+
+class BaseBus:
+    async def publish(self, event: Event) -> str: ...
+    async def subscribe(self, topic: str, group: str, consumer: str, handler: Callable[[Event], asyncio.Future]): ...
+    async def ensure_topic(self, topic: str): ...
+
+# Redis implementation
+class RedisStreamsBus(BaseBus):
+    def __init__(self, url: str):
+        import redis.asyncio as redis
+        self.r = redis.from_url(url, decode_responses=True)
+    async def ping(self):
+        await self.r.ping()
+
+    async def ensure_topic(self, topic: str):
+        # XGROUP CREATE mkstream, ignore if exists
+        try:
+            await self.r.xgroup_create(name=topic, groupname="orchestrator", id="0-0", mkstream=True)
+        except Exception as e:
+            # group exists; ignore
+            if "BUSYGROUP" not in str(e):
+                raise
+
+    async def publish(self, event: Event) -> str:
+        data = {"payload": json.dumps(event.payload)}
+        return await self.r.xadd(event.topic, data)
+
+    async def subscribe(self, topic: str, group: str, consumer: str, handler: Callable[[Event], asyncio.Future]):
+        await self.ensure_topic(topic)
+        while True:
+            msgs = await self.r.xreadgroup(groupname=group, consumername=consumer, streams={topic: ">"}, count=10, block=5000)
+            for _, entries in msgs or []:
+                for msg_id, fields in entries:
+                    try:
+                        payload = json.loads(fields["payload"])
+                        await handler(Event(topic=topic, payload=payload))
+                        await self.r.xack(topic, group, msg_id)
+                    except Exception:
+                        # optional: move to a DLQ stream
+                        await self.r.xack(topic, group, msg_id)
+
+# Mock implementation (for local tests only)
+class MockBus(BaseBus):
+    def __init__(self):
+        self.queues: Dict[str, asyncio.Queue] = {}
+    async def ensure_topic(self, topic: str):
+        self.queues.setdefault(topic, asyncio.Queue())
+    async def publish(self, event: Event) -> str:
+        await self.ensure_topic(event.topic)
+        await self.queues[event.topic].put(event)
+        return str(time.time())
+    async def subscribe(self, topic: str, group: str, consumer: str, handler: Callable[[Event], asyncio.Future]):
+        await self.ensure_topic(topic)
+        q = self.queues[topic]
+        while True:
+            ev: Event = await q.get()
+            await handler(ev)
+
+# Bus factory (fail-fast)
+def get_bus() -> BaseBus:
+    if settings.EVENT_BUS == "redis":
+        if not settings.REDIS_URL:
+            raise RuntimeError("EVENT_BUS=redis but REDIS_URL not set")
+        b = RedisStreamsBus(settings.REDIS_URL)
+        # fail-fast check
+        import asyncio
+        asyncio.get_event_loop().run_until_complete(b.ping())
+        return b
+    return MockBus()
+
+Export a singleton `bus = get_bus()`.
+
+Update orchestrator/workers to import `from bus import bus, Event` and replace any prior bus code. Remove any auto-fallback to mock in production paths.

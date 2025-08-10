@@ -102,33 +102,28 @@ def get_database_manager():
         return None
 
 @st.cache_resource  
-def initialize_event_bus():
-    """Initialize event bus with strict fail-fast configuration"""
+def initialize_production_bus():
+    """Initialize production bus with fail-fast configuration"""
     try:
-        from core.event_streaming import EventBus
+        from bus import bus
         
-        # This will fail-fast if Redis is configured but unreachable
-        event_bus = EventBus()
-        
-        logger.info(f"✅ Event bus type: {event_bus.event_bus_type}")
-        logger.info(f"✅ Redis connected: {event_bus.redis_connected}")
-        
-        return event_bus
+        logger.info(f"✅ Production bus initialized: {type(bus).__name__}")
+        return bus
         
     except RuntimeError as e:
         # Redis configured but unreachable - FAIL FAST
-        logger.error(f"❌ Event bus initialization failed: {e}")
+        logger.error(f"❌ Production bus initialization failed: {e}")
         st.error(f"System initialization failed: {e}")
         st.stop()
         
     except Exception as e:
-        logger.error(f"❌ Unexpected error during event bus init: {e}")
+        logger.error(f"❌ Unexpected error during bus init: {e}")
         st.error(f"System initialization error: {e}")
         st.stop()
 
 # Initialize core systems with strict configuration
 db = get_database_manager()
-event_bus = initialize_event_bus()
+production_bus = initialize_production_bus()
 
 def get_or_create_session_id():
     """Get or create a unique session ID for database operations"""

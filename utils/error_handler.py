@@ -75,31 +75,26 @@ def safe_api_call(func: Callable, *args, timeout: int = 30, **kwargs) -> Dict[st
                 'content': f'Service {service_name} is temporarily unavailable due to rate limiting.'
             }
         
-        # Execute with timeout
-        import signal
+        # Execute with timeout using ThreadPoolExecutor (Streamlit compatible)
+        import concurrent.futures
         
-        def timeout_handler(signum, frame):
-            raise TimeoutError(f"Operation timed out after {timeout} seconds")
-        
-        signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(timeout)
-        
-        try:
-            result = func(*args, **kwargs)
-            signal.alarm(0)  # Cancel the alarm
-            
-            # Record success
-            rate_limiter.record_success(service_name)
-            
-            return {
-                'success': True,
-                'data': result,
-                'content': result if isinstance(result, str) else str(result)
-            }
-            
-        except Exception as e:
-            signal.alarm(0)  # Cancel the alarm
-            raise e
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(func, *args, **kwargs)
+            try:
+                result = future.result(timeout=timeout)
+                
+                # Record success
+                rate_limiter.record_success(service_name)
+                
+                return {
+                    'success': True,
+                    'data': result,
+                    'content': result if isinstance(result, str) else str(result)
+                }
+                
+            except concurrent.futures.TimeoutError:
+                future.cancel()
+                raise TimeoutError(f"Operation timed out after {timeout} seconds")
             
     except TimeoutError as e:
         logger.error(f"Timeout in {service_name}: {str(e)}")

@@ -673,21 +673,30 @@ def render_model_health_status():
         icon = "🟢" if status.get('status') == 'healthy' else "🔴" if status.get('status') == 'error' else "🟡"
         st.metric("OpenAI GPT-4", f"{icon} {status.get('status', 'unknown').title()}")
         if status.get('error'):
-            st.caption(f"Error: {status['error'][:50]}...")
+            with st.expander("🔍 View OpenAI Error", expanded=False):
+                st.text(status['error'])
+                if status.get('last_test'):
+                    st.caption(f"Last tested: {status['last_test']}")
     
     with col2:
         status = api_status.get('anthropic', {})
         icon = "🟢" if status.get('status') == 'healthy' else "🔴" if status.get('status') == 'error' else "🟡"
         st.metric("Claude Sonnet", f"{icon} {status.get('status', 'unknown').title()}")
         if status.get('error'):
-            st.caption(f"Error: {status['error'][:50]}...")
+            with st.expander("🔍 View Claude Error", expanded=False):
+                st.text(status['error'])
+                if status.get('last_test'):
+                    st.caption(f"Last tested: {status['last_test']}")
     
     with col3:
         status = api_status.get('google', {})
-        icon = "🟢" if status.get('status') == 'healthy' else "🔴" if status.get('status') == 'error' else "�1"
+        icon = "🟢" if status.get('status') == 'healthy' else "🔴" if status.get('status') == 'error' else "🟡"
         st.metric("Gemini Flash", f"{icon} {status.get('status', 'unknown').title()}")
         if status.get('error'):
-            st.caption(f"Error: {status['error'][:50]}...")
+            with st.expander("🔍 View Gemini Error", expanded=False):
+                st.text(status['error'])
+                if status.get('last_test'):
+                    st.caption(f"Last tested: {status['last_test']}")
     
     # Test APIs button
     if st.button("🔍 Test All APIs", help="Test connections to all AI services"):
@@ -749,15 +758,18 @@ def test_all_apis():
     
     # Test Google
     def test_google():
-        import google.generativeai as genai
-        api_key = os.getenv('GOOGLE_API_KEY')
-        if not api_key:
-            raise Exception("GOOGLE_API_KEY environment variable not set")
-        
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.0-flash-exp')
-        response = model.generate_content("Hello")
-        return response.text
+        try:
+            import google.generativeai as genai
+            api_key = os.getenv('GOOGLE_API_KEY')
+            if not api_key:
+                raise Exception("GOOGLE_API_KEY environment variable not set")
+            
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            response = model.generate_content("Hello")
+            return response.text
+        except ImportError:
+            raise Exception("Google Generative AI library not available. Install with: pip install google-generativeai")
     
     # Test each API
     for api_name, test_func in [

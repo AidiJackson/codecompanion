@@ -12,7 +12,7 @@ from enum import Enum
 from dataclasses import dataclass, field
 import json
 
-from core.event_streaming import EventBus, StreamEvent, EventType, EventStreamType
+from core.event_streaming import StreamEvent, EventType, EventStreamType
 from agents.base_agent import AgentInput, AgentOutput, AgentType, AgentCapability
 from schemas.artifacts import ArtifactType
 

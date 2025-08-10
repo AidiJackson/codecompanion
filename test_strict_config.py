@@ -42,21 +42,10 @@ def test_event_bus_configuration():
     """Test event bus configuration with different settings"""
     try:
         from settings import settings
-        from core.event_streaming import EventBus
+        from bus import bus as event_bus
         
-        logger.info(f"Testing event bus with EVENT_BUS={settings.EVENT_BUS}")
-        
-        if settings.EVENT_BUS == "redis":
-            try:
-                event_bus = EventBus()
-                logger.info(f"✅ Event bus initialized: redis_connected={event_bus.redis_connected}")
-                
-            except RuntimeError as e:
-                logger.warning(f"⚠️  Redis configured but unreachable: {e}")
-                
-        elif settings.EVENT_BUS == "mock":
-            event_bus = EventBus()
-            logger.info("✅ Mock event bus initialized (with warning)")
+        logger.info(f"Testing event bus singleton with EVENT_BUS={settings.EVENT_BUS}")
+        logger.info(f"✅ Bus singleton available: {type(event_bus).__name__}")
             
         return True
         

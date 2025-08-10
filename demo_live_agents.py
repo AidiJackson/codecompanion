@@ -11,7 +11,7 @@ import os
 from datetime import datetime
 
 from core.live_orchestrator import LiveOrchestrator
-from core.event_streaming import EventBus, StreamEvent, EventType, EventStreamType
+from core.event_streaming import StreamEvent, EventType, EventStreamType
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -160,9 +160,7 @@ async def demo_individual_agents():
     print("=" * 50)
     
     from agents.live_agent_workers import ClaudeWorker, GPT4Worker, GeminiWorker
-    from core.event_streaming import EventBus
-    
-    event_bus = EventBus()
+    from bus import bus as event_bus
     
     # Test Claude
     if os.environ.get('ANTHROPIC_API_KEY'):

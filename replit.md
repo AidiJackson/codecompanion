@@ -7,6 +7,7 @@ CodeCompanion Orchestra is an advanced multi-agent AI development system that or
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+- **August 10, 2025**: MAJOR CLEANUP: Removed all MockBus fallbacks and duplicate event bus factories. Eliminated EventBus class from core/event_streaming.py that had its own fallback logic. Updated all imports to use single bus singleton from bus.py. Refactored all test files to use bus singleton instead of direct MockBus instantiation. Status: Partial - some components still expect streaming-level methods that were removed.
 - **August 10, 2025**: Added lightweight vector memory system with semantic search capabilities. Features OpenAI embeddings for high-quality similarity search, TF-IDF fallback when embeddings unavailable, and context handle system to store references instead of full text content.
 - **August 10, 2025**: Enhanced FastAPI backend with health check and development testing endpoints: GET /health returns event bus and database status, POST /simulate_task creates mock tasks for development testing.
 - **August 10, 2025**: Implemented strict configuration system with fail-fast validation and production Redis Streams bus. Created bus.py with RedisStreamsBus and MockBus classes, settings.py with strict validation, and constants.py with topic definitions. System fails immediately if misconfigured.

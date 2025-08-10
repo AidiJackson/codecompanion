@@ -13,7 +13,7 @@ from dataclasses import dataclass
 import json
 
 from schemas.routing import ModelType, TaskType, TaskComplexity
-from core.event_streaming import EventBus, StreamEvent, EventType, EventStreamType
+from core.event_streaming import StreamEvent, EventType, EventStreamType
 from agents.live_agent_workers import LiveAgentMetrics
 
 logger = logging.getLogger(__name__)

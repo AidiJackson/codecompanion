@@ -14,7 +14,7 @@ from typing import Dict, List, Any, Optional, Tuple
 from uuid import uuid4
 
 from core.artifacts import ArtifactValidator, ValidationResult, ArtifactType
-from core.event_streaming import EventBus, StreamEvent, EventType
+from core.event_streaming import StreamEvent, EventType
 
 logger = logging.getLogger(__name__)
 

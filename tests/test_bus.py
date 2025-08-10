@@ -15,7 +15,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from bus import Event, MockBus, get_bus
+from bus import Event, bus
 from settings import settings
 
 
@@ -23,16 +23,14 @@ class TestMockBus:
     """Test MockBus functionality"""
     
     def test_mock_bus_creation(self):
-        """Test that MockBus can be created"""
-        bus = MockBus()
+        """Test that bus singleton is available"""
         assert bus is not None
         assert hasattr(bus, 'publish')
         assert hasattr(bus, 'subscribe')
     
     @pytest.mark.asyncio
     async def test_mock_bus_publish(self):
-        """Test that MockBus can publish events"""
-        bus = MockBus()
+        """Test that bus singleton can publish events"""
         
         event = Event(
             topic="test.topic",
@@ -46,7 +44,6 @@ class TestMockBus:
     @pytest.mark.asyncio
     async def test_mock_bus_publish_consume_flow(self):
         """Test complete publish/consume flow with handler validation"""
-        bus = MockBus()
         
         # Track handler calls
         handler_calls = []
@@ -92,51 +89,25 @@ class TestMockBus:
         assert call['payload']['value'] == 42
 
 
-class TestBusFactory:
-    """Test bus factory function"""
+class TestBusSingleton:
+    """Test bus singleton functionality"""
     
-    def test_get_bus_returns_mock_in_development(self):
-        """Test that get_bus() returns MockBus in development environment"""
-        # Ensure we're using mock for testing
-        original_event_bus = os.environ.get('EVENT_BUS')
-        os.environ['EVENT_BUS'] = 'mock'
-        
-        try:
-            bus = get_bus()
-            assert bus is not None
-            assert isinstance(bus, MockBus)
-        finally:
-            # Restore original setting
-            if original_event_bus:
-                os.environ['EVENT_BUS'] = original_event_bus
-            else:
-                os.environ.pop('EVENT_BUS', None)
+    def test_bus_singleton_available(self):
+        """Test that bus singleton is available and configured"""
+        assert bus is not None
+        # Bus configuration is handled by settings and bus.py
     
     @pytest.mark.asyncio
-    async def test_bus_factory_publish_functionality(self):
-        """Test that factory-created bus can publish events"""
-        # Ensure mock mode
-        original_event_bus = os.environ.get('EVENT_BUS')
-        os.environ['EVENT_BUS'] = 'mock'
+    async def test_bus_singleton_publish_functionality(self):
+        """Test that singleton bus can publish events"""
+        event = Event(
+            topic="factory.test",
+            payload={"factory_test": True}
+        )
         
-        try:
-            bus = get_bus()
-            
-            event = Event(
-                topic="factory.test",
-                payload={"factory_test": True}
-            )
-            
-            message_id = await bus.publish(event)
-            assert message_id is not None
-            assert isinstance(message_id, str)
-            
-        finally:
-            # Restore original setting
-            if original_event_bus:
-                os.environ['EVENT_BUS'] = original_event_bus
-            else:
-                os.environ.pop('EVENT_BUS', None)
+        message_id = await bus.publish(event)
+        assert message_id is not None
+        assert isinstance(message_id, str)
 
 
 class TestEventStructure:
@@ -176,14 +147,6 @@ class TestEventStructure:
 @pytest.mark.asyncio
 async def test_integration_smoke():
     """Integration smoke test for the entire bus system"""
-    
-    # Ensure mock mode for testing
-    original_event_bus = os.environ.get('EVENT_BUS')
-    os.environ['EVENT_BUS'] = 'mock'
-    
-    try:
-        # Get bus from factory
-        bus = get_bus()
         
         # Track integration test results
         integration_results = []
@@ -228,13 +191,6 @@ async def test_integration_smoke():
             assert result['topic'] == "integration.test"
             assert result['payload']['test_id'] == i + 1
             assert result['payload']['message'] in ["first", "second", "third"]
-    
-    finally:
-        # Restore original setting
-        if original_event_bus:
-            os.environ['EVENT_BUS'] = original_event_bus
-        else:
-            os.environ.pop('EVENT_BUS', None)
 
 
 if __name__ == "__main__":

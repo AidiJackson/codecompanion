@@ -12,7 +12,7 @@ from enum import Enum
 from dataclasses import dataclass, field
 import json
 
-from core.event_streaming import EventBus, StreamEvent, EventType, EventStreamType, StreamConsumer
+from core.event_streaming import StreamEvent, EventType, EventStreamType, StreamConsumer
 
 logger = logging.getLogger(__name__)
 

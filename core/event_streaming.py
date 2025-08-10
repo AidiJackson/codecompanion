@@ -90,243 +90,16 @@ class StreamEvent(BaseModel):
     retryable: bool = Field(default=True, description="Whether event processing can be retried")
 
 
-class EventBus:
-    """
-    Redis Streams-based event bus for real-time event processing.
-    
-    Provides:
-    - Event publishing to multiple streams
-    - Consumer group management
-    - Event replay capability
-    - Stream monitoring and metrics
-    """
-    
-    def __init__(self, redis_url: Optional[str] = None):
-        from settings import settings
-        
-        # Use strict configuration - no fallbacks without explicit config
-        if settings.EVENT_BUS == "redis":
-            redis_url = redis_url or settings.get_redis_url()
-            
-            try:
-                self.redis = redis.from_url(redis_url, decode_responses=True)
-                self.redis.ping()
-                logger.info(f"✅ Redis connected successfully: {settings.scrub_url(redis_url)}")
-                
-            except redis.ConnectionError as e:
-                # FAIL-FAST: No fallback to mock when Redis is explicitly configured
-                raise RuntimeError(f"Redis configured but unreachable: {settings.scrub_url(redis_url)} - {e}")
-        
-        elif settings.EVENT_BUS == "mock":
-            logger.warning("🚨 WARNING: Using MOCK event bus - simulation data may interfere with real API results")
-            self.redis = None
-            
-        else:
-            raise ValueError(f"Invalid EVENT_BUS configuration: {settings.EVENT_BUS}")
-        
-        # Store configuration
-        self.event_bus_type = settings.EVENT_BUS
-        self.redis_connected = self.redis is not None
-        
-        self.stream_prefix = "orchestra"
-        self.consumer_groups: Dict[str, str] = {}
-        self.event_handlers: Dict[EventType, List[Callable]] = {}
-        
-    async def publish_event(self, stream_type: EventStreamType, event: StreamEvent) -> str:
-        """Publish event to specified stream"""
-        
-        if not self.redis:
-            # CRITICAL: DO NOT publish mock events - they interfere with real API data
-            logger.info(f"Event bus disabled - skipping event: {event.event_type}")
-            return "disabled"  # Return indicator that event was not published
-            
-        try:
-            stream_name = f"{self.stream_prefix}:{stream_type.value}"
-            
-            # Serialize event data
-            event_data = {
-                "event_id": event.event_id,
-                "correlation_id": event.correlation_id,
-                "event_type": event.event_type.value,
-                "timestamp": event.timestamp.isoformat(),
-                "agent_id": event.agent_id or "",
-                "task_id": event.task_id or "",
-                "artifact_id": event.artifact_id or "",
-                "payload": json.dumps(event.payload),
-                "metadata": json.dumps(event.metadata),
-                "priority": event.priority,
-                "retryable": str(event.retryable)
-            }
-            
-            # Add to stream
-            message_id = self.redis.xadd(stream_name, event_data)
-            logger.info(f"Published event {event.event_id} to stream {stream_name}: {message_id}")
-            
-            return message_id
-            
-        except Exception as e:
-            logger.error(f"Failed to publish event {event.event_id}: {e}")
-            raise
-    
-    async def create_consumer_group(self, stream_type: EventStreamType, 
-                                  group_name: str, consumer_id: str = "0") -> bool:
-        """Create consumer group for stream"""
-        
-        if not self.redis:
-            return True
-            
-        try:
-            stream_name = f"{self.stream_prefix}:{stream_type.value}"
-            self.redis.xgroup_create(stream_name, group_name, consumer_id, mkstream=True)
-            self.consumer_groups[stream_name] = group_name
-            logger.info(f"Created consumer group {group_name} for stream {stream_name}")
-            return True
-            
-        except redis.ResponseError as e:
-            if "BUSYGROUP" in str(e):
-                logger.info(f"Consumer group {group_name} already exists")
-                return True
-            logger.error(f"Failed to create consumer group: {e}")
-            return False
-    
-    async def consume_stream(self, stream_type: EventStreamType, group_name: str,
-                           consumer_name: str, count: int = 10) -> List[StreamEvent]:
-        """Consume events from stream using consumer group"""
-        
-        if not self.redis:
-            return []
-            
-        try:
-            stream_name = f"{self.stream_prefix}:{stream_type.value}"
-            
-            # Read from stream
-            messages = self.redis.xreadgroup(
-                group_name, consumer_name,
-                {stream_name: '>'},
-                count=count,
-                block=1000  # Block for 1 second
-            )
-            
-            events = []
-            for stream, msgs in messages:
-                for msg_id, fields in msgs:
-                    try:
-                        # Deserialize event
-                        event = StreamEvent(
-                            event_id=fields["event_id"],
-                            correlation_id=fields["correlation_id"],
-                            event_type=EventType(fields["event_type"]),
-                            timestamp=datetime.fromisoformat(fields["timestamp"]),
-                            agent_id=fields.get("agent_id") or None,
-                            task_id=fields.get("task_id") or None,
-                            artifact_id=fields.get("artifact_id") or None,
-                            payload=json.loads(fields.get("payload", "{}")),
-                            metadata=json.loads(fields.get("metadata", "{}")),
-                            priority=fields.get("priority", "normal"),
-                            retryable=fields.get("retryable", "True") == "True"
-                        )
-                        events.append(event)
-                        
-                        # Acknowledge message
-                        self.redis.xack(stream_name, group_name, msg_id)
-                        
-                    except Exception as e:
-                        logger.error(f"Failed to deserialize event {msg_id}: {e}")
-            
-            return events
-            
-        except Exception as e:
-            logger.error(f"Failed to consume from stream {stream_name}: {e}")
-            return []
-    
-    async def replay_events(self, stream_type: EventStreamType, 
-                          start_time: Optional[datetime] = None,
-                          correlation_id: Optional[str] = None) -> AsyncGenerator[StreamEvent, None]:
-        """Replay events from stream with optional filtering"""
-        
-        if not self.redis:
-            return
-            
-        try:
-            stream_name = f"{self.stream_prefix}:{stream_type.value}"
-            start_id = "0"
-            
-            if start_time:
-                # Convert timestamp to Redis message ID format
-                timestamp_ms = int(start_time.timestamp() * 1000)
-                start_id = f"{timestamp_ms}-0"
-            
-            # Read all messages from start
-            while True:
-                messages = self.redis.xread({stream_name: start_id}, count=100, block=0)
-                
-                if not messages:
-                    break
-                
-                for stream, msgs in messages:
-                    for msg_id, fields in msgs:
-                        try:
-                            event = StreamEvent(
-                                event_id=fields["event_id"],
-                                correlation_id=fields["correlation_id"],
-                                event_type=EventType(fields["event_type"]),
-                                timestamp=datetime.fromisoformat(fields["timestamp"]),
-                                agent_id=fields.get("agent_id") or None,
-                                task_id=fields.get("task_id") or None,
-                                artifact_id=fields.get("artifact_id") or None,
-                                payload=json.loads(fields.get("payload", "{}")),
-                                metadata=json.loads(fields.get("metadata", "{}")),
-                                priority=fields.get("priority", "normal"),
-                                retryable=fields.get("retryable", "True") == "True"
-                            )
-                            
-                            # Filter by correlation ID if specified
-                            if correlation_id and event.correlation_id != correlation_id:
-                                continue
-                                
-                            yield event
-                            start_id = msg_id
-                            
-                        except Exception as e:
-                            logger.error(f"Failed to deserialize event during replay {msg_id}: {e}")
-                            continue
-        
-        except Exception as e:
-            logger.error(f"Failed to replay events from {stream_name}: {e}")
-    
-    def get_stream_info(self, stream_type: EventStreamType) -> Dict[str, Any]:
-        """Get information about stream"""
-        
-        if not self.redis:
-            return {"length": 0, "groups": 0, "mock": True}
-            
-        try:
-            stream_name = f"{self.stream_prefix}:{stream_type.value}"
-            info = self.redis.xinfo_stream(stream_name)
-            
-            return {
-                "length": info.get("length", 0),
-                "radix_tree_keys": info.get("radix-tree-keys", 0),
-                "radix_tree_nodes": info.get("radix-tree-nodes", 0),
-                "groups": info.get("groups", 0),
-                "last_generated_id": info.get("last-generated-id"),
-                "first_entry": info.get("first-entry"),
-                "last_entry": info.get("last-entry")
-            }
-            
-        except redis.ResponseError:
-            # Stream doesn't exist yet
-            return {"length": 0, "groups": 0, "exists": False}
-        except Exception as e:
-            logger.error(f"Failed to get stream info: {e}")
-            return {"error": str(e)}
+# EventBus removed - use singleton from bus.py
+# from bus import bus, Event
 
 
 class StreamConsumer:
     """Base class for stream consumers with specific processing logic"""
     
-    def __init__(self, event_bus: EventBus, consumer_name: str):
-        self.event_bus = event_bus
+    def __init__(self, consumer_name: str):
+        from bus import bus
+        self.event_bus = bus
         self.consumer_name = consumer_name
         self.running = False
         self.processed_count = 0
@@ -390,8 +163,8 @@ class StreamConsumer:
 class OrchestratorConsumer(StreamConsumer):
     """Consumer for orchestrating workflow progression based on events"""
     
-    def __init__(self, event_bus: EventBus, orchestrator):
-        super().__init__(event_bus, "orchestrator_consumer")
+    def __init__(self, orchestrator):
+        super().__init__("orchestrator_consumer")
         self.orchestrator = orchestrator
     
     async def process_event(self, event: StreamEvent):
@@ -437,8 +210,8 @@ class OrchestratorConsumer(StreamConsumer):
 class MetricsConsumer(StreamConsumer):
     """Consumer for collecting performance analytics and metrics"""
     
-    def __init__(self, event_bus: EventBus):
-        super().__init__(event_bus, "metrics_consumer")
+    def __init__(self):
+        super().__init__("metrics_consumer")
         self.metrics_store: Dict[str, Any] = {}
     
     async def process_event(self, event: StreamEvent):
@@ -500,7 +273,8 @@ class LiveCollaborationEngine:
     """
     
     def __init__(self):
-        self.event_bus = EventBus()
+        from bus import bus
+        self.event_bus = bus
         self.streams = {
             "tasks": "task_stream",
             "artifacts": "artifact_stream", 
@@ -774,12 +548,13 @@ class RealTimeEventOrchestrator:
     
     def __init__(self, workflow_id: str, redis_url: str = "redis://localhost:6379"):
         self.workflow_id = workflow_id
-        self.event_bus = EventBus(redis_url)
+        from bus import bus
+        self.event_bus = bus
         self.consumers: List[StreamConsumer] = []
         
         # Initialize consumers
-        self.orchestrator_consumer = OrchestratorConsumer(self.event_bus, self)
-        self.metrics_consumer = MetricsConsumer(self.event_bus)
+        self.orchestrator_consumer = OrchestratorConsumer(self)
+        self.metrics_consumer = MetricsConsumer()
         
         self.consumers = [self.orchestrator_consumer, self.metrics_consumer]
         

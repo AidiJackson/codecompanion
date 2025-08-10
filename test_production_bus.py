@@ -21,9 +21,7 @@ async def test_mock_bus():
     """Test MockBus functionality"""
     logger.info("🧪 Testing MockBus...")
     
-    from bus import MockBus, Event
-    
-    bus = MockBus()
+    from bus import bus, Event
     
     # Test publishing
     event = Event(topic="test.topic", payload={"message": "Hello MockBus!"})
@@ -119,13 +117,11 @@ async def test_redis_bus():
         return False
 
 async def test_bus_factory():
-    """Test the bus factory function"""
-    logger.info("🧪 Testing bus factory...")
+    """Test the bus singleton"""
+    logger.info("🧪 Testing bus singleton...")
     
     try:
-        from bus import get_bus
-        
-        bus_instance = get_bus()
+        from bus import bus as bus_instance
         logger.info(f"✅ Bus factory created: {type(bus_instance).__name__}")
         
         # Test basic functionality

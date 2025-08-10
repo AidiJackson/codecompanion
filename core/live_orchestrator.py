@@ -13,7 +13,7 @@ from uuid import uuid4
 import json
 
 from core.event_streaming import (
-    RealTimeEventOrchestrator, EventBus, StreamEvent, EventType, EventStreamType
+    RealTimeEventOrchestrator, StreamEvent, EventType, EventStreamType
 )
 from core.intelligent_router import IntelligentTaskRouter
 from agents.live_agent_workers import LiveAgentOrchestrator
@@ -30,7 +30,8 @@ class LiveOrchestrator:
     """
     
     def __init__(self, redis_url: str = "redis://localhost:6379"):
-        self.event_bus = EventBus(redis_url)
+        from bus import bus
+        self.event_bus = bus
         self.router = IntelligentTaskRouter(self.event_bus)
         self.agent_orchestrator = LiveAgentOrchestrator(self.event_bus)
         

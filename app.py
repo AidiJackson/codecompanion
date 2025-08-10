@@ -48,7 +48,7 @@ from schemas.routing import ModelType, TaskType, TaskComplexity, ModelRouter, MO
 from core.orchestrator import EventSourcedOrchestrator, EventType, WorkflowEvent
 from core.router import DataDrivenRouter, RoutingContext
 from core.artifacts import ArtifactValidator, ArtifactHandler
-from core.event_streaming import RealTimeEventOrchestrator, EventBus, StreamEvent, EventType as StreamEventType, EventStreamType
+from core.event_streaming import RealTimeEventOrchestrator, StreamEvent, EventType as StreamEventType, EventStreamType
 
 # Enhanced intelligent routing imports
 from core.model_router import IntelligentRouter

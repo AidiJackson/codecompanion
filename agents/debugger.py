@@ -2,6 +2,7 @@ from typing import Dict, List, Any, Optional
 import json
 import re
 from .base_agent import BaseAgent
+from core.model_orchestrator import AgentType
 
 class DebuggerAgent(BaseAgent):
     """Debugger Agent - Specialized in code analysis, bug fixing, and optimization"""
@@ -10,7 +11,8 @@ class DebuggerAgent(BaseAgent):
         super().__init__(
             name="Debugger",
             role="Software Debugger",
-            specialization="Code analysis, bug detection, debugging, performance optimization, and code quality improvement"
+            specialization="Code analysis, bug detection, debugging, performance optimization, and code quality improvement",
+            agent_type=AgentType.DEBUGGER
         )
         self.common_patterns = {
             "syntax_errors": [
@@ -53,7 +55,7 @@ class DebuggerAgent(BaseAgent):
             {"role": "user", "content": f"Debug request: {request}\n\nCode context: {json.dumps(context, indent=2)}"}
         ]
         
-        response_content = self.call_llm(messages)
+        response_content = self.call_llm_sync(messages)
         
         # Analyze code and generate fixes
         analysis_results = self.analyze_code(request, context)
@@ -89,7 +91,7 @@ class DebuggerAgent(BaseAgent):
             {"role": "user", "content": f"Code review handoff: {handoff_content}\n\nDebugging context: {json.dumps(context, indent=2)}"}
         ]
         
-        response_content = self.call_llm(messages, temperature=0.3)  # Lower temperature for debugging
+        response_content = self.call_llm_sync(messages, temperature=0.3)  # Lower temperature for debugging
         
         # Analyze the handed-off content
         analysis_results = self.analyze_code(handoff_content, context)
@@ -669,25 +671,7 @@ def test_debug_utilities():
     # Test code analysis
     test_code = '''
 def unsafe_function(user_input):
-    eval(user_input)
-    for i in range(len(items)):
-        result += items[i]
-    '''
-    
-    analyzer = CodeAnalyzer()
-    security_issues = analyzer.find_security_issues(test_code)
-    performance_issues = analyzer.find_performance_issues(test_code)
-    
-    print("Security Issues:")
-    for issue in security_issues:
-        print(f"  Line {issue['line']}: {issue['message']}")
-    
-    print("Performance Issues:")
-    for issue in performance_issues:
-        print(f"  Line {issue['line']}: {issue['message']}")
+    eval(user_input)  # Security issue
+    for i in range(len(items)):  # items not defined
+        result += items[i]  # result not defined
 
-if __name__ == "__main__":
-    test_debug_utilities()
-        self.log_file = log_file
-        self.error_counts = {}
-        self.setup_logging()

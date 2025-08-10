@@ -1,6 +1,7 @@
 from typing import Dict, List, Any, Optional
 import json
 from .base_agent import BaseAgent
+from core.model_orchestrator import AgentType
 
 class TestWriterAgent(BaseAgent):
     """Test Writer Agent - Specialized in test case generation and quality assurance"""
@@ -9,7 +10,8 @@ class TestWriterAgent(BaseAgent):
         super().__init__(
             name="Test Writer",
             role="Quality Assurance Engineer",
-            specialization="Test case generation, quality assurance, validation, and automated testing"
+            specialization="Test case generation, quality assurance, validation, and automated testing",
+            agent_type=AgentType.TEST_WRITER
         )
         self.test_frameworks = {
             "python": {

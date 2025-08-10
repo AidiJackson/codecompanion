@@ -1,6 +1,7 @@
 from typing import Dict, List, Any, Optional
 import json
 from .base_agent import BaseAgent
+from core.model_orchestrator import AgentType
 
 class UIDesignerAgent(BaseAgent):
     """UI Designer Agent - Specialized in frontend development and user experience design"""
@@ -9,7 +10,8 @@ class UIDesignerAgent(BaseAgent):
         super().__init__(
             name="UI Designer",
             role="Frontend Developer",
-            specialization="User interface design, user experience, frontend development, and visual design"
+            specialization="User interface design, user experience, frontend development, and visual design",
+            agent_type=AgentType.UI_DESIGNER
         )
         self.ui_frameworks = {
             "react": {

@@ -1,6 +1,7 @@
 from typing import Dict, List, Any, Optional
 import json
 from .base_agent import BaseAgent
+from core.model_orchestrator import AgentType
 
 class ProjectManagerAgent(BaseAgent):
     """Project Manager Agent - Central orchestrator for project planning and coordination"""
@@ -9,7 +10,8 @@ class ProjectManagerAgent(BaseAgent):
         super().__init__(
             name="Project Manager",
             role="Project Orchestrator",
-            specialization="Project planning, requirements analysis, team coordination, and timeline management"
+            specialization="Project planning, requirements analysis, team coordination, and timeline management",
+            agent_type=AgentType.PROJECT_MANAGER
         )
         self.project_templates = {
             "Web Application": {

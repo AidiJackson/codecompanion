@@ -1,6 +1,7 @@
 from typing import Dict, List, Any, Optional
 import json
 from .base_agent import BaseAgent
+from core.model_orchestrator import AgentType
 
 class CodeGeneratorAgent(BaseAgent):
     """Code Generator Agent - Specialized in backend development and algorithm implementation"""
@@ -9,7 +10,8 @@ class CodeGeneratorAgent(BaseAgent):
         super().__init__(
             name="Code Generator",
             role="Backend Developer",
-            specialization="Backend development, algorithms, APIs, database design, and server-side logic"
+            specialization="Backend development, algorithms, APIs, database design, and server-side logic",
+            agent_type=AgentType.CODE_GENERATOR
         )
         self.code_templates = {
             "python_api": {

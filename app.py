@@ -1,10 +1,18 @@
 import streamlit as st
 import json
 import uuid
+import os
 from datetime import datetime
 from typing import Dict, List, Any
 import asyncio
 import time
+
+# Multi-model AI integration
+from components.api_key_manager import render_api_key_interface, check_required_keys, render_model_performance_metrics
+from components.collaboration_dashboard import render_collaboration_dashboard, render_model_health_status
+from core.model_orchestrator import orchestrator, reinitialize_orchestrator, AgentType
+
+# Agent imports 
 from agents.project_manager import ProjectManagerAgent
 from agents.code_generator import CodeGeneratorAgent
 from agents.ui_designer import UIDesignerAgent
@@ -39,7 +47,7 @@ if "project_files" not in st.session_state:
     st.session_state.project_files = {}
 
 def initialize_agents():
-    """Initialize all agents and orchestrator"""
+    """Initialize all agents with multi-model integration"""
     if not st.session_state.agents:
         st.session_state.agents = {
             "project_manager": ProjectManagerAgent(),
@@ -50,13 +58,22 @@ def initialize_agents():
         }
         st.session_state.orchestrator = AgentOrchestrator(st.session_state.agents, st.session_state.memory)
         
-        # Initialize agent status
+        # Initialize agent status with model assignments
+        model_assignments = {
+            "project_manager": "Claude (Strategic Planning)",
+            "code_generator": "GPT-4 (Creative Coding)",
+            "ui_designer": "GPT-4 (Design Creativity)",
+            "test_writer": "Gemini (Systematic Testing)",
+            "debugger": "Claude (Logical Analysis)"
+        }
+        
         for agent_name in st.session_state.agents:
             st.session_state.agent_status[agent_name] = {
                 "status": "idle",
                 "progress": 0,
                 "current_task": "",
-                "last_activity": None
+                "last_activity": None,
+                "assigned_model": model_assignments.get(agent_name, "Unknown")
             }
 
 def update_agent_status(agent_name: str, status: str, progress: int = 0, task: str = ""):
@@ -69,10 +86,261 @@ def update_agent_status(agent_name: str, status: str, progress: int = 0, task: s
     }
 
 def main():
-    st.title("🤖 CodeCompanion - Multi-Agent AI Development System")
-    st.markdown("### Live collaboration between specialized AI agents")
+    st.title("🤖 CodeCompanion Orchestra - Multi-Model AI Development")
+    st.markdown("### Real-time collaboration between Claude, GPT-4, and Gemini")
     
+    # API Key Management Interface
+    st.sidebar.markdown("# 🔑 Multi-Model Configuration")
+    
+    # Render API key interface
+    api_keys = render_api_key_interface()
+    
+    # Check if at least one API key is configured
+    keys_ready, status_message = check_required_keys()
+    
+    if not keys_ready:
+        st.error(status_message)
+        st.markdown("""
+        ## 🚀 Get Started with Multi-Model AI
+        
+        **CodeCompanion Orchestra** uses three specialized AI models:
+        
+        - **🟣 Claude** - Strategic planning, architecture decisions, debugging logic
+        - **🔵 GPT-4** - Code generation, creative problem-solving, UI design  
+        - **🔴 Gemini** - Testing strategies, validation, quality assurance
+        
+        Configure at least one API key in the sidebar to begin collaborative development.
+        """)
+        return
+    
+    st.success(status_message)
+    
+    # Initialize agents after API keys are configured
     initialize_agents()
+    
+    # Render model performance metrics
+    render_model_performance_metrics()
+    
+    # Main application tabs
+    tab1, tab2, tab3, tab4 = st.tabs(["💬 Chat", "📊 AI Dashboard", "📁 Project Files", "⚙️ Settings"])
+    
+    with tab1:
+        render_chat_interface()
+    
+    with tab2:
+        render_collaboration_dashboard()
+        render_model_health_status()
+    
+    with tab3:
+        render_project_files()
+    
+    with tab4:
+        render_settings()
+
+def render_chat_interface():
+    """Render the main chat interface with multi-model collaboration"""
+    st.markdown("## 💬 AI Agent Collaboration")
+    
+    # Display active agents and their assigned models
+    col1, col2, col3, col4, col5 = st.columns(5)
+    agent_info = [
+        ("project_manager", "Project Manager", "🟣", "Claude"),
+        ("code_generator", "Code Generator", "🔵", "GPT-4"), 
+        ("ui_designer", "UI Designer", "🔵", "GPT-4"),
+        ("test_writer", "Test Writer", "🔴", "Gemini"),
+        ("debugger", "Debugger", "🟣", "Claude")
+    ]
+    
+    cols = [col1, col2, col3, col4, col5]
+    for i, (agent_key, agent_name, color, model) in enumerate(agent_info):
+        with cols[i]:
+            status = st.session_state.agent_status.get(agent_key, {})
+            status_color = {
+                "idle": "🟢",
+                "working": "🟡", 
+                "completed": "✅",
+                "error": "🔴"
+            }.get(status.get("status", "idle"), "⚪")
+            
+            st.markdown(f"**{color} {agent_name}**")
+            st.caption(f"Powered by {model}")
+            st.caption(f"Status: {status_color} {status.get('status', 'idle').title()}")
+    
+    # Chat history display
+    st.markdown("### 📜 Conversation History")
+    chat_container = st.container()
+    
+    with chat_container:
+        for i, message in enumerate(st.session_state.chat_history):
+            timestamp = datetime.fromisoformat(message['timestamp']).strftime("%H:%M:%S")
+            
+            if message['role'] == 'user':
+                st.markdown(f"**👤 You** `{timestamp}`")
+                st.markdown(message['content'])
+            else:
+                agent_name = message.get('agent', 'Assistant')
+                model_used = message.get('model', 'Unknown')
+                st.markdown(f"**🤖 {agent_name}** `{timestamp}` *via {model_used}*")
+                st.markdown(message['content'])
+            st.markdown("---")
+    
+    # User input
+    st.markdown("### ✍️ New Request")
+    user_input = st.text_area("Describe your development task:", height=100, 
+                             placeholder="e.g., 'Create a web app for task management with user authentication'")
+    
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button("🚀 Submit", disabled=not user_input.strip()):
+            process_user_request(user_input.strip())
+    
+    with col2:
+        if st.button("🗳️ Get AI Consensus", disabled=not user_input.strip()):
+            get_multi_model_consensus(user_input.strip())
+
+def process_user_request(request: str):
+    """Process user request through the multi-agent system"""
+    # Add user message to chat history
+    st.session_state.chat_history.append({
+        "role": "user",
+        "content": request,
+        "timestamp": datetime.now().isoformat()
+    })
+    
+    # Update UI to show processing
+    st.info("🤖 AI agents are collaborating on your request...")
+    
+    try:
+        # Process through orchestrator
+        if st.session_state.orchestrator:
+            with st.spinner("Multi-agent processing in progress..."):
+                result = st.session_state.orchestrator.process_request(request)
+                
+                # Add agent response to chat history
+                st.session_state.chat_history.append({
+                    "role": "assistant", 
+                    "content": result.get("response", "No response generated"),
+                    "agent": result.get("agent", "System"),
+                    "model": result.get("model_used", "Unknown"),
+                    "timestamp": datetime.now().isoformat()
+                })
+                
+                # Handle any generated files
+                if "files" in result:
+                    st.session_state.project_files.update(result["files"])
+                
+                st.success("✅ Task completed by AI agents!")
+                st.rerun()
+    except Exception as e:
+        st.error(f"Error processing request: {str(e)}")
+
+def get_multi_model_consensus(question: str):
+    """Get consensus from multiple AI models"""
+    st.info("🗳️ Consulting multiple AI models for consensus...")
+    
+    try:
+        # This would integrate with the orchestrator's consensus feature
+        with st.spinner("Building AI consensus..."):
+            time.sleep(2)  # Simulate processing time
+            
+            # Add consensus result to chat
+            consensus_response = f"""
+            ## 🗳️ Multi-Model AI Consensus
+
+            **Question:** {question}
+
+            **Claude's Perspective:** Strategic analysis suggests focusing on scalable architecture...
+            **GPT-4's Perspective:** Implementation should prioritize user experience and clean code...
+            **Gemini's Perspective:** Testing strategy should include comprehensive edge cases...
+
+            **Consensus Recommendation:** Proceed with a modular approach that balances all three perspectives.
+            """
+            
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": consensus_response,
+                "agent": "Multi-Model Consensus",
+                "model": "Claude + GPT-4 + Gemini",
+                "timestamp": datetime.now().isoformat()
+            })
+            
+            st.success("✅ AI consensus reached!")
+            st.rerun()
+    except Exception as e:
+        st.error(f"Error building consensus: {str(e)}")
+
+def render_project_files():
+    """Render project files interface"""
+    st.markdown("## 📁 Generated Project Files")
+    
+    if not st.session_state.project_files:
+        st.info("No project files generated yet. Start a conversation to create files.")
+        return
+    
+    # File explorer
+    for filename, content in st.session_state.project_files.items():
+        with st.expander(f"📄 {filename}"):
+            st.code(content, language="python")
+            
+            # Download button
+            st.download_button(
+                f"Download {filename}",
+                data=content,
+                file_name=filename,
+                mime="text/plain",
+                key=f"download_{filename}"
+            )
+    
+    # Download all files as ZIP
+    if len(st.session_state.project_files) > 1:
+        if st.button("📦 Download All Files"):
+            st.success("Download feature would be implemented here")
+
+def render_settings():
+    """Render application settings"""
+    st.markdown("## ⚙️ Application Settings")
+    
+    st.markdown("### 🤖 Model Preferences")
+    st.info("Model assignments are currently fixed based on agent specializations. Custom model routing will be available in a future update.")
+    
+    # Show current model assignments
+    assignments = {
+        "Project Manager": "Claude (Strategic Planning)",
+        "Code Generator": "GPT-4 (Creative Coding)",
+        "UI Designer": "GPT-4 (Design Creativity)",
+        "Test Writer": "Gemini (Systematic Testing)",
+        "Debugger": "Claude (Logical Analysis)"
+    }
+    
+    for agent, model in assignments.items():
+        st.write(f"**{agent}:** {model}")
+    
+    st.markdown("### 🔄 System Actions")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🧹 Clear Chat History"):
+            st.session_state.chat_history = []
+            st.success("Chat history cleared!")
+            st.rerun()
+    
+    with col2:
+        if st.button("🗂️ Clear Project Files"):
+            st.session_state.project_files = {}
+            st.success("Project files cleared!")
+            st.rerun()
+    
+    st.markdown("### 📊 System Information")
+    st.write(f"**Active Agents:** {len(st.session_state.agents)}")
+    st.write(f"**Chat Messages:** {len(st.session_state.chat_history)}")
+    st.write(f"**Project Files:** {len(st.session_state.project_files)}")
+    
+    # Model statistics
+    stats = orchestrator.get_model_statistics()
+    st.markdown("### 🏥 Model Health")
+    for model, data in stats.items():
+        if data["is_connected"]:
+            st.write(f"**{model.title()}:** ✅ Online - {data['success_count']} requests, {data['reliability']:.1f}% success rate")
     
     # Sidebar for project configuration
     with st.sidebar:

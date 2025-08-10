@@ -2,6 +2,7 @@ modules = ["python-3.11"]
 
 [nix]
 channel = "stable-25_05"
+packages = ["libxcrypt"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -53,4 +54,4 @@ localPort = 8000
 externalPort = 8000
 
 [agent]
-integrations = ["python_gemini==1.0.0"]
+integrations = ["python_anthropic==1.0.0", "python_openai==1.0.0", "python_gemini==1.0.0"]

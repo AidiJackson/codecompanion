@@ -13,7 +13,7 @@ import streamlit as st
 import asyncio
 import json
 import requests
-
+import os
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 import logging
@@ -241,6 +241,11 @@ def main():
     
     with tab6:
         render_event_streaming_dashboard()
+        
+    # Also add live AI agents tab
+    st.markdown("---")
+    if st.button("🚀 Launch Live AI Project", help="Start a real project with Claude, GPT-4, and Gemini"):
+        render_live_ai_project_launcher()
 
 def render_schema_demo():
     """Demonstrate the comprehensive schema system"""
@@ -458,9 +463,23 @@ def render_agent_orchestration():
         ]
         
         for capability in agent_capabilities:
-            with st.expander(f"{capability.agent_type.value} ({capability.model_type.value})"):
-                st.markdown(f"**Primary Tasks**: {[task.value for task in capability.primary_tasks]}")
-                st.markdown(f"**Produces**: {[art.value for art in capability.produces_artifacts]}")
+            # Handle both enum values and strings safely
+            if hasattr(capability.agent_type, 'value'):
+                agent_type_str = capability.agent_type.value
+            else:
+                agent_type_str = str(capability.agent_type)
+                
+            if hasattr(capability.model_type, 'value'):
+                model_type_str = capability.model_type.value
+            else:
+                model_type_str = str(capability.model_type)
+            
+            with st.expander(f"{agent_type_str} ({model_type_str})"):
+                primary_tasks_str = [task.value if hasattr(task, 'value') else str(task) for task in capability.primary_tasks]
+                produces_str = [art.value if hasattr(art, 'value') else str(art) for art in capability.produces_artifacts]
+                
+                st.markdown(f"**Primary Tasks**: {primary_tasks_str}")
+                st.markdown(f"**Produces**: {produces_str}")
                 st.markdown(f"**Quality Score**: {capability.quality_score:.2f}")
                 st.markdown(f"**Avg Processing**: {capability.avg_processing_time_minutes:.1f} minutes")
         
@@ -926,6 +945,189 @@ def render_event_streaming_dashboard():
                     st.markdown(f"🔄 **{event['type']}** - {event.get('agent', 'system')}")
         else:
             st.warning("Event streaming not initialized")
+
+def render_live_ai_project_launcher():
+    """Live AI project launcher with real agent coordination"""
+    
+    st.header("🤖 Live AI Agent Collaboration")
+    st.markdown("**Start a real project where Claude, GPT-4, and Gemini agents collaborate**")
+    
+    # Check API key availability
+    api_keys = {
+        'Claude': bool(os.environ.get('ANTHROPIC_API_KEY')),
+        'GPT-4': bool(os.environ.get('OPENAI_API_KEY')),
+        'Gemini': bool(os.environ.get('GEMINI_API_KEY'))
+    }
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        status = "🟢 Ready" if api_keys['Claude'] else "🔴 Missing Key"
+        st.markdown(f"**Claude**: {status}")
+        
+    with col2:
+        status = "🟢 Ready" if api_keys['GPT-4'] else "🔴 Missing Key"
+        st.markdown(f"**GPT-4**: {status}")
+        
+    with col3:
+        status = "🟢 Ready" if api_keys['Gemini'] else "🔴 Missing Key"
+        st.markdown(f"**Gemini**: {status}")
+    
+    available_agents = sum(api_keys.values())
+    
+    if available_agents == 0:
+        st.error("No AI agents available. Please configure API keys.")
+        return
+    elif available_agents < 3:
+        st.warning(f"Only {available_agents}/3 agents available. Project will use available agents.")
+    else:
+        st.success("All AI agents ready for collaboration!")
+    
+    # Project configuration
+    st.subheader("🎯 Project Configuration")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        project_description = st.text_area(
+            "Project Description",
+            value="Build a RESTful API for a task management system with user authentication, task CRUD operations, and real-time notifications.",
+            height=100,
+            help="Describe what you want the AI agents to build together"
+        )
+        
+    with col2:
+        project_type = st.selectbox(
+            "Project Type",
+            options=["web_application", "api", "ui_application", "data_pipeline", "mobile_app"],
+            help="Type of project affects the workflow phases"
+        )
+        
+        complexity_level = st.selectbox(
+            "Complexity Level",
+            options=["Simple", "Medium", "Complex", "Advanced"],
+            index=1
+        )
+    
+    # Workflow preview
+    st.subheader("🔄 Planned Workflow")
+    
+    workflow_preview = {
+        "web_application": [
+            "📋 Requirements Analysis (Claude)",
+            "🏗️ System Architecture (Claude)", 
+            "💻 Core Implementation (GPT-4)",
+            "🎨 UI Development (GPT-4)",
+            "🧪 Testing & QA (Gemini)",
+            "📚 Documentation (Claude)"
+        ],
+        "api": [
+            "📋 API Specification (Claude)",
+            "🏗️ System Architecture (Claude)",
+            "💻 Core Implementation (GPT-4)", 
+            "🧪 Testing & QA (Gemini)",
+            "📚 API Documentation (Claude)"
+        ],
+        "ui_application": [
+            "📋 UI Requirements (Claude)",
+            "🎨 Design System (GPT-4)",
+            "💻 Component Implementation (GPT-4)",
+            "🧪 UI Testing (Gemini)",
+            "📚 User Documentation (Claude)"
+        ]
+    }
+    
+    phases = workflow_preview.get(project_type, workflow_preview["web_application"])
+    
+    for i, phase in enumerate(phases, 1):
+        st.markdown(f"**{i}.** {phase}")
+    
+    # Quality cascade explanation
+    with st.expander("🔄 Quality Cascade Process"):
+        st.markdown("""
+        **Multi-Agent Quality Assurance:**
+        - Each phase includes automated quality reviews
+        - Agents review each other's work for optimal results
+        - Architecture: Claude → GPT-4 → Gemini validation
+        - Implementation: GPT-4 → Claude review → Gemini testing  
+        - Testing: Gemini → GPT-4 review → Claude analysis
+        
+        **Real-time Collaboration:**
+        - Live agent activity monitoring
+        - Automatic handoffs between phases
+        - Conflict resolution when agents disagree
+        - Cost and performance tracking
+        """)
+    
+    # Launch controls
+    st.subheader("🚀 Launch Project")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        if st.button("▶️ Start Live AI Project", type="primary", disabled=available_agents == 0):
+            if project_description.strip():
+                # Initialize live orchestrator
+                try:
+                    if 'live_orchestrator' not in st.session_state:
+                        from core.live_orchestrator import LiveOrchestrator
+                        st.session_state.live_orchestrator = LiveOrchestrator()
+                    
+                    # Start project
+                    with st.spinner("Initializing live AI agents..."):
+                        correlation_id = asyncio.run(
+                            st.session_state.live_orchestrator.start_live_project(
+                                project_description, project_type.lower()
+                            )
+                        )
+                    
+                    st.session_state.active_live_project = correlation_id
+                    st.success(f"Live project started! Correlation ID: {correlation_id}")
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"Failed to start live project: {e}")
+                    st.exception(e)
+            else:
+                st.error("Please provide a project description")
+    
+    with col2:
+        if st.button("📊 View Active Projects"):
+            st.rerun()
+    
+    # Show active projects
+    if hasattr(st.session_state, 'live_orchestrator') and st.session_state.live_orchestrator:
+        active_projects = st.session_state.live_orchestrator.get_all_live_projects()
+        
+        if active_projects:
+            st.subheader("📈 Active Live Projects")
+            
+            for project in active_projects:
+                with st.expander(f"Project: {project['correlation_id']} ({project['status']})"):
+                    col1, col2 = st.columns([2, 1])
+                    
+                    with col1:
+                        st.markdown(f"**Description**: {project['description']}")
+                        st.markdown(f"**Current Phase**: {project['current_phase_name']}")
+                        st.progress(project['progress_percentage'] / 100)
+                        st.caption(f"Progress: {project['progress_percentage']:.1f}%")
+                        
+                    with col2:
+                        st.metric("Artifacts", project['artifacts_created'])
+                        st.metric("Phases", f"{project['current_phase']}/{project['total_phases']}")
+                        
+                        if project['agent_assignments']:
+                            st.markdown("**Agent Assignments:**")
+                            for phase, agent in project['agent_assignments'].items():
+                                st.caption(f"• {phase}: {agent}")
+        
+        # Orchestrator metrics
+        if st.button("📊 View Orchestrator Metrics"):
+            try:
+                metrics = st.session_state.live_orchestrator.get_orchestrator_metrics()
+                st.json(metrics)
+            except Exception as e:
+                st.error(f"Failed to get metrics: {e}")
 
 if __name__ == "__main__":
     main()

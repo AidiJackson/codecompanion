@@ -19,6 +19,7 @@ import anthropic
 import google.generativeai as genai
 
 from schemas.artifacts import ArtifactBase, ArtifactType
+from schemas.routing import ModelType
 from agents.base_agent import AgentInput, AgentOutput, AgentType
 
 logger = logging.getLogger(__name__)
@@ -205,9 +206,8 @@ class RealAIClients:
                 logger.info("Anthropic client initialized")
             
             if self.config.gemini_api_key:
-                import google.generativeai as genai_config
-                genai_config.configure(api_key=self.config.gemini_api_key)
-                self.gemini_client = genai_config
+                genai.configure(api_key=self.config.gemini_api_key)
+                self.gemini_client = genai
                 logger.info("Gemini client initialized")
                 
         except Exception as e:
@@ -245,7 +245,12 @@ class RealAIClients:
                 ]
             )
             
-            content = response.content[0].text
+            # Handle different content types properly
+            if hasattr(response.content[0], 'text'):
+                content = response.content[0].text
+            else:
+                # Fallback for different response structures
+                content = str(response.content[0]) if response.content else ""
             
             # Parse JSON response
             try:
@@ -262,7 +267,8 @@ class RealAIClients:
                 artifact=result_data,
                 confidence=0.9,
                 quality_score=0.9,
-                completeness_score=0.9
+                completeness_score=0.9,
+                tokens_consumed=response.usage.input_tokens + response.usage.output_tokens if hasattr(response, 'usage') and response.usage else None
             )
             
         except Exception as e:
@@ -275,7 +281,8 @@ class RealAIClients:
                 artifact={"error": str(e)},
                 confidence=0.0,
                 quality_score=0.0,
-                completeness_score=0.0
+                completeness_score=0.0,
+                tokens_consumed=0
             )
     
     async def call_gpt4_agent(self, agent_input: AgentInput, agent_type: AgentType) -> AgentOutput:
@@ -330,7 +337,8 @@ class RealAIClients:
                 artifact=result_data,
                 confidence=0.9,
                 quality_score=0.9,
-                completeness_score=0.9
+                completeness_score=0.9,
+                tokens_consumed=response.usage.total_tokens if hasattr(response, 'usage') and response.usage else None
             )
             
         except Exception as e:
@@ -343,7 +351,8 @@ class RealAIClients:
                 artifact={"error": str(e)},
                 confidence=0.0,
                 quality_score=0.0,
-                completeness_score=0.0
+                completeness_score=0.0,
+                tokens_consumed=0
             )
     
     async def call_gemini_agent(self, agent_input: AgentInput, agent_type: AgentType) -> AgentOutput:
@@ -390,7 +399,8 @@ class RealAIClients:
                 artifact=result_data,
                 confidence=0.9,
                 quality_score=0.9,
-                completeness_score=0.9
+                completeness_score=0.9,
+                tokens_consumed=response.usage_metadata.total_token_count if hasattr(response, 'usage_metadata') and response.usage_metadata else None
             )
             
         except Exception as e:
@@ -403,7 +413,8 @@ class RealAIClients:
                 artifact={"error": str(e)},
                 confidence=0.0,
                 quality_score=0.0,
-                completeness_score=0.0
+                completeness_score=0.0,
+                tokens_consumed=0
             )
     
     async def execute_agent(self, agent_input: AgentInput, agent_type: AgentType) -> AgentOutput:

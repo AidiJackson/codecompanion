@@ -777,7 +777,7 @@ def test_all_apis():
         ('anthropic', test_anthropic), 
         ('google', test_google)
     ]:
-        result = safe_api_call(test_func, service_name=f"test_{api_name}", timeout=15)
+        result = safe_api_call(test_func, timeout=15)
         
         if result['success']:
             results[api_name] = {

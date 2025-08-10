@@ -230,3 +230,24 @@ EXAMPLE_DESIGN_DOC = DesignDoc(
         }
     ]
 )
+
+
+def create_artifact_from_dict(data: Dict[str, Any]) -> ArtifactBase:
+    """
+    Factory function to create appropriate artifact type from dictionary data.
+    
+    Args:
+        data: Dictionary containing artifact data
+        
+    Returns:
+        Appropriate artifact instance based on type field
+    """
+    artifact_type = data.get('type', 'spec_doc')
+    
+    if artifact_type == 'code':
+        return CodePatch(**data)
+    else:
+        # Default to SpecDoc for non-code artifacts
+        if 'artifact_type' not in data:
+            data = {**data, 'artifact_type': 'spec_doc'}
+        return SpecDoc(**data)

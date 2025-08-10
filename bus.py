@@ -22,6 +22,12 @@ class Event:
     """Event structure for the bus system"""
     topic: str
     payload: Dict[str, Any]
+    timestamp: Optional[str] = None
+    
+    def __post_init__(self):
+        if self.timestamp is None:
+            from datetime import datetime
+            self.timestamp = datetime.utcnow().isoformat()
 
 class BaseBus:
     """Abstract base class for event bus implementations"""

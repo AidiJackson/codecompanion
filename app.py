@@ -518,7 +518,8 @@ def init_session_state():
 def create_demo_data() -> Dict[str, Any]:
     """Create demonstration data showing the schema system"""
     
-    # Example task ledger
+    # Example task ledger with all required parameters
+    from datetime import datetime
     task = TaskLedger(
         task_id="task_api_development",
         title="Build E-commerce API",
@@ -554,7 +555,11 @@ def create_demo_data() -> Dict[str, Any]:
                 "impact": "high"
             }
         ],
-        expected_artifacts=[ArtifactType.SPEC_DOC, ArtifactType.DESIGN_DOC, ArtifactType.CODE_PATCH]
+        expected_artifacts=[ArtifactType.SPEC_DOC, ArtifactType.DESIGN_DOC, ArtifactType.CODE_PATCH],
+        estimated_duration=120,  # minutes
+        actual_duration=0,
+        started_at=datetime.now(),
+        completed_at=None
     )
     
     # Example artifacts
@@ -823,12 +828,18 @@ def render_task_management():
         # Work item management
         st.subheader("📝 Work Items")
         if st.button("Add Work Item"):
+            from datetime import datetime
             new_item = WorkItem(
                 item_id=f"item_{len(demo_task.work_items) + 1:03d}",
                 title=f"Implementation Task {len(demo_task.work_items) + 1}",
                 description="New work item created",
                 status=TaskStatus.PENDING,
-                priority=Priority.MEDIUM
+                priority=Priority.MEDIUM,
+                assigned_agent="demo_agent",
+                estimated_effort=60,  # minutes
+                actual_effort=0,
+                started_at=datetime.now(),
+                completed_at=None
             )
             demo_task.work_items.append(new_item)
             st.rerun()
@@ -1194,11 +1205,25 @@ def render_project_launch():
         
         if st.button("⚡ Start REAL AI Project", type="primary", disabled=launch_disabled):
             if st.session_state.project_description.strip():
+                # Show immediate feedback
+                st.success("🚀 Starting REAL AI Project! Please wait...")
+                
                 # Initialize execution state
                 st.session_state.execution_started = True
                 st.session_state.execution_phase = "starting"
                 st.session_state.project_status = []
                 st.session_state.agent_outputs = []
+                st.session_state.live_timeline = []
+                st.session_state.real_artifacts = []
+                
+                # Add initial status message
+                current_time = datetime.now().strftime("%H:%M:%S")
+                st.session_state.project_status.append({
+                    'time': current_time,
+                    'message': '🚀 Button pressed - Initializing REAL AI execution...',
+                    'is_real': True
+                })
+                
                 st.rerun()
             else:
                 st.error("Please provide a project description")
@@ -1237,6 +1262,9 @@ def execute_workflow_step():
         )
     
     if phase == "starting":
+        # Show loading message immediately
+        st.info("🔄 Checking API readiness and initializing agents...")
+        
         update_status("🚀 Starting REAL AI project execution...")
         
         # Check API readiness
@@ -1251,6 +1279,9 @@ def execute_workflow_step():
         st.rerun()
         
     elif phase == "real_execution":
+        # Show execution message immediately
+        st.warning("⚡ Executing REAL AI workflow - This may take 30-60 seconds...")
+        
         # Execute the complete real AI workflow asynchronously
         update_status("⚡ Launching real AI multi-agent collaboration...")
         

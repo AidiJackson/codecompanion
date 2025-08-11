@@ -1,4 +1,4 @@
-import os, json, httpx
+import os, json, httpx, uuid
 from typing import Optional
 
 ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY")
@@ -56,7 +56,7 @@ async def call_gemini(prompt: str) -> Optional[str]:
         except Exception:
             return json.dumps(data)[:2000]
 
-async def real_e2e(objective: str) -> list[dict]:
+async def real_e2e(objective: str) -> dict:
     """
     Minimal real pipeline:
       - SpecDoc via Claude (if key), fallback GPT-4 if not
@@ -65,6 +65,7 @@ async def real_e2e(objective: str) -> list[dict]:
       - TestPlan via GPT-4
       - EvalReport via Claude
     """
+    run_id = f"R-{uuid.uuid4().hex[:8]}"
     out = []
 
     def add(kind, agent, content, conf=0.75):
@@ -85,4 +86,4 @@ async def real_e2e(objective: str) -> list[dict]:
     review = await (call_claude(f"Review the CodePatch and TestPlan for: {objective}. Return an EvalReport with risks and next steps.") or call_gpt4(f"Review the CodePatch and TestPlan for: {objective}. Return an EvalReport."))
     add("EvalReport", "Claude/GPT-4", review or "[no key configured]")
 
-    return out
+    return {"run_id": run_id, "artifacts": out}

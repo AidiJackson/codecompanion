@@ -782,6 +782,10 @@ def render_real_mode():
                     if "artifacts" in data:
                         st.success("✅ Real AI Pipeline Complete!")
                         
+                        # Show save completion with run_id
+                        if "run_id" in data:
+                            st.info(f"💾 Save complete - Run ID: {data['run_id']}")
+                        
                         st.subheader("📊 Generated Artifacts")
                         for i, artifact in enumerate(data["artifacts"]):
                             with st.expander(f"{artifact['type']} — {artifact['agent']} (confidence {artifact['confidence']:.2f})"):
@@ -796,6 +800,19 @@ def render_real_mode():
                 except Exception as e:
                     st.error(f"API call failed: {e}")
                     st.stop()
+    
+    # Add History section
+    from storage.runs import init, load_runs, load_artifacts
+    init()
+    with st.expander("📜 History (last 20)"):
+        rows = load_runs(20)
+        for rid, obj, ts in rows:
+            if st.button(f"Open {rid} — {obj} ({ts})", key=f"open_{rid}"):
+                arts = load_artifacts(rid)
+                st.markdown(f"### Run {rid} — {obj}")
+                for k,a,c,txt in arts:
+                    st.markdown(f"**{k}** — _{a}_ (conf {c:.2f})")
+                    st.code(txt)
 
 def main():
     """Main application interface"""

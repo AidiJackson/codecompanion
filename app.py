@@ -24,21 +24,27 @@ import openai
 import uvicorn
 import socket
 
-def _is_port_open(host, port):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+def _port_open(host, port):
+    import socket as _s
+    with _s.socket(_s.AF_INET, _s.SOCK_STREAM) as s:
         s.settimeout(0.2)
         return s.connect_ex((host, port)) == 0
 
-def start_api_background():
-    # avoid double-start on Streamlit reruns
-    if not _is_port_open("0.0.0.0", 5050):
+def start_api_once():
+    if st.session_state.get("_api_started"): 
+        return
+    if not _port_open("0.0.0.0", 5050):
         t = threading.Thread(
             target=lambda: uvicorn.run("api:app", host="0.0.0.0", port=5050, log_level="info"),
             daemon=True
         )
         t.start()
+    st.session_state["_api_started"] = True
 
-start_api_background()
+start_api_once()
+
+# API configuration
+API_BASE = "http://0.0.0.0:5050"
 
 # Import and run strict config startup logging
 from startup_logs_strict import log_startup_configuration
@@ -764,8 +770,6 @@ def render_real_mode():
             st.warning("Please enter an objective.")
         else:
             with st.spinner("Calling real AI models..."):
-                API_BASE = "http://0.0.0.0:5050"
-                
                 async def go():
                     async with httpx.AsyncClient(timeout=120) as client:
                         r = await client.post(f"{API_BASE}/run_real", json={"objective": objective.strip()})
@@ -799,7 +803,6 @@ def main():
     init_session_state()
     
     # Add API status to sidebar
-    API_BASE = "http://0.0.0.0:5050"
     async def _ping():
         try:
             async with httpx.AsyncClient(timeout=2.0) as c:
@@ -2776,7 +2779,7 @@ def render_event_streaming_dashboard():
                     ]
                     
                     # Start workflow via API
-                    response = requests.post("http://localhost:8000/api/workflows/start", 
+                    response = requests.post(f"{API_BASE}/api/workflows/start", 
                                            json={"tasks": tasks, "workflow_name": workflow_name})
                     
                     if response.status_code == 200:
@@ -2805,7 +2808,7 @@ def render_event_streaming_dashboard():
                         "content": f"Generated {artifact_type} with real-time event streaming"
                     }
                     
-                    response = requests.post("http://localhost:8000/api/artifacts/create",
+                    response = requests.post(f"{API_BASE}/api/artifacts/create",
                                            json={
                                                "artifact_type": artifact_type,
                                                "content": artifact_content,
@@ -2838,7 +2841,7 @@ def render_event_streaming_dashboard():
         if st.button("🔄 Refresh Stats"):
             if st.session_state.api_connected:
                 try:
-                    response = requests.get("http://localhost:8000/api/stats/real-time")
+                    response = requests.get(f"{API_BASE}/api/stats/real-time")
                     if response.status_code == 200:
                         stats = response.json()
                         st.json(stats)
@@ -2863,7 +2866,7 @@ def render_event_streaming_dashboard():
             
             if st.button("📜 Get Workflow Events"):
                 try:
-                    response = requests.get(f"http://localhost:8000/api/workflows/{correlation_id}/events")
+                    response = requests.get(f"{API_BASE}/api/workflows/{correlation_id}/events")
                     if response.status_code == 200:
                         data = response.json()
                         st.markdown(f"**Events for {correlation_id}:**")
@@ -2891,7 +2894,7 @@ def render_event_streaming_dashboard():
         if st.button("🎬 Replay Events"):
             if replay_correlation and st.session_state.api_connected:
                 try:
-                    response = requests.get(f"http://localhost:8000/api/workflows/{replay_correlation}/events")
+                    response = requests.get(f"{API_BASE}/api/workflows/{replay_correlation}/events")
                     if response.status_code == 200:
                         data = response.json()
                         st.success(f"Found {data['count']} events for replay")

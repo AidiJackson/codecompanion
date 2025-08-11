@@ -1,7 +1,10 @@
 # api.py — CodeCompanion API (token-protected)
+
 import os
 from fastapi import FastAPI, Body, Header, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+
 from settings import settings
 from services.real_models import real_e2e
 
@@ -9,7 +12,7 @@ TOKEN = os.getenv("CODECOMPANION_TOKEN")
 
 app = FastAPI(title="CodeCompanion API")
 
-# Allow CLI calls from anywhere; token enforces auth.
+# Allow CLI calls from anywhere; token enforces auth on protected endpoints.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,6 +24,11 @@ def require_token(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
 ):
+    """
+    Accept either:
+      - Authorization: Bearer <token>
+      - X-API-Key: <token>
+    """
     provided = None
     if authorization and authorization.lower().startswith("bearer "):
         provided = authorization.split(" ", 1)[1].strip()
@@ -32,10 +40,30 @@ def require_token(
     if provided != TOKEN:
         raise HTTPException(status_code=403, detail="Invalid or missing token")
 
+# --- Friendly homepage so the root URL isn't a 404 ---
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    return """
+    <html>
+      <head><title>CodeCompanion</title></head>
+      <body style="font-family: system-ui; text-align: center; padding: 48px;">
+        <h1>✅ CodeCompanion API is running</h1>
+        <p>Endpoints:</p>
+        <ul style="list-style: none; padding: 0;">
+          <li><code>GET /health</code> (no auth)</li>
+          <li><code>GET /keys</code> (requires token)</li>
+          <li><code>POST /run_real</code> (requires token)</li>
+        </ul>
+      </body>
+    </html>
+    """
+
+# --- Health (open) ---
 @app.get("/health")
 async def health():
     return {"ok": True, "event_bus": settings.EVENT_BUS}
 
+# --- Keys (protected) ---
 @app.get("/keys", dependencies=[Depends(require_token)])
 async def keys():
     return {
@@ -44,6 +72,7 @@ async def keys():
         "gemini": bool(settings.GEMINI_API_KEY),
     }
 
+# --- Run real pipeline (protected) ---
 @app.post("/run_real", dependencies=[Depends(require_token)])
 async def run_real(body: dict = Body(...)):
     objective = (body.get("objective") or "").strip()

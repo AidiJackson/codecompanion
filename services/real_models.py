@@ -3,8 +3,7 @@ from typing import Optional
 from .httpwrap import post_json
 
 ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY")
-OPENAI_KEY = os.environ.get("OPENAI_API_KEY")  # Direct OpenAI API
-OPENROUTER_KEY = os.environ.get("OPENROUTER_API_KEY")  # OpenRouter for GPT-4 access
+OPENAI_KEY = os.environ.get("OPENAI_API_KEY")
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
 
 async def call_claude(prompt: str) -> Optional[str]:
@@ -32,10 +31,15 @@ async def call_claude(prompt: str) -> Optional[str]:
         return f"[ERROR Anthropic: {e}]"
 
 async def call_gpt4(prompt: str) -> Optional[str]:
-    if not OPENROUTER_KEY: return None
-    url = "https://openrouter.ai/api/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {OPENROUTER_KEY}", "Content-Type": "application/json"}
-    body = {"model": "openai/gpt-4o-mini", "messages": [{"role":"user","content":prompt}], "temperature": 0.2, "max_tokens": 800}
+    if not OPENAI_KEY: return None
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {OPENAI_KEY}", "Content-Type": "application/json"}
+    body = {
+        "model": "gpt-4o-mini",      # or "gpt-4o"
+        "messages": [{"role":"user","content": prompt}],
+        "temperature": 0.2,
+        "max_tokens": 1200
+    }
     import httpx
     try:
         async with httpx.AsyncClient(timeout=60) as client:
@@ -44,7 +48,7 @@ async def call_gpt4(prompt: str) -> Optional[str]:
             data = r.json()
             return data["choices"][0]["message"]["content"]
     except Exception as e:
-        return f"[ERROR OpenRouter: {e}]"
+        return f"[ERROR OpenAI: {e}]"
 
 async def call_gemini(prompt: str) -> Optional[str]:
     if not GEMINI_KEY: return None
@@ -117,4 +121,4 @@ async def real_e2e(objective: str) -> dict:
         review = await call_gpt4(f"Review the CodePatch and TestPlan for: {objective}. Return an EvalReport.")
         add("EvalReport", "GPT-4", review or "[no key configured]")
 
-    return {"run_id": run_id, "artifacts": out, "usage": usage_stats, "models": {"claude": bool(ANTHROPIC_KEY), "gpt4": bool(OPENROUTER_KEY), "gemini": bool(GEMINI_KEY)}}
+    return {"run_id": run_id, "artifacts": out, "usage": usage_stats, "models": {"claude": bool(ANTHROPIC_KEY), "gpt4": bool(OPENAI_KEY), "gemini": bool(GEMINI_KEY)}}

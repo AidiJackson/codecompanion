@@ -3,8 +3,7 @@ from typing import Optional, Dict
 
 class Settings(BaseSettings):
     # API keys
-    OPENROUTER_API_KEY: Optional[str] = None   # for GPT-4 via OpenRouter
-    OPENAI_API_KEY: Optional[str] = None       # optional fallback
+    OPENAI_API_KEY: Optional[str] = None       # for GPT-4 direct API
     ANTHROPIC_API_KEY: Optional[str] = None    # Claude
     GEMINI_API_KEY: Optional[str] = None       # Gemini
 

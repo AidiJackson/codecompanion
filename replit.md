@@ -7,6 +7,7 @@ CodeCompanion Orchestra is an advanced multi-agent AI development system that or
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+- **August 11, 2025**: OPENROUTER REMOVAL: Replaced OpenRouter integration with direct OpenAI API calls. Updated settings.py to remove OPENROUTER_API_KEY and modified services/real_models.py call_gpt4() function to use direct OpenAI GPT-4o-mini API. Updated get_available_models() to use OPENAI_API_KEY for gpt4 availability check. All OpenRouter references eliminated from codebase.
 - **August 11, 2025**: RESILIENT API ENDPOINT: Enhanced /run_real with graceful database persistence failure handling. Database save operations wrapped in try/catch with warning logs and persist_warning field in response. API never fails due to database issues - always returns AI-generated results successfully.
 - **August 11, 2025**: DATABASE SCHEMA IMPROVEMENTS: Fixed SQLite schema migrations in storage/runs.py to prevent crashes. Added robust column existence checking and graceful error handling for ALTER TABLE operations. Ensured artifacts table has proper run_id column with automatic migration. Database operations now never crash the endpoint.
 - **August 11, 2025**: BACKEND ERROR HANDLING: Enhanced API endpoints with /health and /keys for monitoring. Added comprehensive try/catch wrapping in /run_real with readable error messages and stack traces. Hardened external API calls in services/real_models.py to return error strings instead of crashing. Improved UI error display with JSON details and status indicators.
@@ -71,7 +72,7 @@ Preferred communication style: Simple, everyday language.
 ## External Dependencies
 
 ### AI Services
-- **OpenAI API**: GPT-4o model integration.
+- **OpenAI API**: Direct GPT-4o-mini model integration for call_gpt4() function.
 - **Claude API**: For ProjectManager and Debugger agents.
 - **Gemini API**: For UIDesigner agent.
 

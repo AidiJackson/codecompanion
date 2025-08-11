@@ -1,0 +1,78 @@
+You are a CLI engineer. Update cli.py so it:
+- Reads API base from CC_API_URL (default http://0.0.0.0:5050)
+- Sends Authorization: Bearer <CODECOMPANION_TOKEN> header
+- Uses Typer with a List[str] argument so multi-word objectives work without quotes
+
+Actions:
+1) Overwrite cli.py with EXACT content:
+
+import os
+import typer
+import requests
+import json
+from typing import List
+
+app = typer.Typer()
+
+API_URL = os.getenv("CC_API_URL", "http://0.0.0.0:5050")
+API_TOKEN = os.getenv("CODECOMPANION_TOKEN")
+HEADERS = {"Authorization": f"Bearer {API_TOKEN}"} if API_TOKEN else {}
+
+@app.command()
+def run(
+    objective: List[str] = typer.Argument(..., metavar="OBJECTIVE...", help="Your goal text")
+):
+    goal = " ".join(objective).strip()
+    if not goal:
+        typer.echo("Usage: python cli.py run <your objective text>")
+        raise typer.Exit(1)
+
+    typer.echo(f"🎯 Sending to CodeCompanion: {goal}")
+
+    # health (open, but we include headers harmlessly)
+    try:
+        h = requests.get(f"{API_URL}/health", headers=HEADERS, timeout=5)
+        if h.status_code != 200:
+            typer.echo(f"💥 /health returned {h.status_code}. Is the server running?")
+            raise typer.Exit(1)
+    except Exception as e:
+        typer.echo(f"💥 Could not reach API at {API_URL}. Error: {e}")
+        raise typer.Exit(1)
+
+    # run_real (requires token)
+    try:
+        res = requests.post(f"{API_URL}/run_real", headers=HEADERS, json={"objective": goal}, timeout=180)
+    except Exception as e:
+        typer.echo(f"💥 Network error calling /run_real: {e}")
+        raise typer.Exit(1)
+
+    if res.status_code != 200:
+        try:
+            data = res.json()
+        except Exception:
+            data = {"raw": res.text}
+        typer.echo(f"❌ API error {res.status_code}")
+        typer.echo(json.dumps(data, indent=2))
+        raise typer.Exit(1)
+
+    data = res.json()
+    arts = data.get("artifacts") or []
+    if not arts:
+        typer.echo("⚠ No artifacts returned:")
+        typer.echo(json.dumps(data, indent=2))
+        raise typer.Exit(1)
+
+    typer.echo("✅ Agents finished. Artifacts:\n")
+    for a in arts:
+        t = a.get("type", "?"); ag = a.get("agent", "?")
+        conf = a.get("confidence", 0); content = a.get("content", "")
+        typer.echo(f"--- {t} by {ag} (conf {conf:.2f}) ---")
+        typer.echo(content[:4000])
+        typer.echo()
+
+if __name__ == "__main__":
+    app()
+
+2) Ensure requests is installed: pip install -U requests
+
+3) Report the file change summary.

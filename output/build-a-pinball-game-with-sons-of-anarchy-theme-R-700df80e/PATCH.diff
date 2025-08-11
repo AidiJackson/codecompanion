@@ -1,0 +1,50 @@
+```diff
+--- /path/to/original/pinball_game.py
++++ /path/to/modified/pinball_game.py
+@@ -1,6 +1,7 @@
+ import pygame
+ from pygame.locals import *
+ 
++THEME = "Sons of Anarchy"
+ 
+ class PinballGame:
+     def __init__(self):
+         pygame.init()
+@@ -8,6 +9,7 @@
+         self.score = 0
+         self.load_assets()
+ 
++        self.background_image = pygame.image.load('soa_background.jpg')
+ 
+     def load_assets(self):
+         self.ball_image = pygame.image.load('pinball_ball.png')
+@@ -15,6 +17,7 @@
+ 
+     def draw(self):
+         self.screen.blit(self.background_image, (0, 0))
++        self.draw_theme_elements()
+         self.screen.blit(self.ball_image, (self.ball_x, self.ball_y))
+         pygame.display.flip()
+ 
+@@ -22,6 +25,12 @@
+ 
+     def draw_theme_elements(self):
+         # Draw Sons of Anarchy themed elements
++        logo = pygame.image.load('soa_logo.png')
++        self.screen.blit(logo, (50, 50))
++        # Add more themed elements as needed
++        # For example, draw skulls, bikes, etc.
++
++        # Example of a score display
+         font = pygame.font.Font(None, 36)
+         score_text = font.render(f'Score: {self.score}', True, (255, 255, 255))
+         self.screen.blit(score_text, (10, 10))
+@@ -30,6 +39,7 @@
+ 
+     def run(self):
+         while True:
++            self.draw()
+             for event in pygame.event.get():
+                 if event.type == QUIT:
+                     pygame.quit()
+```

@@ -14,7 +14,7 @@ async def health():
 async def keys():
     return {
         "claude": bool(settings.ANTHROPIC_API_KEY),
-        "gpt4": bool(settings.OPENROUTER_API_KEY or settings.OPENAI_API_KEY),
+        "gpt4": bool(settings.OPENAI_API_KEY),
         "gemini": bool(settings.GEMINI_API_KEY),
     }
 

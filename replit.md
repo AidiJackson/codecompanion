@@ -7,6 +7,7 @@ CodeCompanion Orchestra is an advanced multi-agent AI development system that or
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+- **August 11, 2025**: CLI INTERFACE ADDED: Created comprehensive command-line interface with Typer. Added cc_cli package with check/run commands, console script integration in pyproject.toml, and executable wrapper script. CLI supports model availability checking, real AI pipeline execution, automatic artifact generation to disk, and database persistence with error handling.
 - **August 11, 2025**: OPENROUTER REMOVAL: Replaced OpenRouter integration with direct OpenAI API calls. Updated settings.py to remove OPENROUTER_API_KEY and modified services/real_models.py call_gpt4() function to use direct OpenAI GPT-4o-mini API. Updated get_available_models() to use OPENAI_API_KEY for gpt4 availability check. All OpenRouter references eliminated from codebase.
 - **August 11, 2025**: RESILIENT API ENDPOINT: Enhanced /run_real with graceful database persistence failure handling. Database save operations wrapped in try/catch with warning logs and persist_warning field in response. API never fails due to database issues - always returns AI-generated results successfully.
 - **August 11, 2025**: DATABASE SCHEMA IMPROVEMENTS: Fixed SQLite schema migrations in storage/runs.py to prevent crashes. Added robust column existence checking and graceful error handling for ALTER TABLE operations. Ensured artifacts table has proper run_id column with automatic migration. Database operations now never crash the endpoint.
@@ -21,6 +22,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Frontend Architecture
 - **Streamlit Web Application**: Single-page application serving as the main user interface.
+- **Command-Line Interface**: Typer-based CLI with `cc` command for terminal-based access. Supports model availability checking (`cc check`) and pipeline execution (`cc run <objective>`) with automatic artifact generation and database persistence.
 - **Session State Management**: Handles agent instances, project memory, chat history, and context.
 - **Real-time Interface**: Interactive chat with agent status monitoring and file download capabilities.
 

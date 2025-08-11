@@ -30,24 +30,34 @@ start_api_once()
 # Ensure the UI calls the correct base URL:
 API_BASE = "http://0.0.0.0:5050"
 
-# Add a small health-ping before making requests:
-import streamlit as st, httpx, asyncio
-
-async def _api_ok():
+# health ping in sidebar
+import httpx, asyncio, streamlit as st
+async def _ping():
     try:
         async with httpx.AsyncClient(timeout=2.0) as c:
-            r = await c.get(f"{API_BASE}/openapi.json")
+            r = await c.get(f"{API_BASE}/health")
             return r.status_code == 200
     except Exception:
         return False
 
-# Check API health only if it's already running, don't block
-try:
-    ok = asyncio.run(_api_ok())
-except Exception:
-    ok = False
+async def _keys():
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as c:
+            r = await c.get(f"{API_BASE}/keys")
+            return r.json()
+    except Exception:
+        return {}
 
-st.sidebar.markdown(f"**API (5050)**: {'✅' if ok else '⚠'}")
+# Check API health and keys
+try:
+    api_ok = asyncio.run(_ping())
+    keys_data = asyncio.run(_keys())
+except Exception:
+    api_ok = False
+    keys_data = {}
+
+st.sidebar.markdown(f"**API (5050)**: {'✅' if api_ok else '❌'}")
+st.sidebar.caption(f"Keys → Claude: {'✅' if keys_data.get('claude') else '❌'} | GPT-4: {'✅' if keys_data.get('gpt4') else '❌'} | Gemini: {'✅' if keys_data.get('gemini') else '❌'}")
 
 # Import and run strict config startup logging
 from startup_logs_strict import log_startup_configuration
@@ -773,14 +783,22 @@ def render_real_mode():
             st.warning("Please enter an objective.")
         else:
             with st.spinner("Calling real AI models..."):
-                async def go():
-                    async with httpx.AsyncClient(timeout=120) as client:
-                        r = await client.post(f"{API_BASE}/run_real", json={"objective": objective.strip()})
-                        r.raise_for_status()
-                        return r.json()
+                async def go(obj):
+                    async with httpx.AsyncClient(timeout=90) as client:
+                        r = await client.post(f"{API_BASE}/run_real", json={"objective": obj})
+                        try:
+                            js = r.json()
+                        except Exception:
+                            js = {"error": f"Non-JSON response: {r.text[:500]}", "status": r.status_code}
+                        return r.status_code, js
                 
                 try:
-                    data = asyncio.run(go())
+                    status, data = asyncio.run(go(objective.strip()))
+                    
+                    if status != 200 or "error" in data:
+                        st.error("Real API failed")
+                        st.code(data, language="json")
+                        st.stop()
                     
                     if "artifacts" in data:
                         st.success("✅ Real AI Pipeline Complete!")

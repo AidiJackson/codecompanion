@@ -381,7 +381,7 @@ class TestPerformance:
                 db.create_user(
                     username=f"user{i}",
                     email=f"user{i}@example.com",
-                    password_hash="hashed_password"
+                    password_hash="test_placeholder_hash"
                 )
             
             end_time = time.time()

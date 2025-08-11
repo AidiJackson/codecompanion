@@ -85,7 +85,7 @@ def git_push(folder: str,
 
     run("git add -A")
     # allow empty commit to create initial history
-    run(f'git commit -m "{message}" || true')
+    run(f'git commit -m {shlex.quote(message)} || true')
 
     if repo_url:
         run("git remote remove origin || true")
@@ -94,7 +94,7 @@ def git_push(folder: str,
         if token and repo_url.startswith("https://"):
             # embed token into URL for non-interactive push
             repo_url = repo_url.replace("https://", f"https://{token}:x-oauth-basic@")
-        run(f'git remote add origin "{repo_url}" || true')
+        run(f'git remote add origin {shlex.quote(repo_url)} || true')
         run("git push -u origin HEAD || true")
 
     typer.echo("✅ Git push step finished")

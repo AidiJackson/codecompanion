@@ -6,19 +6,10 @@ packages = ["glibcLocales", "libxcrypt"]
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["streamlit", "run", "app.py", "--server.port", "5000"]
+run = ["python", "server.py"]
 
 [workflows]
-runButton = "Project"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "FastAPI Server"
+runButton = "FastAPI Server"
 
 [[workflows.workflow]]
 name = "FastAPI Server"
@@ -33,10 +24,6 @@ waitForPort = 5050
 outputType = "console"
 
 [[ports]]
-localPort = 5000
-externalPort = 80
-
-[[ports]]
 localPort = 5050
 externalPort = 3000
 
@@ -45,4 +32,8 @@ localPort = 8000
 externalPort = 8000
 
 [agent]
-integrations = ["python_anthropic==1.0.0", "python_openai==1.0.0", "python_gemini==1.0.0"]
+integrations = [
+  "python_anthropic==1.0.0",
+  "python_openai==1.0.0",
+  "python_gemini==1.0.0"
+]

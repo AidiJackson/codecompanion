@@ -56,5 +56,48 @@ def run(objective: str, outdir: Optional[str] = typer.Option(None, help="Folder 
 
     typer.echo(f"✅ Saved artifacts to {root}")
 
+@app.command()
+def git_push(folder: str,
+             repo_url: Optional[str] = typer.Option(None, help="git remote URL (e.g., https://github.com/you/repo.git)"),
+             message: str = typer.Option("CodeCompanion commit", help="commit message")):
+    """
+    Init git (if needed), add/commit all, set remote (if provided), and push.
+    Requires GITHUB_TOKEN if using https with token embedding or preconfigured credentials.
+    """
+    import subprocess, shlex, os, pathlib
+    p = pathlib.Path(folder).resolve()
+    if not p.exists():
+        raise typer.BadParameter(f"Folder not found: {p}")
+
+    def run(cmd):
+        typer.echo(f"$ {cmd}")
+        res = subprocess.run(cmd, shell=True, cwd=str(p), capture_output=True, text=True)
+        if res.stdout: typer.echo(res.stdout.strip())
+        if res.stderr: typer.echo(res.stderr.strip())
+        if res.returncode != 0:
+            raise typer.Exit(res.returncode)
+
+    if not (p / ".git").exists():
+        run("git init")
+        # set default identity if missing
+        run('git config user.name "codecompanion"')
+        run('git config user.email "codecompanion@local"')
+
+    run("git add -A")
+    # allow empty commit to create initial history
+    run(f'git commit -m "{message}" || true')
+
+    if repo_url:
+        run("git remote remove origin || true")
+        # support token env
+        token = os.getenv("GITHUB_TOKEN")
+        if token and repo_url.startswith("https://"):
+            # embed token into URL for non-interactive push
+            repo_url = repo_url.replace("https://", f"https://{token}:x-oauth-basic@")
+        run(f'git remote add origin "{repo_url}" || true')
+        run("git push -u origin HEAD || true")
+
+    typer.echo("✅ Git push step finished")
+
 if __name__ == "__main__":
     app()

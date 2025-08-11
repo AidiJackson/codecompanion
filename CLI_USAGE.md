@@ -46,6 +46,23 @@ With custom output directory:
 ./cc run "Build a REST API with FastAPI" --outdir ./my-project
 ```
 
+### 3. Git Push Integration
+Initialize git repository, commit artifacts, and optionally push to remote:
+
+```bash
+./cc git-push ./my-project
+```
+
+With custom commit message:
+```bash
+./cc git-push ./my-project --message "Initial implementation from CodeCompanion"
+```
+
+With GitHub repository (requires GITHUB_TOKEN environment variable):
+```bash
+./cc git-push ./my-project --repo-url "https://github.com/username/my-project.git" --message "Deploy from CodeCompanion"
+```
+
 ## Output Structure
 
 When you run a project, the CLI generates the following files:
@@ -62,16 +79,35 @@ When you run a project, the CLI generates the following files:
 ### Quick Prototype Generation
 ```bash
 ./cc run "Create a calculator app with GUI" --outdir ./calculator-prototype
+./cc git-push ./calculator-prototype --message "Calculator prototype v1"
 ```
 
-### API Development
+### API Development with Repository Publishing
 ```bash
 ./cc run "Build a user authentication API with JWT tokens" --outdir ./auth-api
+export GITHUB_TOKEN="ghp_your_token_here"
+./cc git-push ./auth-api --repo-url "https://github.com/username/auth-api.git" --message "Initial auth API implementation"
 ```
 
-### Data Processing
+### Data Processing Pipeline
 ```bash
 ./cc run "Create a CSV data analysis tool with visualization" --outdir ./data-tool
+./cc git-push ./data-tool --message "Data analysis tool with charts"
+```
+
+### Complete Development Workflow
+```bash
+# Generate project
+./cc run "Build a blog platform with admin panel" --outdir ./blog-platform
+
+# Review generated artifacts
+ls -la ./blog-platform/
+
+# Initialize git and push to repository
+export GITHUB_TOKEN="your_github_token"
+./cc git-push ./blog-platform \
+    --repo-url "https://github.com/username/blog-platform.git" \
+    --message "Blog platform initial implementation from CodeCompanion"
 ```
 
 ## Database Integration

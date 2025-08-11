@@ -7,6 +7,7 @@ CodeCompanion Orchestra is an advanced multi-agent AI development system that or
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+- **August 11, 2025**: CLI GIT INTEGRATION: Added git-push subcommand to CLI for DevOps automation. Command handles git init, add/commit, remote setup with GitHub token support, and push operations. Enables seamless deployment workflow from artifact generation to repository publishing.
 - **August 11, 2025**: CLI INTERFACE ADDED: Created comprehensive command-line interface with Typer. Added cc_cli package with check/run commands, console script integration in pyproject.toml, and executable wrapper script. CLI supports model availability checking, real AI pipeline execution, automatic artifact generation to disk, and database persistence with error handling.
 - **August 11, 2025**: OPENROUTER REMOVAL: Replaced OpenRouter integration with direct OpenAI API calls. Updated settings.py to remove OPENROUTER_API_KEY and modified services/real_models.py call_gpt4() function to use direct OpenAI GPT-4o-mini API. Updated get_available_models() to use OPENAI_API_KEY for gpt4 availability check. All OpenRouter references eliminated from codebase.
 - **August 11, 2025**: RESILIENT API ENDPOINT: Enhanced /run_real with graceful database persistence failure handling. Database save operations wrapped in try/catch with warning logs and persist_warning field in response. API never fails due to database issues - always returns AI-generated results successfully.

@@ -1,9 +1,0 @@
-```diff
-diff --git a/hello_world.py b/hello_world.py
-new file mode 100644
-index 0000000..e69de29
---- /dev/null
-+++ b/hello_world.py
-@@ -0,0 +1,1 @@
-+print("Hello, World!")
-```

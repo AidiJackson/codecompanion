@@ -30,7 +30,7 @@ def require_token(
     if not TOKEN:
         raise HTTPException(status_code=500, detail="Server missing CODECOMPANION_TOKEN")
     if provided != TOKEN:
-        raise HTTPException(status_code=401, detail="Invalid or missing token")
+        raise HTTPException(status_code=403, detail="Invalid or missing token")
 
 @app.get("/health")
 async def health():

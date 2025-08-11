@@ -1,10 +1,7 @@
 # api.py — CodeCompanion API (token-protected)
-
 import os
 from fastapi import FastAPI, Body, Header, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-
-# Your existing imports; keep them if already present:
 from settings import settings
 from services.real_models import real_e2e
 
@@ -12,7 +9,7 @@ TOKEN = os.getenv("CODECOMPANION_TOKEN")
 
 app = FastAPI(title="CodeCompanion API")
 
-# Allow CLI calls from anywhere. Security is enforced by the token below.
+# Allow CLI calls from anywhere; token enforces auth.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,11 +21,6 @@ def require_token(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
 ):
-    """
-    Accept either header:
-      - Authorization: Bearer <token>
-      - X-API-Key: <token>
-    """
     provided = None
     if authorization and authorization.lower().startswith("bearer "):
         provided = authorization.split(" ", 1)[1].strip()
@@ -40,12 +32,10 @@ def require_token(
     if provided != TOKEN:
         raise HTTPException(status_code=401, detail="Invalid or missing token")
 
-# Health stays open so you can ping without a token
 @app.get("/health")
 async def health():
     return {"ok": True, "event_bus": settings.EVENT_BUS}
 
-# Keys & main endpoint require token
 @app.get("/keys", dependencies=[Depends(require_token)])
 async def keys():
     return {
@@ -59,5 +49,4 @@ async def run_real(body: dict = Body(...)):
     objective = (body.get("objective") or "").strip()
     if not objective:
         raise HTTPException(status_code=400, detail="objective is required")
-    result = await real_e2e(objective)
-    return result
+    return await real_e2e(objective)

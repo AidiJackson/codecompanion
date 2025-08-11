@@ -24,15 +24,20 @@ async def run_real(body: dict = Body(...)):
         objective = (body.get("objective") or "").strip()
         if not objective:
             return {"error": "objective is required"}
-        result = await real_e2e(objective)
-        
-        # Save to database
-        from storage.runs import init, save_run
-        init()
-        save_run(result["run_id"], objective, result["artifacts"])
-        
+        result = await real_e2e(objective)   # returns {"run_id": ..., "artifacts": [...]}
+
+        # Try to persist, but never fail the request if DB write has an issue
+        try:
+            from storage.runs import init, save_run
+            init()
+            save_run(result["run_id"], objective, result["artifacts"])
+        except Exception as e:
+            import logging, traceback
+            logging.getLogger("api").warning("save_run failed: %s\n%s", e, traceback.format_exc(limit=4))
+            result["persist_warning"] = str(e)
+
         return result
     except Exception as e:
-        tb = traceback.format_exc(limit=6)
-        log.exception("run_real failed: %s", e)
-        return {"error": str(e), "trace": tb}, 500
+        import traceback, logging
+        logging.getLogger("api").exception("run_real failed: %s", e)
+        return {"error": str(e), "trace": traceback.format_exc(limit=6)}, 500

@@ -16,4 +16,4 @@ async def run_real(body: dict = Body(...)):
     init()
     save_run(artifacts["run_id"], objective, artifacts["artifacts"])
     
-    return {"run_id": artifacts["run_id"], "artifacts": artifacts["artifacts"], "models": settings.get_available_models()}
+    return {"run_id": artifacts["run_id"], "artifacts": artifacts["artifacts"], "usage": artifacts.get("usage", {}), "models": settings.get_available_models()}

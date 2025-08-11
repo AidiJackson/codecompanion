@@ -791,8 +791,43 @@ def render_real_mode():
                             with st.expander(f"{artifact['type']} — {artifact['agent']} (confidence {artifact['confidence']:.2f})"):
                                 st.code(artifact["content"], language="markdown")
                         
-                        # Show model usage
-                        st.subheader("🤖 Model Usage")
+                        # Show model usage details
+                        if data.get("usage"):
+                            st.subheader("📊 Model Usage Details")
+                            usage_data = data["usage"]
+                            
+                            # Display usage metrics in a table format
+                            usage_rows = []
+                            for call_name, metrics in usage_data.items():
+                                if isinstance(metrics, dict):
+                                    row = {
+                                        "Call": call_name,
+                                        "Status": metrics.get("status", "N/A"),
+                                        "Latency (ms)": metrics.get("latency_ms", "N/A")
+                                    }
+                                    # Add token usage if available
+                                    if "usage" in metrics:
+                                        token_usage = metrics["usage"]
+                                        if isinstance(token_usage, dict):
+                                            row["Input Tokens"] = token_usage.get("input_tokens", token_usage.get("prompt_tokens", "N/A"))
+                                            row["Output Tokens"] = token_usage.get("output_tokens", token_usage.get("completion_tokens", "N/A"))
+                                            row["Total Tokens"] = token_usage.get("total_tokens", "N/A")
+                                    
+                                    # Add rate limiting info if available
+                                    if "rate_remaining" in metrics:
+                                        row["Rate Remaining"] = metrics["rate_remaining"]
+                                    
+                                    usage_rows.append(row)
+                            
+                            if usage_rows:
+                                import pandas as pd
+                                df = pd.DataFrame(usage_rows)
+                                st.dataframe(df, use_container_width=True)
+                            else:
+                                st.info("No detailed usage metrics available")
+                        
+                        # Show general model availability
+                        st.subheader("🤖 Model Availability")
                         st.json(data["models"])
                     else:
                         st.error(f"Error: {data}")

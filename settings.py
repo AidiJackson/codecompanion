@@ -9,12 +9,12 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: Optional[str] = None       # Gemini
 
     # Bus (kept for later; not used in this path)
-    EVENT_BUS: str = "redis"
+    EVENT_BUS: str = "mock"
     REDIS_URL: Optional[str] = None
 
     # App
     DATABASE_URL: str = "sqlite:///./data/codecompanion.db"
-    STREAMLIT_DEBUG: bool = False
+    STREAMLIT_DEBUG: bool = True
     LOG_LEVEL: str = "INFO"
 
     def scrub_url(self, url: Optional[str] = None) -> str:

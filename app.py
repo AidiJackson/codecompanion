@@ -24,27 +24,30 @@ import openai
 import uvicorn
 import socket
 
-def _port_open(host, port):
-    import socket as _s
-    with _s.socket(_s.AF_INET, _s.SOCK_STREAM) as s:
-        s.settimeout(0.2)
-        return s.connect_ex((host, port)) == 0
-
-def start_api_once():
-    if st.session_state.get("_api_started"): 
-        return
-    if not _port_open("0.0.0.0", 5050):
-        t = threading.Thread(
-            target=lambda: uvicorn.run("api:app", host="0.0.0.0", port=5050, log_level="info"),
-            daemon=True
-        )
-        t.start()
-    st.session_state["_api_started"] = True
-
+from server_launcher import start_api_once
 start_api_once()
 
-# API configuration
+# Ensure the UI calls the correct base URL:
 API_BASE = "http://0.0.0.0:5050"
+
+# Add a small health-ping before making requests:
+import streamlit as st, httpx, asyncio
+
+async def _api_ok():
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as c:
+            r = await c.get(f"{API_BASE}/openapi.json")
+            return r.status_code == 200
+    except Exception:
+        return False
+
+# Check API health only if it's already running, don't block
+try:
+    ok = asyncio.run(_api_ok())
+except Exception:
+    ok = False
+
+st.sidebar.markdown(f"**API (5050)**: {'✅' if ok else '⚠'}")
 
 # Import and run strict config startup logging
 from startup_logs_strict import log_startup_configuration
@@ -854,21 +857,7 @@ def main():
     
     init_session_state()
     
-    # Add API status to sidebar
-    async def _ping():
-        try:
-            async with httpx.AsyncClient(timeout=2.0) as c:
-                r = await c.get(f"{API_BASE}/openapi.json")
-                return r.status_code == 200
-        except Exception:
-            return False
-    
-    try:
-        ok = asyncio.run(_ping())
-    except Exception:
-        ok = False
-    
-    st.sidebar.markdown(f"**API (5050)**: {'✅' if ok else '❌'}")
+    # API status is already shown in sidebar at top of file
     
     st.title("🎼 CodeCompanion Orchestra v3")
     st.markdown("**Comprehensive JSON Schema-based Multi-Agent AI Development System**")

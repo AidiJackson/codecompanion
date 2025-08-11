@@ -25,7 +25,12 @@ import uvicorn
 import socket
 
 from server_launcher import start_api_once
-start_api_once()
+
+# Guard API embedding for production vs development
+import os
+EMBED_API = os.getenv("CC_EMBED_API", "true").lower() == "true"
+if EMBED_API:
+    start_api_once()
 
 # Ensure the UI calls the correct base URL:
 API_BASE = "http://0.0.0.0:5050"

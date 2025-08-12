@@ -30,7 +30,10 @@
       "Bash(chmod:*)",
       "Bash(CLAUDE_CODE_CMD=\"./mock_claude\" codecompanion --print-cmd)",
       "Bash(env)",
-      "Bash(codecompanion:*)"
+      "Bash(codecompanion:*)",
+      "Bash(./scripts/quick-install.sh:*)",
+      "Bash(./cc)",
+      "Bash(./cc auto)"
     ],
     "deny": []
   }

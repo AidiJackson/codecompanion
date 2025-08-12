@@ -273,8 +273,28 @@ def execute_project_sync(project_config):
         update_status(f"❌ Error occurred: {str(e)}")
         return {"status": "failed", "error": str(e)}
 
-def simulate_project_manager(config):
-    """Simulate Project Manager agent work"""
+async def real_project_manager(config):
+    """Real Project Manager agent using API"""
+    from services.real_models import call_best_available
+    
+    prompt = f"""
+You are a senior project manager. Create a detailed project breakdown for: {config['description']}
+
+Include:
+1. Core features and requirements analysis
+2. Technical architecture recommendations  
+3. Development phases with timelines
+4. Risk assessment and mitigation strategies
+5. Resource requirements and dependencies
+
+Format as a structured document with clear sections and actionable items.
+"""
+    
+    result = await call_best_available(prompt, "analysis")
+    return result if result else simulate_project_manager_fallback(config)
+
+def simulate_project_manager_fallback(config):
+    """Fallback simulation for Project Manager when API unavailable"""
     return f"""
 📋 PROJECT BREAKDOWN: {config['description']}
 
@@ -297,10 +317,45 @@ Phase 1: Backend API development (Week 1-2)
 Phase 2: Database design and optimization (Week 2-3) 
 Phase 3: Frontend UI implementation (Week 3-4)
 Phase 4: Integration testing and deployment (Week 4-5)
+
+[Note: Using simulation mode - real API unavailable]
 """
 
-def simulate_code_generator(project_plan):
-    """Simulate Code Generator agent work"""
+def simulate_project_manager(config):
+    """Legacy function - redirects to async real implementation"""
+    import asyncio
+    try:
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(real_project_manager(config))
+    except:
+        return simulate_project_manager_fallback(config)
+
+async def real_code_generator(project_plan):
+    """Real Code Generator agent using API"""
+    from services.real_models import call_best_available
+    
+    prompt = f"""
+You are a senior software architect and developer. Based on this project plan:
+
+{project_plan}
+
+Generate a comprehensive application structure including:
+1. Backend architecture with Python/FastAPI
+2. Frontend structure with modern frameworks
+3. Database schema and relationships
+4. API endpoints and data flow
+5. Security implementations
+6. Testing strategy
+7. Deployment configuration
+
+Provide actual code snippets and file structures, not just descriptions.
+"""
+    
+    result = await call_best_available(prompt, "code")
+    return result if result else simulate_code_generator_fallback(project_plan)
+
+def simulate_code_generator_fallback(project_plan):
+    """Fallback simulation for Code Generator when API unavailable"""
     return """
 💻 APPLICATION STRUCTURE GENERATED:
 
@@ -334,7 +389,18 @@ def simulate_code_generator(project_plan):
 • API rate limiting and request validation
 • Real-time WebSocket connections for live updates
 • Comprehensive error handling and logging
+
+[Note: Using simulation mode - real API unavailable]
 """
+
+def simulate_code_generator(project_plan):
+    """Legacy function - redirects to async real implementation"""
+    import asyncio
+    try:
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(real_code_generator(project_plan))
+    except:
+        return simulate_code_generator_fallback(project_plan)
 
 def simulate_ui_designer(config):
     """Simulate UI Designer agent work"""

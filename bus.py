@@ -8,6 +8,11 @@ from settings import settings
 class Event:
     topic: str
     payload: Dict[str, Any]
+    timestamp: float = None
+    
+    def __post_init__(self):
+        if self.timestamp is None:
+            self.timestamp = time.time()
 
 class BaseBus:
     async def publish(self, event: Event) -> str: ...

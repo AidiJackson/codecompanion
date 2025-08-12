@@ -147,50 +147,50 @@ class TestEventStructure:
 @pytest.mark.asyncio
 async def test_integration_smoke():
     """Integration smoke test for the entire bus system"""
-        
-        # Track integration test results
-        integration_results = []
-        
-        async def integration_handler(event: Event):
-            integration_results.append({
-                'received_at': event.timestamp,
-                'topic': event.topic,
-                'payload': event.payload
-            })
-        
-        # Start subscriber
-        subscriber_task = asyncio.create_task(
-            bus.subscribe("integration.test", "integration-group", "consumer-1", integration_handler)
-        )
-        
-        # Allow subscriber to start
-        await asyncio.sleep(0.1)
-        
-        # Publish multiple events
-        events = [
-            Event("integration.test", {"test_id": 1, "message": "first"}),
-            Event("integration.test", {"test_id": 2, "message": "second"}),
-            Event("integration.test", {"test_id": 3, "message": "third"})
-        ]
-        
-        for event in events:
-            await bus.publish(event)
-            await asyncio.sleep(0.05)  # Small delay between publishes
-        
-        # Allow processing time
-        await asyncio.sleep(0.3)
-        
-        # Clean up subscriber
-        subscriber_task.cancel()
-        
-        # Verify results
-        assert len(integration_results) >= 3, f"Expected at least 3 events, got {len(integration_results)}"
-        
-        # Verify event ordering and content
-        for i, result in enumerate(integration_results[:3]):
-            assert result['topic'] == "integration.test"
-            assert result['payload']['test_id'] == i + 1
-            assert result['payload']['message'] in ["first", "second", "third"]
+    
+    # Track integration test results
+    integration_results = []
+    
+    async def integration_handler(event: Event):
+        integration_results.append({
+            'received_at': event.timestamp,
+            'topic': event.topic,
+            'payload': event.payload
+        })
+    
+    # Start subscriber
+    subscriber_task = asyncio.create_task(
+        bus.subscribe("integration.test", "integration-group", "consumer-1", integration_handler)
+    )
+    
+    # Allow subscriber to start
+    await asyncio.sleep(0.1)
+    
+    # Publish multiple events
+    events = [
+        Event("integration.test", {"test_id": 1, "message": "first"}),
+        Event("integration.test", {"test_id": 2, "message": "second"}),
+        Event("integration.test", {"test_id": 3, "message": "third"})
+    ]
+    
+    for event in events:
+        await bus.publish(event)
+        await asyncio.sleep(0.05)  # Small delay between publishes
+    
+    # Allow processing time
+    await asyncio.sleep(0.3)
+    
+    # Clean up subscriber
+    subscriber_task.cancel()
+    
+    # Verify results
+    assert len(integration_results) >= 3, f"Expected at least 3 events, got {len(integration_results)}"
+    
+    # Verify event ordering and content
+    for i, result in enumerate(integration_results[:3]):
+        assert result['topic'] == "integration.test"
+        assert result['payload']['test_id'] == i + 1
+        assert result['payload']['message'] in ["first", "second", "third"]
 
 
 if __name__ == "__main__":

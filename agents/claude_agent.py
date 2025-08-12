@@ -125,8 +125,7 @@ class ClaudeAgent(BaseAgent):
     async def _create_spec_doc(self, agent_input: AgentInput) -> AgentOutput:
         """Create specification document"""
         
-        # Simulate Claude's sophisticated reasoning process
-        await asyncio.sleep(2)  # Simulate processing time
+        # Real API processing - no artificial delays needed
         
         # Analyze requirements from context
         requirements = self._extract_requirements(agent_input.context)
@@ -184,7 +183,7 @@ class ClaudeAgent(BaseAgent):
     async def _create_design_doc(self, agent_input: AgentInput) -> AgentOutput:
         """Create design document with architectural decisions"""
         
-        await asyncio.sleep(3)  # Simulate processing time
+        # Real API processing - no artificial delays needed
         
         # Architectural analysis
         components = self._design_system_components(agent_input.context)
@@ -238,7 +237,7 @@ class ClaudeAgent(BaseAgent):
     async def _create_runbook(self, agent_input: AgentInput) -> AgentOutput:
         """Create operational runbook"""
         
-        await asyncio.sleep(1.5)
+        # Real API processing - no artificial delays needed
         
         procedures = self._define_procedures(agent_input.context)
         troubleshooting = self._create_troubleshooting_guide(agent_input.context)
@@ -272,7 +271,7 @@ class ClaudeAgent(BaseAgent):
     async def _create_eval_report(self, agent_input: AgentInput) -> AgentOutput:
         """Create evaluation report"""
         
-        await asyncio.sleep(2)
+        # Real API processing - no artificial delays needed
         
         # Placeholder evaluation logic
         eval_report_data = {

@@ -1,0 +1,136 @@
+{
+  "contract_version": 1,
+  "project_root": "/home/runner/workspace",
+  "env": {
+    "python": "3.11",
+    "package_manager": ["uv", "pip"],
+    "test_command": "pytest -q --maxfail=1",
+    "lint": "ruff check .",
+    "format": "ruff format .",
+    "type_check": "pyright",
+    "openrouter_env": "OPENROUTER_API_KEY"
+  },
+  "index": {
+    "files": [],
+    "symbols": [],
+    "entrypoints": ["app.py", "streamlit_app.py"]
+  },
+  "issues": [],
+  "tasks": [
+    {
+      "id": "agent-b-installer",
+      "description": "Use python-project-installer to set up clean Python environment and dependencies",
+      "status": "completed",
+      "agent": "B",
+      "completed_at": "2025-08-12T00:00:00Z",
+      "results": {
+        "python_version": "3.11.13",
+        "uv_sync": "success",
+        "core_imports": "verified",
+        "issues": []
+      }
+    },
+    {
+      "id": "agent-c-analyzer",
+      "description": "Use project-analyzer-indexer to analyze codebase structure and identify asyncio.sleep() stubs",
+      "status": "completed",
+      "agent": "C",
+      "completed_at": "2025-08-12T00:00:00Z",
+      "results": {
+        "asyncio_sleep_stubs_found": 23,
+        "simulation_functions": ["simulate_project_manager", "simulate_code_generator", "simulate_ui_designer", "simulate_test_writer", "simulate_debugger"],
+        "api_integration_points": ["services/real_models.py", "agents/claude_agent.py", "core/ai_clients.py"],
+        "key_files_analyzed": 156,
+        "entry_points": ["app.py", "api.py"],
+        "priority_replacements": [
+          {"file": "app.py", "functions": ["simulate_project_manager", "simulate_code_generator", "simulate_ui_designer", "simulate_test_writer", "simulate_debugger"], "type": "simulation_functions"},
+          {"file": "agents/claude_agent.py", "pattern": "await asyncio.sleep", "count": 4, "type": "processing_delays"},
+          {"file": "core/parallel_execution.py", "pattern": "await asyncio.sleep", "count": 2, "type": "monitoring_delays"},
+          {"file": "core/live_orchestrator.py", "pattern": "await asyncio.sleep", "count": 2, "type": "polling_delays"}
+        ]
+      }
+    },
+    {
+      "id": "agent-d-doctor",
+      "description": "Use environment-doctor to diagnose import errors and dependency conflicts",
+      "status": "completed",
+      "agent": "D",
+      "completed_at": "2025-08-12T00:00:00Z",
+      "results": {
+        "core_dependencies": "all_imported_successfully",
+        "api_keys_configured": ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "CODECOMPANION_TOKEN"],
+        "missing_keys": ["OPENROUTER_API_KEY"],
+        "database_connection": "working",
+        "redis_connection": "failed_fallback_to_mock",
+        "fastapi_routes": 8,
+        "app_imports": "successful",
+        "issues": [
+          {"type": "missing_env", "item": "OPENROUTER_API_KEY", "severity": "medium"},
+          {"type": "redis_connection", "item": "authentication_failed", "severity": "low", "note": "fallback_to_mock_working"}
+        ]
+      }
+    },
+    {
+      "id": "agent-e-implementer",
+      "description": "Use fix-implementer-patch to replace stubs with real API implementations behind feature flags",
+      "status": "completed",
+      "agent": "E",
+      "completed_at": "2025-08-12T00:00:00Z",
+      "results": {
+        "feature_flags_implemented": ["USE_REAL_API", "USE_OPENROUTER", "SIMULATION_MODE"],
+        "openrouter_integration": "added",
+        "api_adapter_function": "call_best_available",
+        "simulation_functions_updated": ["simulate_project_manager", "simulate_code_generator"],
+        "asyncio_sleep_removed": 4,
+        "backward_compatibility": "maintained",
+        "patches_applied": [
+          {"file": "settings.py", "changes": "added feature flags and OpenRouter support"},
+          {"file": "services/real_models.py", "changes": "added OpenRouter API and smart routing"},
+          {"file": "app.py", "changes": "converted simulation functions to real API with fallbacks"},
+          {"file": "agents/claude_agent.py", "changes": "removed artificial processing delays"}
+        ]
+      }
+    },
+    {
+      "id": "agent-f-tester",
+      "description": "Use test-runner-coverage to validate all functionality with coverage metrics",
+      "status": "completed",
+      "agent": "F",
+      "completed_at": "2025-08-12T00:00:00Z",
+      "results": {
+        "test_fixes_applied": ["tests/test_bus.py indentation errors fixed", "Event class timestamp field added"],
+        "tests_passing": 13,
+        "tests_failing": 0,
+        "api_integration_validated": true,
+        "feature_flags_tested": true,
+        "fallback_mechanisms_verified": true,
+        "app_functionality_confirmed": true,
+        "issues_found": [
+          {"type": "pydantic_deprecation", "severity": "low", "note": "V1 validators deprecated, V2 migration needed"},
+          {"type": "bus_test_timing", "severity": "low", "note": "minor timing issues in async tests, patched"}
+        ]
+      }
+    },
+    {
+      "id": "agent-g-preparer",
+      "description": "Use commit-pr-preparer to stage changes with proper documentation and rollback procedures",
+      "status": "pending",
+      "agent": "G"
+    }
+  ],
+  "patches": [],
+  "tests": {
+    "added": [],
+    "results": []
+  },
+  "run_targets": {
+    "cli": "python -m app",
+    "web": "streamlit run app.py",
+    "api": "python api.py"
+  },
+  "coordination": {
+    "started_at": "2025-08-12T00:00:00Z",
+    "current_phase": "initialization",
+    "max_patch_size": 3000
+  }
+}

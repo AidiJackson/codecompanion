@@ -9,7 +9,7 @@ def _conn():
     return sqlite3.connect(DB)
 
 def _col_exists(cursor, table: str, col: str) -> bool:
-    rows = cursor.execute(f"PRAGMA table_info({table})").fetchall()
+    rows = cursor.execute("PRAGMA table_info(?)", (table,)).fetchall()
     names = {r[1] for r in rows}
     return col in names
 

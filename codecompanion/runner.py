@@ -1,18 +1,38 @@
 from .engine import run_cmd, apply_patch, load_repo_map
 from .llm import complete
 
-AGENT_ORDER = [
-    "Installer","EnvDoctor","Analyzer","DepAuditor","BugTriage","Fixer","TestRunner","WebDoctor","PRPreparer"
+# Agent workflow with optimal LLM provider assignments
+AGENT_WORKFLOW = [
+    {"name": "Installer", "provider": None},          # No LLM needed - pure tooling
+    {"name": "EnvDoctor", "provider": "claude"},      # Claude for diagnostic reasoning
+    {"name": "Analyzer", "provider": "gpt4"},         # GPT-4 for code analysis patterns
+    {"name": "DepAuditor", "provider": "gemini"},     # Gemini for dependency optimization
+    {"name": "BugTriage", "provider": "claude"},      # Claude for systematic debugging
+    {"name": "Fixer", "provider": "gpt4"},            # GPT-4 for code generation/patches
+    {"name": "TestRunner", "provider": None},         # No LLM needed - pure execution
+    {"name": "WebDoctor", "provider": "gemini"},      # Gemini for configuration analysis
+    {"name": "PRPreparer", "provider": "claude"},     # Claude for documentation/commits
 ]
 
-def run_single_agent(name: str, model: str):
+def run_single_agent(name: str, provider: str = None):
+    # Find agent config
+    agent_config = next((a for a in AGENT_WORKFLOW if a["name"] == name), None)
+    if not agent_config:
+        print(f"Unknown agent: {name}")
+        return 2
+    
+    # Use specified provider or agent's default
+    selected_provider = provider or agent_config["provider"]
     fn = _get(name)
-    return fn(model)
+    return fn(selected_provider)
 
-def run_pipeline(model: str):
-    for name in AGENT_ORDER:
-        print(f"[agent] {name}")
-        rc = run_single_agent(name, model)
+def run_pipeline(provider: str = None):
+    """Run full pipeline - provider param ignored, uses optimal assignments"""
+    for agent_config in AGENT_WORKFLOW:
+        name = agent_config["name"]
+        assigned_provider = agent_config["provider"]
+        print(f"[agent] {name} (provider: {assigned_provider or 'none'})")
+        rc = run_single_agent(name, assigned_provider)
         if rc != 0:
             print(f"[error] {name} returned {rc}")
             return rc
@@ -31,9 +51,9 @@ def _get(name):
         "TestRunner": TestRunnerCoverage,
         "WebDoctor": WebAppDoctor,
         "PRPreparer": CommitPRPreparer,
-    }.get(name, lambda m: (print(f"Unknown agent {name}"), 2)[1])
+    }.get(name, lambda p: (print(f"Unknown agent {name}"), 2)[1])
 
-def PythonProjectInstaller(model):
+def PythonProjectInstaller(provider):
     """Use python-project-installer to set up clean Python environment and dependencies"""
     print("[installer] Setting up Python environment...")
     run_cmd("python -m pip install -U pip")
@@ -48,48 +68,81 @@ def PythonProjectInstaller(model):
     print("[installer] Dependencies installed successfully")
     return 0
 
-def EnvironmentDoctor(model):
+def EnvironmentDoctor(provider):
     """Use environment-doctor to diagnose import errors, dependency conflicts, or runtime environment issues"""
-    print("[env-doctor] Diagnosing Python environment...")
+    print(f"[env-doctor] Diagnosing Python environment (using {provider})...")
+    
+    # Basic environment check
     r = run_cmd("python -c 'import sys; print(f\"Python {sys.version}\")'")
     print(f"[env-doctor] {r['stdout'].strip()}")
     
     # Check core imports
     imports_to_check = ["rich", "httpx", "pytest"]
+    issues = []
     for pkg in imports_to_check:
         r = run_cmd(f"python -c 'import {pkg}; print(f\"{pkg}: OK\")'")
         if r["code"] != 0:
+            issues.append(f"{pkg} import failed")
             print(f"[env-doctor] WARN: {pkg} import failed")
         else:
             print(f"[env-doctor] {r['stdout'].strip()}")
     
+    # Use LLM for advanced diagnosis if issues found
+    if provider and issues:
+        try:
+            response = complete(
+                "You are an environment diagnostic expert. Analyze these Python import issues and suggest solutions:",
+                [{"role": "user", "content": f"Issues found: {', '.join(issues)}"}],
+                provider=provider
+            )
+            print(f"[env-doctor] AI diagnosis: {response['content'][:200]}...")
+        except Exception as e:
+            print(f"[env-doctor] LLM diagnosis failed: {e}")
+    
     print("[env-doctor] Environment check complete")
     return 0
 
-def ProjectAnalyzerIndexer(model):
+def ProjectAnalyzerIndexer(provider):
     """Use project-analyzer-indexer to analyze and index codebase structure, identify dead code, find asyncio.sleep() stubs"""
-    print("[analyzer] Analyzing codebase structure...")
+    print(f"[analyzer] Analyzing codebase structure (using {provider})...")
     files = load_repo_map()
     print(f"[analyzer] Found {len(files)} tracked files")
     
     # Find asyncio.sleep stubs
     r = run_cmd("grep -r 'asyncio.sleep' . --include='*.py' || true")
+    sleep_refs = []
     if r["stdout"]:
         lines = r["stdout"].strip().split('\n')
+        sleep_refs = lines
         print(f"[analyzer] Found {len(lines)} asyncio.sleep() references")
-        for line in lines[:5]:  # Show first 5
+        for line in lines[:3]:  # Show first 3
             print(f"[analyzer]   {line}")
     
     # Find TODO/FIXME comments
     r = run_cmd("grep -r 'TODO\\|FIXME' . --include='*.py' || true")
+    todos = []
     if r["stdout"]:
         lines = r["stdout"].strip().split('\n')
+        todos = lines
         print(f"[analyzer] Found {len(lines)} TODO/FIXME comments")
+    
+    # Use LLM for code pattern analysis
+    if provider and (sleep_refs or todos):
+        try:
+            analysis_data = f"Asyncio sleep references: {len(sleep_refs)}\nTODO/FIXME comments: {len(todos)}\nTotal files: {len(files)}"
+            response = complete(
+                "You are a code analyzer. Analyze this codebase data and identify potential issues or improvements:",
+                [{"role": "user", "content": analysis_data}],
+                provider=provider
+            )
+            print(f"[analyzer] AI analysis: {response['content'][:150]}...")
+        except Exception as e:
+            print(f"[analyzer] LLM analysis failed: {e}")
     
     print("[analyzer] Analysis complete")
     return 0
 
-def DependencyAuditorShrinker(model):
+def DependencyAuditorShrinker(provider):
     """Use dependency-auditor-shrinker to optimize and audit project dependencies for bloat, redundancy, or unused packages"""
     print("[dep-auditor] Auditing dependencies...")
     
@@ -107,7 +160,7 @@ def DependencyAuditorShrinker(model):
     print("[dep-auditor] Dependency audit complete")
     return 0
 
-def BugTriageReproBuilder(model):
+def BugTriageReproBuilder(provider):
     """Use bug-triage-repro-builder for vague failures, broken builds, or unclear error states that need systematic diagnosis"""
     print("[bug-triage] Checking for build/test issues...")
     
@@ -126,7 +179,7 @@ def BugTriageReproBuilder(model):
     print("[bug-triage] Triage complete")
     return 0
 
-def FixImplementerPatch(model):
+def FixImplementerPatch(provider):
     """Use fix-implementer-patch to implement minimal patches for specific failures, particularly replacing placeholder code"""
     print("[fixer] Implementing fixes...")
     
@@ -140,7 +193,7 @@ def FixImplementerPatch(model):
     print("[fixer] Fixes applied")
     return 0
 
-def TestRunnerCoverage(model):
+def TestRunnerCoverage(provider):
     """Use test-runner-coverage to execute the full test suite with coverage reporting"""
     print("[test-runner] Running test suite...")
     
@@ -160,7 +213,7 @@ def TestRunnerCoverage(model):
     print("[test-runner] Test run complete")
     return 0
 
-def WebAppDoctor(model):
+def WebAppDoctor(provider):
     """Use web-app-doctor to diagnose and fix web application setup issues, particularly for Streamlit, FastAPI, or Flask applications"""
     print("[web-doctor] Checking web app configuration...")
     
@@ -184,7 +237,7 @@ def WebAppDoctor(model):
     print("[web-doctor] Web app check complete")
     return 0
 
-def CommitPRPreparer(model):
+def CommitPRPreparer(provider):
     """Use commit-pr-preparer to prepare codebase for commit and PR submission with proper documentation and safe rollback capabilities"""
     print("[pr-preparer] Preparing for commit...")
     

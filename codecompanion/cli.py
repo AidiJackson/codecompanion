@@ -14,7 +14,7 @@ def main():
     parser.add_argument("--chat", action="store_true", help="Start chat REPL")
     parser.add_argument("--auto", action="store_true", help="Run full 10-agent pipeline")
     parser.add_argument("--run", metavar="AGENT", help="Run a single agent by name")
-    parser.add_argument("--model", default=os.getenv("CC_MODEL","openrouter/auto"), help="Model ID for LLM calls")
+    parser.add_argument("--provider", default=os.getenv("CC_PROVIDER","claude"), help="LLM provider (claude, gpt4, gemini)")
     args = parser.parse_args()
 
     if args.version:
@@ -27,15 +27,15 @@ def main():
         if info["created"]:
             print("[codecompanion] Created:", ", ".join(info["created"]))
         print("[codecompanion] Agents dir:", info["agents_dir"])
-        print("[codecompanion] Model:", args.model)
+        print("[codecompanion] Provider:", args.provider)
         return 0
 
     if args.chat:
-        return chat_repl(model=args.model)
+        return chat_repl(provider=args.provider)
     if args.auto:
-        return run_pipeline(model=args.model)
+        return run_pipeline(provider=args.provider)
     if args.run:
-        return run_single_agent(args.run, model=args.model)
+        return run_single_agent(args.run, provider=args.provider)
     # default help
     parser.print_help()
     return 0

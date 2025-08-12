@@ -51,8 +51,14 @@ async def root():
     <html>
       <head><title>CodeCompanion</title></head>
       <body style="font-family: system-ui; text-align: center; padding: 48px;">
-        <h1>✅ CodeCompanion API is running</h1>
-        <p>Endpoints:</p>
+        <h1 style="display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 12px 0;">
+          ✅
+          <a href="/" style="text-decoration:none;color:inherit">
+            CodeCompanion API is running
+          </a>
+          <span role="img" aria-label="UK" title="English (UK)" style="font-size:16px">🇬🇧</span>
+        </h1>
+        <p style="margin:0 0 16px 0;">Endpoints:</p>
         <ul style="list-style: none; padding: 0;">
           <li><code>GET /health</code> (no auth)</li>
           <li><code>GET /keys</code> (requires token)</li>

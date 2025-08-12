@@ -71,7 +71,12 @@ def git_push(folder: str,
 
     def run(cmd):
         typer.echo(f"$ {cmd}")
-        res = subprocess.run(cmd, shell=True, cwd=str(p), capture_output=True, text=True)
+        # Convert string command to list for shell=False (more secure)
+        if isinstance(cmd, str):
+            cmd_list = shlex.split(cmd)
+        else:
+            cmd_list = cmd
+        res = subprocess.run(cmd_list, shell=False, cwd=str(p), capture_output=True, text=True)
         if res.stdout: typer.echo(res.stdout.strip())
         if res.stderr: typer.echo(res.stderr.strip())
         if res.returncode != 0:

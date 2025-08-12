@@ -186,6 +186,13 @@ def initialize_production_bus():
 db = get_database_manager()
 production_bus = initialize_production_bus()
 
+# Safe database access helper - prevents None attribute errors on db
+def get_safe_db():
+    """Returns db if available, otherwise shows error and returns None"""
+    if db is None:
+        st.error("Database unavailable - please check configuration")
+    return db
+
 def get_or_create_session_id():
     """Get or create a unique session ID for database operations"""
     if 'session_id' not in st.session_state:
@@ -1964,11 +1971,15 @@ def render_live_monitoring():
     if not st.session_state.get('execution_started', False):
         st.info("⏳ Start project execution to see live monitoring data")
         # Still show status panel even without execution
-        render_live_monitoring_dashboard(db, task_id=task_id)
+        safe_db = get_safe_db()
+        if safe_db:
+            render_live_monitoring_dashboard(safe_db, task_id=task_id)
         return
     
     # Render comprehensive live monitoring dashboard
-    render_live_monitoring_dashboard(db, task_id=task_id)
+    safe_db = get_safe_db()
+    if safe_db:
+        render_live_monitoring_dashboard(safe_db, task_id=task_id)
     
     # Legacy data comparison for debugging
     with st.expander("🔧 Debug: Compare Data Sources", expanded=False):
@@ -1983,14 +1994,18 @@ def render_live_monitoring():
             
         with col2:
             st.write("**Database Data**") 
-            from datetime import timedelta
-            recent_artifacts = db.get_recent_artifacts(since_timestamp=datetime.now() - timedelta(hours=1))
-            db_artifact_count = len(recent_artifacts)
-            st.write(f"Recent artifacts: {db_artifact_count}")
-            
-            if recent_artifacts:
-                latest = recent_artifacts[0]
-                st.write(f"Latest: {latest['artifact_type']} by {latest['agent_name']}")
+            safe_db = get_safe_db()
+            if safe_db:
+                from datetime import timedelta
+                recent_artifacts = safe_db.get_recent_artifacts(since_timestamp=datetime.now() - timedelta(hours=1))
+                db_artifact_count = len(recent_artifacts)
+                st.write(f"Recent artifacts: {db_artifact_count}")
+                
+                if recent_artifacts:
+                    latest = recent_artifacts[0]
+                    st.write(f"Latest: {latest['artifact_type']} by {latest['agent_name']}")
+            else:
+                st.write("Database unavailable")
     
     # Control panel
     st.markdown("---")

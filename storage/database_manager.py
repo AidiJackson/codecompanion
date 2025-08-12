@@ -611,21 +611,19 @@ class DatabaseManager:
         cursor = conn.cursor()
         
         try:
-            cutoff_date = f"date('now', '-{days_to_keep} days')"
-            
             # Clean old timeline events
-            cursor.execute(f"""
+            cursor.execute("""
                 DELETE FROM timeline_events 
-                WHERE created_at < {cutoff_date}
-            """)
+                WHERE created_at < date('now', '-' || ? || ' days')
+            """, (days_to_keep,))
             
             deleted_events = cursor.rowcount
             
             # Clean old quality metrics
-            cursor.execute(f"""
+            cursor.execute("""
                 DELETE FROM quality_metrics 
-                WHERE created_at < {cutoff_date}
-            """)
+                WHERE created_at < date('now', '-' || ? || ' days')
+            """, (days_to_keep,))
             
             deleted_metrics = cursor.rowcount
             

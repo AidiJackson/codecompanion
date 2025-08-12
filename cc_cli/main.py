@@ -20,6 +20,15 @@ def check():
     typer.echo(json.dumps(ok, indent=2))
 
 @app.command()
+def ping():
+    """Fast health check for latency testing."""
+    start = time.time()
+    # Quick system check
+    typer.echo("pong")
+    duration = time.time() - start
+    typer.echo(f"response_time: {duration:.4f}s", err=True)
+
+@app.command()
 def run(objective: str, outdir: Optional[str] = typer.Option(None, help="Folder to write artifacts")):
     """Call real models and save artifacts locally + DB."""
     async def go():

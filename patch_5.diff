@@ -1,0 +1,9 @@
+--- a/api.py
++++ b/api.py
+@@ -42,6 +42,8 @@
+     if not TOKEN:
+         raise HTTPException(status_code=500, detail="Server missing CODECOMPANION_TOKEN")
+     if provided != TOKEN:
++        logger.warning("Invalid token provided")
+         raise HTTPException(status_code=403, detail="Invalid or missing token")
+     return None

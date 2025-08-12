@@ -40,6 +40,8 @@ def require_token(
         raise HTTPException(status_code=500, detail="Server missing CODECOMPANION_TOKEN")
     if provided != TOKEN:
         raise HTTPException(status_code=403, detail="Invalid or missing token")
+
+    # Explicitly return to satisfy dependency type expectations.
     return None
 
 # --- Friendly homepage so the root URL isn't a 404 ---
@@ -49,12 +51,13 @@ async def root():
     <html>
       <head><title>CodeCompanion</title></head>
       <body style="font-family: system-ui; text-align: center; padding: 48px;">
-        <h1 style="margin:0 0 8px 0;">
+        <h1 style="display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 12px 0;">
+          ✅
           <a href="/" style="text-decoration:none;color:inherit">
-            ✅ CodeCompanion API is running 🇬🇧
+            CodeCompanion API is running
           </a>
+          <span role="img" aria-label="UK" title="English (UK)" style="font-size:16px">🇬🇧</span>
         </h1>
-        <div style="margin: 4px 0 16px 0; font-size: 14px; opacity: 0.9;">English (UK)</div>
         <p style="margin:0 0 16px 0;">Endpoints:</p>
         <ul style="list-style: none; padding: 0;">
           <li><code>GET /health</code> (no auth)</li>
@@ -85,9 +88,13 @@ async def run_real(body: dict = Body(...)):
     objective = (body.get("objective") or "").strip()
     if not objective:
         raise HTTPException(status_code=400, detail="objective is required")
+
+    # Guard the pipeline so the API never crashes on internal exceptions.
     try:
         return await real_e2e(objective)
     except HTTPException:
+        # Re-raise explicit HTTP errors unchanged.
         raise
     except Exception:
+        # Don’t leak internals; return a generic server error.
         raise HTTPException(status_code=500, detail="pipeline failed")

@@ -1,0 +1,13 @@
+Review the CodeCompanion repository.
+Deliver:
+- High-level architecture map (entrypoints: api.py, app.py, agents/*, services/*).
+- Top 10 likely bugs with exact file paths and line ranges; include DatabaseManager None risks near ~186 and ~1964 in app.py if relevant.
+- UI/UX quick wins with exact file paths (e.g., header/flag, hamburger, responsiveness).
+- Security/auth risks (token handling in api.py, CORS, secrets leakage).
+- Performance hotspots (blocking calls, race conditions; server_launcher.py, app.py).
+- Testing plan: list files to add tests and 3 Playwright visual baselines.
+- Prioritized 60-minute fixes (choose 1 bug file + 1 UI file) and provide unified diff patches if possible.
+Constraints:
+- Patch-only, <=25 lines per fix, no new dependencies.
+- Reference exact file paths.
+- Output as a compact report; include any diffs inside ```diff code fences.

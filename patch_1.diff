@@ -1,0 +1,18 @@
+--- a/api.py
++++ b/api.py
+@@ -36,9 +36,12 @@ def require_token(
+     if not TOKEN:
+         raise HTTPException(status_code=500, detail="Server missing CODECOMPANION_TOKEN")
+     if provided != TOKEN:
+-        raise HTTPException(status_code=403, detail="Invalid or missing token")
+-    return None
+-
++        # Use constant-time comparison to prevent timing attacks
++        from hmac import compare_digest
++        if not compare_digest(provided, TOKEN):
++            raise HTTPException(status_code=403, detail="Invalid or missing token")
++    return None
++
+ # --- Friendly homepage so the root URL isn't a 404 ---
+ @app.get("/", response_class=HTMLResponse)
+ async def root():

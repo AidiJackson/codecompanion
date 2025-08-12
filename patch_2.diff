@@ -1,0 +1,18 @@
+--- a/app.py
++++ b/app.py
+@@ -104,10 +104,13 @@ async def _keys():
+     keys_data = {}
+
+ # Check API health and keys
++health_placeholder = st.empty()
+ try:
++    with health_placeholder.spinner("Checking API health..."):
++        api_ok = asyncio.run(_ping())
++        keys_data = asyncio.run(_keys())
++except Exception:
+     api_ok = asyncio.run(_ping())
+-    keys_data = asyncio.run(_keys())
+-except Exception:
+     api_ok = False
+     keys_data = {}
+

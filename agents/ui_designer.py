@@ -853,7 +853,9 @@ export default {
                 <button class="menu-button" id="menuToggle" aria-label="Toggle menu">
                     <i class="fas fa-bars"></i>
                 </button>
-                <h1 class="header-title">Generated Application</h1>
+                <a href="/" class="header-title-link">
+                    <h1 class="header-title">Generated Application</h1>
+                </a>
             </div>
             
             <div class="header-right">
@@ -866,6 +868,7 @@ export default {
                         <i class="fas fa-cog"></i>
                         <span>Settings</span>
                     </button>
+                    <span role="img" aria-label="UK" class="flag-indicator">🇬🇧</span>
                     <div class="user-menu">
                         <button class="user-button">
                             <span class="user-avatar">U</span>
@@ -1107,11 +1110,24 @@ body {
     color: #333;
 }
 
+.header-title-link {
+    text-decoration: none;
+}
+
 .header-title {
     font-size: 24px;
     font-weight: 600;
     color: #333;
     margin: 0;
+}
+
+.header-title-link:hover .header-title {
+    color: #007bff;
+}
+
+.flag-indicator {
+    font-size: 16px;
+    margin-left: 8px;
 }
 
 .header-nav {

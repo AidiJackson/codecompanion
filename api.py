@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 from settings import settings
 from services.real_models import real_e2e
 
-TOKEN = os.getenv("CODECOMPANION_TOKEN")
+TOKEN: str | None = os.getenv("CODECOMPANION_TOKEN")
 
 app = FastAPI(title="CodeCompanion API")
 
@@ -28,6 +28,7 @@ def require_token(
     Accept either:
       - Authorization: Bearer <token>
       - X-API-Key: <token>
+    Raises 403 if token is missing/invalid, 500 if server token is unset.
     """
     provided = None
     if authorization and authorization.lower().startswith("bearer "):
@@ -39,6 +40,9 @@ def require_token(
         raise HTTPException(status_code=500, detail="Server missing CODECOMPANION_TOKEN")
     if provided != TOKEN:
         raise HTTPException(status_code=403, detail="Invalid or missing token")
+
+    # Explicitly return to satisfy dependency type expectations.
+    return None
 
 # --- Friendly homepage so the root URL isn't a 404 ---
 @app.get("/", response_class=HTMLResponse)
@@ -78,4 +82,13 @@ async def run_real(body: dict = Body(...)):
     objective = (body.get("objective") or "").strip()
     if not objective:
         raise HTTPException(status_code=400, detail="objective is required")
-    return await real_e2e(objective)
+
+    # Guard the pipeline so the API never crashes on internal exceptions.
+    try:
+        return await real_e2e(objective)
+    except HTTPException:
+        # Re-raise explicit HTTP errors unchanged.
+        raise
+    except Exception:
+        # Don’t leak internals; return a generic server error.
+        raise HTTPException(status_code=500, detail="pipeline failed")

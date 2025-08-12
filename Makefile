@@ -1,7 +1,7 @@
 # CodeCompanion Orchestra Makefile
 # Simple task automation for development and testing
 
-.PHONY: test test-verbose test-bus test-schema help install clean
+.PHONY: test test-verbose test-bus test-schema help install clean setup build uninstall run
 
 # Default target
 help:
@@ -13,6 +13,11 @@ help:
 	@echo "  make test-schema  - Run only schema validation tests"
 	@echo "  make install      - Install test dependencies"
 	@echo "  make clean        - Clean up test artifacts"
+	@echo ""
+	@echo "Package commands:"
+	@echo "  make setup        - Setup package build environment"
+	@echo "  make build        - Build package"
+	@echo "  make run          - Run codecompanion CLI"
 	@echo ""
 
 # Run all tests quietly
@@ -46,4 +51,28 @@ clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -name "*.pyc" -delete 2>/dev/null || true
+	rm -rf dist build *.egg-info
 	@echo "✅ Cleanup complete"
+
+setup:
+	python -m pip install -U pip wheel build
+	pip install -e .
+
+build:
+	python -m build
+
+uninstall:
+	pip uninstall -y codecompanion || true
+
+run:
+	codecompanion --check
+
+chat:
+	codecompanion --chat
+
+auto:
+	codecompanion --auto
+
+agent:
+	@[ -n "$$AGENT" ] || (echo "Usage: make agent AGENT=Installer"; exit 1)
+	codecompanion --run "$$AGENT"

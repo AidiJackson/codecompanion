@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(uv sync:*)",
+      "Bash(ruff check:*)",
+      "Bash(pytest:*)",
+      "Bash(python -m pytest tests/ -q --maxfail=3)",
+      "Bash(python -m pytest tests/test_artifact_schema.py -q)",
+      "Bash(python -m pytest test_api_endpoints.py -q)",
+      "Bash(git add:*)",
+      "Bash(make:*)",
+      "Bash(ruff format:*)",
+      "Bash(pyright:*)",
+      "Bash(test:*)",
+      "Bash(python:*)",
+      "Bash(curl:*)",
+      "Bash(git grep:*)",
+      "Bash(true)",
+      "Bash(sed:*)",
+      "Bash(grep:*)",
+      "Bash(time python:*)",
+      "Bash(git checkout:*)",
+      "Bash(git push:*)",
+      "Bash(pip install:*)",
+      "Bash(uv venv:*)",
+      "Bash(codecompanion --check)",
+      "Bash(codecompanion --version)",
+      "Bash(npx:*)",
+      "Bash(chmod:*)",
+      "Bash(CLAUDE_CODE_CMD=\"./mock_claude\" codecompanion --print-cmd)"
+    ],
+    "deny": []
+  }
+}

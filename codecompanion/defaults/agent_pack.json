@@ -1,0 +1,20 @@
+{
+  "pack": "codecompanion-v1",
+  "orchestrator": "Orchestrator",
+  "order": [
+    "Installer", "EnvDoctor", "Analyzer", "DepAuditor",
+    "BugTriage", "Fixer", "TestRunner", "WebDoctor", "PRPreparer"
+  ],
+  "agents": {
+    "Orchestrator": ".cc/agents/orchestrator.md",
+    "Installer": ".cc/agents/installer.md",
+    "EnvDoctor": ".cc/agents/env_doctor.md",
+    "Analyzer": ".cc/agents/analyzer.md",
+    "DepAuditor": ".cc/agents/dep_auditor.md",
+    "BugTriage": ".cc/agents/bug_triage.md",
+    "Fixer": ".cc/agents/fixer.md",
+    "TestRunner": ".cc/agents/test_runner.md",
+    "WebDoctor": ".cc/agents/web_doctor.md",
+    "PRPreparer": ".cc/agents/pr_preparer.md"
+  }
+}

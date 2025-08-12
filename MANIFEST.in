@@ -1,0 +1,2 @@
+include codecompanion/defaults/agent_pack.json
+include codecompanion/defaults/bootstrap.txt

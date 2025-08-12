@@ -1,0 +1,12 @@
+#!/bin/bash
+# Mock Claude implementation for testing codecompanion CLI
+echo "[Mock Claude] Starting Claude Code..."
+echo "[Mock Claude] Received bootstrap input:"
+while IFS= read -r line; do
+    echo "[Mock Claude] >> $line"
+    if [[ "$line" == *"Orchestrator"* ]]; then
+        echo "[Mock Claude] Detected Orchestrator prompt - CodeCompanion bootstrap successful!"
+        break
+    fi
+done
+echo "[Mock Claude] Ready for user input..."

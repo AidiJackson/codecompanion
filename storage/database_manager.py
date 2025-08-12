@@ -569,10 +569,17 @@ class DatabaseManager:
         
         try:
             # Count records in each table
+            # Using whitelist of valid table names for security
+            valid_tables = {'artifacts', 'timeline_events', 'agent_performance', 
+                           'project_sessions', 'bandit_arms', 'quality_metrics'}
             tables = ['artifacts', 'timeline_events', 'agent_performance', 
                      'project_sessions', 'bandit_arms', 'quality_metrics']
             
             for table in tables:
+                # Validate table name against whitelist
+                if table not in valid_tables:
+                    logger.warning(f"Skipping invalid table name: {table}")
+                    continue
                 cursor.execute(f"SELECT COUNT(*) as count FROM {table}")
                 stats[f"{table}_count"] = cursor.fetchone()['count']
             

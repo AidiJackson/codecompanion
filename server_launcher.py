@@ -1,13 +1,18 @@
-import os, socket, time, threading
+import os
+import socket
+import time
+import threading
 import uvicorn
 from contextlib import closing
 
 LOCK_FILE = ".api5050.lock"
 
+
 def _port_in_use(host: str, port: int) -> bool:
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.settimeout(0.2)
         return s.connect_ex((host, port)) == 0
+
 
 def start_api_once():
     """
@@ -31,8 +36,10 @@ def start_api_once():
                 return
             time.sleep(0.2)
         # If still not up, remove stale lock and continue
-        try: os.remove(LOCK_FILE)
-        except Exception: pass
+        try:
+            os.remove(LOCK_FILE)
+        except Exception:
+            pass
 
     # Create lock
     with open(LOCK_FILE, "w") as f:
@@ -43,8 +50,10 @@ def start_api_once():
             uvicorn.run("api:app", host=host, port=port, log_level="info")
         finally:
             # When uvicorn stops, remove lock
-            try: os.remove(LOCK_FILE)
-            except Exception: pass
+            try:
+                os.remove(LOCK_FILE)
+            except Exception:
+                pass
 
     # Start in background daemon thread
     t = threading.Thread(target=_run, daemon=True)

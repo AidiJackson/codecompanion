@@ -1,0 +1,413 @@
+{
+  "project_name": "CodeCompanion",
+  "version": "0.1.0",
+  "description": "Multi-Agent AI System with Event-Sourced Orchestration",
+  "analysis_timestamp": "2025-08-13",
+  "entry_points": {
+    "primary": [
+      {
+        "type": "fastapi_server",
+        "file": "/home/runner/workspace/server.py",
+        "function": "main",
+        "description": "Production FastAPI server on port 5050"
+      },
+      {
+        "type": "streamlit_app",
+        "file": "/home/runner/workspace/app.py",
+        "description": "Main Streamlit web application with embedded API"
+      },
+      {
+        "type": "cli",
+        "file": "/home/runner/workspace/cli.py",
+        "function": "run",
+        "description": "CLI client for API interaction"
+      },
+      {
+        "type": "codecompanion_cli",
+        "file": "/home/runner/workspace/codecompanion/cli.py",
+        "function": "main",
+        "description": "Standalone codecompanion CLI tool"
+      },
+      {
+        "type": "cc_command",
+        "file": "/home/runner/workspace/codecompanion/cc.py",
+        "function": "main",
+        "description": "Direct API client with artifact saving"
+      }
+    ],
+    "demo_scripts": [
+      "demo_intelligent_router.py",
+      "demo_live_agents.py", 
+      "demo_live_collaboration.py",
+      "demo_streamlit_vector.py",
+      "demo_system_integration.py",
+      "demo_typed_artifacts.py",
+      "demo_vector_store.py"
+    ],
+    "test_runners": [
+      "test_runner.py",
+      "test_api_endpoints.py",
+      "test_production_bus.py"
+    ]
+  },
+  "core_modules": {
+    "orchestration": {
+      "core/orchestrator.py": {
+        "purpose": "Event-sourced multi-agent workflow orchestration",
+        "classes": [
+          "EventSourcedOrchestrator",
+          "WorkflowEvent",
+          "EventType"
+        ],
+        "key_functions": [
+          "start_workflow",
+          "handle_event",
+          "get_workflow_state"
+        ]
+      },
+      "core/live_orchestrator.py": {
+        "purpose": "Live orchestration with real AI integration",
+        "classes": [
+          "LiveOrchestrator"
+        ],
+        "dependencies": [
+          "agents.live_agent_workers",
+          "core.intelligent_router"
+        ]
+      },
+      "core/parallel_execution.py": {
+        "purpose": "Parallel agent execution coordination",
+        "classes": [
+          "ParallelExecutionEngine",
+          "AgentExecutionNode"
+        ]
+      }
+    },
+    "agents": {
+      "agents/base_agent.py": {
+        "purpose": "Base agent architecture with I/O contracts",
+        "classes": [
+          "BaseAgent",
+          "AgentCapability",
+          "AgentType",
+          "AgentInput",
+          "AgentOutput"
+        ]
+      },
+      "agents/claude_agent.py": {
+        "purpose": "Claude AI agent implementation",
+        "dependencies": ["core.ai_clients"]
+      },
+      "agents/gpt4_agent.py": {
+        "purpose": "GPT-4 agent implementation"
+      },
+      "agents/gemini_agent.py": {
+        "purpose": "Gemini agent implementation"
+      },
+      "agents/live_agent_workers.py": {
+        "purpose": "Live agent worker orchestration"
+      }
+    },
+    "routing": {
+      "core/router.py": {
+        "purpose": "Data-driven model routing",
+        "classes": [
+          "DataDrivenRouter",
+          "RoutingContext"
+        ]
+      },
+      "core/intelligent_router.py": {
+        "purpose": "Intelligent task routing with learning",
+        "classes": [
+          "IntelligentTaskRouter"
+        ]
+      },
+      "core/model_router.py": {
+        "purpose": "Model selection and routing"
+      }
+    },
+    "event_system": {
+      "core/event_streaming.py": {
+        "purpose": "Real-time event streaming with Redis",
+        "classes": [
+          "RealTimeEventOrchestrator",
+          "StreamEvent"
+        ]
+      },
+      "bus.py": {
+        "purpose": "Production event bus with Redis Streams",
+        "description": "Redis-based or mock event bus depending on configuration"
+      }
+    },
+    "artifacts": {
+      "core/artifacts.py": {
+        "purpose": "Artifact validation and handling",
+        "classes": [
+          "ArtifactValidator",
+          "ArtifactHandler"
+        ]
+      },
+      "schemas/artifacts.py": {
+        "purpose": "Artifact type definitions and schemas",
+        "classes": [
+          "SpecDoc",
+          "DesignDoc", 
+          "CodePatch",
+          "TestPlan",
+          "EvalReport"
+        ]
+      }
+    },
+    "api": {
+      "api.py": {
+        "purpose": "Token-protected FastAPI API server",
+        "endpoints": [
+          "GET /",
+          "GET /health",
+          "GET /keys",
+          "POST /run_real"
+        ],
+        "authentication": "Bearer token or X-API-Key"
+      },
+      "services/real_models.py": {
+        "purpose": "Real AI model API clients",
+        "functions": [
+          "call_claude",
+          "call_gpt4", 
+          "call_gemini",
+          "real_e2e"
+        ]
+      }
+    }
+  },
+  "schemas": {
+    "schemas/artifacts.py": {
+      "classes": [
+        "ArtifactBase",
+        "SpecDoc", 
+        "DesignDoc",
+        "CodePatch",
+        "TestPlan",
+        "EvalReport",
+        "Runbook"
+      ]
+    },
+    "schemas/ledgers.py": {
+      "classes": [
+        "TaskLedger",
+        "ProgressLedger", 
+        "WorkItem",
+        "TaskStatus"
+      ]
+    },
+    "schemas/routing.py": {
+      "classes": [
+        "ModelType",
+        "TaskType", 
+        "TaskComplexity",
+        "RoutingDecision"
+      ]
+    },
+    "schemas/outcomes.py": {
+      "classes": [
+        "TaskOutcome"
+      ]
+    }
+  },
+  "storage": {
+    "storage/database_manager.py": {
+      "purpose": "Database operations and management",
+      "classes": [
+        "DatabaseManager"
+      ]
+    },
+    "storage/performance_store.py": {
+      "purpose": "Performance metrics storage"
+    },
+    "memory/vector_store.py": {
+      "purpose": "Vector-based memory storage"
+    }
+  },
+  "configuration": {
+    "settings.py": {
+      "purpose": "System configuration management",
+      "description": "Environment-based configuration with validation"
+    },
+    "startup_logs.py": {
+      "purpose": "System startup logging and validation"
+    },
+    "startup_logs_strict.py": {
+      "purpose": "Strict configuration startup logging"
+    }
+  },
+  "utilities": {
+    "utils/helpers.py": {
+      "purpose": "Common utility functions"
+    },
+    "utils/file_manager.py": {
+      "purpose": "File operation utilities"
+    },
+    "utils/session_manager.py": {
+      "purpose": "Session management utilities"
+    }
+  },
+  "monitoring": {
+    "monitoring/performance_tracker.py": {
+      "purpose": "Performance tracking and metrics"
+    },
+    "monitoring/quality_dashboard.py": {
+      "purpose": "Quality monitoring dashboard"
+    }
+  },
+  "asyncio_sleep_stubs": [
+    {
+      "file": "/home/runner/workspace/demo_live_collaboration.py",
+      "lines": [61, 73, 95, 116, 128, 139, 177, 246, 302],
+      "type": "demo_delays",
+      "description": "Demonstration script delays for visual effect"
+    },
+    {
+      "file": "/home/runner/workspace/demo_intelligent_router.py", 
+      "lines": [178],
+      "type": "demo_delays",
+      "description": "Router demonstration delay"
+    },
+    {
+      "file": "/home/runner/workspace/core/parallel_execution.py",
+      "lines": [242, 393],
+      "type": "monitoring_polls",
+      "description": "Legitimate monitoring polling intervals"
+    },
+    {
+      "file": "/home/runner/workspace/core/live_orchestrator.py",
+      "lines": [378, 435],
+      "type": "orchestration_polls", 
+      "description": "Orchestrator polling intervals"
+    },
+    {
+      "file": "/home/runner/workspace/core/event_streaming.py",
+      "lines": [135, 139, 368, 372],
+      "type": "event_processing",
+      "description": "Event stream processing delays"
+    },
+    {
+      "file": "/home/runner/workspace/demo_live_agents.py",
+      "lines": [98],
+      "type": "demo_delays"
+    },
+    {
+      "file": "/home/runner/workspace/test_production_bus.py",
+      "lines": [44, 51, 100, 107],
+      "type": "test_delays",
+      "description": "Test coordination delays"
+    },
+    {
+      "file": "/home/runner/workspace/tests/test_bus.py",
+      "lines": [68, 75, 165, 176, 179],
+      "type": "test_delays",
+      "description": "Test timing coordination"
+    }
+  ],
+  "potential_dead_code": [
+    {
+      "file": "/home/runner/workspace/api.py.bak",
+      "type": "backup_file",
+      "recommendation": "Remove if no longer needed"
+    },
+    {
+      "file": "/home/runner/workspace/api_server.py.bak", 
+      "type": "backup_file",
+      "recommendation": "Remove if no longer needed"
+    },
+    {
+      "file": "/home/runner/workspace/start_api_server.py.bak",
+      "type": "backup_file", 
+      "recommendation": "Remove if no longer needed"
+    },
+    {
+      "file": "/home/runner/workspace/mock_claude",
+      "type": "mock_executable",
+      "recommendation": "Verify if still needed for testing"
+    },
+    {
+      "directory": "/home/runner/workspace/test-fresh/",
+      "type": "test_directory",
+      "recommendation": "Archive or remove if testing is complete"
+    },
+    {
+      "directory": "/home/runner/workspace/test-install/",
+      "type": "test_directory", 
+      "recommendation": "Remove if installation testing is complete"
+    },
+    {
+      "files": [
+        "/home/runner/workspace/patch_1.diff",
+        "/home/runner/workspace/patch_2.diff", 
+        "/home/runner/workspace/patch_3.diff",
+        "/home/runner/workspace/patch_4.diff",
+        "/home/runner/workspace/patch_5.diff"
+      ],
+      "type": "patch_files",
+      "recommendation": "Archive patches if applied successfully"
+    }
+  ],
+  "database_files": [
+    "bandit_learning.db",
+    "cost_governance.db", 
+    "learning_engine.db",
+    "performance_store.db",
+    "performance_tracking.db",
+    "project_memory.db",
+    "router_learning.db",
+    "data/codecompanion.db",
+    "storage/data/codecompanion.db"
+  ],
+  "package_structure": {
+    "codecompanion": {
+      "purpose": "Standalone CLI package",
+      "entry_point": "codecompanion.cli:main",
+      "modules": [
+        "bootstrap.py",
+        "cli.py", 
+        "cc.py",
+        "engine.py",
+        "llm.py",
+        "repl.py",
+        "runner.py"
+      ]
+    },
+    "cc_cli": {
+      "purpose": "Alternative CLI interface",
+      "modules": [
+        "main.py"
+      ]
+    }
+  },
+  "dependencies": {
+    "production": [
+      "rich>=13.7",
+      "httpx>=0.27",
+      "fastapi",
+      "uvicorn",
+      "streamlit", 
+      "typer",
+      "pydantic",
+      "redis"
+    ],
+    "development": [
+      "pytest>=7.0",
+      "ruff>=0.1",
+      "pyright>=1.1"
+    ]
+  },
+  "architecture_patterns": [
+    "Event Sourcing",
+    "Multi-Agent Orchestration",
+    "Schema-Driven Communication",
+    "Microservices (FastAPI + Streamlit)",
+    "Plugin Architecture (Agents)",
+    "Observer Pattern (Event Streaming)",
+    "Factory Pattern (Agent Creation)",
+    "Strategy Pattern (Model Routing)"
+  ]
+}

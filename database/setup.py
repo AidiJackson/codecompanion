@@ -5,7 +5,6 @@ Creates SQLite database with required tables for persistence, learning, and stat
 """
 
 import sqlite3
-import os
 from pathlib import Path
 import logging
 
@@ -15,19 +14,19 @@ logger = logging.getLogger(__name__)
 def initialize_database(db_path: str = "data/codecompanion.db") -> str:
     """
     Create SQLite database with required tables
-    
+
     Args:
         db_path: Path to the database file
-        
+
     Returns:
         Path to the created database
     """
     db_path_obj = Path(db_path)
     db_path_obj.parent.mkdir(exist_ok=True)
-    
+
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    
+
     try:
         # Agent Performance Table
         cursor.execute("""
@@ -44,7 +43,7 @@ def initialize_database(db_path: str = "data/codecompanion.db") -> str:
                 UNIQUE(model_name, task_type)
             )
         """)
-        
+
         # Artifacts Table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS artifacts (
@@ -60,7 +59,7 @@ def initialize_database(db_path: str = "data/codecompanion.db") -> str:
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
+
         # Project Sessions Table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS project_sessions (
@@ -76,8 +75,8 @@ def initialize_database(db_path: str = "data/codecompanion.db") -> str:
                 total_events INTEGER DEFAULT 0
             )
         """)
-        
-        # Bandit Learning Table  
+
+        # Bandit Learning Table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS bandit_arms (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,7 +92,7 @@ def initialize_database(db_path: str = "data/codecompanion.db") -> str:
                 UNIQUE(model_name, task_category)
             )
         """)
-        
+
         # Timeline Events Table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS timeline_events (
@@ -107,7 +106,7 @@ def initialize_database(db_path: str = "data/codecompanion.db") -> str:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
+
         # Quality Metrics Table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS quality_metrics (
@@ -121,7 +120,7 @@ def initialize_database(db_path: str = "data/codecompanion.db") -> str:
                 FOREIGN KEY (artifact_id) REFERENCES artifacts (id)
             )
         """)
-        
+
         # Model Router Performance Table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS router_performance (
@@ -138,7 +137,7 @@ def initialize_database(db_path: str = "data/codecompanion.db") -> str:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
+
         # Learning Outcomes Table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS learning_outcomes (
@@ -153,40 +152,52 @@ def initialize_database(db_path: str = "data/codecompanion.db") -> str:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
+
         # Create indexes for better performance
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_artifacts_project_id ON artifacts(project_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_artifacts_agent_name ON artifacts(agent_name)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_timeline_session_id ON timeline_events(session_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_agent_performance_model ON agent_performance(model_name)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_bandit_arms_model ON bandit_arms(model_name, task_category)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_router_performance_model ON router_performance(chosen_model)")
-        
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_artifacts_project_id ON artifacts(project_id)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_artifacts_agent_name ON artifacts(agent_name)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_timeline_session_id ON timeline_events(session_id)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_agent_performance_model ON agent_performance(model_name)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_bandit_arms_model ON bandit_arms(model_name, task_category)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_router_performance_model ON router_performance(chosen_model)"
+        )
+
         conn.commit()
         logger.info(f"✅ Database initialized successfully at {db_path}")
-        
+
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
         raise
     finally:
         conn.close()
-    
+
     return db_path
 
 
 def reset_database(db_path: str = "data/codecompanion.db"):
     """
     Reset database by dropping all tables and recreating them
-    
+
     Args:
         db_path: Path to the database file
     """
     db_path_obj = Path(db_path)
-    
+
     if db_path_obj.exists():
         db_path_obj.unlink()
         logger.info(f"Deleted existing database at {db_path}")
-    
+
     initialize_database(db_path)
     logger.info("Database reset completed")
 

@@ -1,86 +1,118 @@
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any
 import json
 from .base_agent import BaseAgent
 from core.model_orchestrator import AgentType
 
+
 class ProjectManagerAgent(BaseAgent):
     """Project Manager Agent - Central orchestrator for project planning and coordination"""
-    
+
     def __init__(self):
         super().__init__(
             name="Project Manager",
             role="Project Orchestrator",
             specialization="Project planning, requirements analysis, team coordination, and timeline management",
-            agent_type=AgentType.PROJECT_MANAGER
+            agent_type=AgentType.PROJECT_MANAGER,
         )
         self.project_templates = {
             "Web Application": {
                 "structure": ["frontend/", "backend/", "database/", "tests/"],
                 "technologies": ["React/Vue", "Node.js/Python", "PostgreSQL/MongoDB"],
-                "phases": ["Requirements", "Design", "Development", "Testing", "Deployment"]
+                "phases": [
+                    "Requirements",
+                    "Design",
+                    "Development",
+                    "Testing",
+                    "Deployment",
+                ],
             },
             "API Service": {
                 "structure": ["src/", "tests/", "docs/", "config/"],
                 "technologies": ["FastAPI/Express", "Database", "Authentication"],
-                "phases": ["API Design", "Implementation", "Testing", "Documentation"]
+                "phases": ["API Design", "Implementation", "Testing", "Documentation"],
             },
             "Data Pipeline": {
                 "structure": ["data/", "processing/", "models/", "output/"],
                 "technologies": ["Python", "Apache Airflow", "Data Storage"],
-                "phases": ["Data Analysis", "Pipeline Design", "Implementation", "Monitoring"]
-            }
+                "phases": [
+                    "Data Analysis",
+                    "Pipeline Design",
+                    "Implementation",
+                    "Monitoring",
+                ],
+            },
         }
-    
-    def process_request(self, request: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+
+    def process_request(
+        self, request: str, context: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """Process project management requests"""
         context = context or {}
         messages = [
             {"role": "system", "content": self.get_system_prompt()},
-            {"role": "user", "content": f"Project request: {request}\n\nCurrent context: {json.dumps(context, indent=2)}"}
+            {
+                "role": "user",
+                "content": f"Project request: {request}\n\nCurrent context: {json.dumps(context, indent=2)}",
+            },
         ]
-        
+
         response_content = self.call_llm_sync(messages)
-        
+
         # Determine if we should hand off to specialists
         handoff_to = self.should_handoff(request, context)
-        
+
         # Check if this is a new project request
-        if any(keyword in request.lower() for keyword in ["new project", "create", "start", "build"]):
+        if any(
+            keyword in request.lower()
+            for keyword in ["new project", "create", "start", "build"]
+        ):
             # Generate project structure
             project_structure = self.generate_project_structure(request)
             response_content += f"\n\n📋 **Project Structure:**\n{project_structure}"
-            handoff_to = "code_generator"  # Hand off to code generator for implementation
-        
+            handoff_to = (
+                "code_generator"  # Hand off to code generator for implementation
+            )
+
         # Check if we need UI/UX input
-        elif any(keyword in request.lower() for keyword in ["interface", "design", "user experience", "frontend"]):
+        elif any(
+            keyword in request.lower()
+            for keyword in ["interface", "design", "user experience", "frontend"]
+        ):
             handoff_to = "ui_designer"
-        
+
         self.add_to_history(request, response_content)
-        
+
         return {
             "content": response_content,
             "handoff_to": handoff_to,
             "agent": self.name,
-            "files": self.generate_project_files(request) if "project" in request.lower() else None
+            "files": self.generate_project_files(request)
+            if "project" in request.lower()
+            else None,
         }
-    
-    def process_handoff(self, handoff_content: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+
+    def process_handoff(
+        self, handoff_content: str, context: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """Process handoff from another agent"""
         context = context or {}
         messages = [
             {"role": "system", "content": self.get_system_prompt()},
-            {"role": "user", "content": f"Handoff from another agent: {handoff_content}\n\nProject context: {json.dumps(context, indent=2)}"}
+            {
+                "role": "user",
+                "content": f"Handoff from another agent: {handoff_content}\n\nProject context: {json.dumps(context, indent=2)}",
+            },
         ]
-        
+
         response_content = self.call_llm_sync(messages, temperature=0.5)
-        
+
         self.add_to_history(f"Handoff: {handoff_content}", response_content)
-        
+
         return {
             "content": f"**Project Manager Update:**\n\n{response_content}",
-            "agent": self.name
+            "agent": self.name,
         }
-    
+
     def generate_project_structure(self, request: str) -> str:
         """Generate a project structure based on the request"""
         # Simple project type detection
@@ -92,21 +124,21 @@ class ProjectManagerAgent(BaseAgent):
             template = self.project_templates["Data Pipeline"]
         else:
             template = self.project_templates["Web Application"]  # Default
-        
+
         structure = "```\n"
         for folder in template["structure"]:
             structure += f"📁 {folder}\n"
         structure += "```\n"
-        
+
         structure += f"\n**Technologies:** {', '.join(template['technologies'])}\n"
         structure += f"**Development Phases:** {' → '.join(template['phases'])}"
-        
+
         return structure
-    
+
     def generate_project_files(self, request: str) -> Dict[str, str]:
         """Generate initial project files"""
         files = {}
-        
+
         # Generate README.md
         files["README.md"] = f"""# Project Overview
 
@@ -133,23 +165,28 @@ class ProjectManagerAgent(BaseAgent):
 4. Run tests to ensure quality
 5. Deploy to production environment
 """
-        
+
         # Generate project config
-        files["project.json"] = json.dumps({
-            "name": "Generated Project",
-            "version": "1.0.0",
-            "description": request,
-            "created_by": "CodeCompanion Multi-Agent System",
-            "agents_involved": ["project_manager"],
-            "status": "initialized"
-        }, indent=2)
-        
+        files["project.json"] = json.dumps(
+            {
+                "name": "Generated Project",
+                "version": "1.0.0",
+                "description": request,
+                "created_by": "CodeCompanion Multi-Agent System",
+                "agents_involved": ["project_manager"],
+                "status": "initialized",
+            },
+            indent=2,
+        )
+
         return files
-    
+
     def get_system_prompt(self) -> str:
         """Get specialized system prompt for project manager"""
         base_prompt = super().get_system_prompt()
-        return base_prompt + """
+        return (
+            base_prompt
+            + """
         
         As the Project Manager agent, you:
         - Analyze project requirements and create development plans
@@ -167,3 +204,4 @@ class ProjectManagerAgent(BaseAgent):
         
         Always be comprehensive yet concise in your project planning.
         """
+        )

@@ -1,102 +1,130 @@
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any
 import json
 from .base_agent import BaseAgent
 from core.model_orchestrator import AgentType
 
+
 class TestWriterAgent(BaseAgent):
     """Test Writer Agent - Specialized in test case generation and quality assurance"""
-    
+
     def __init__(self):
         super().__init__(
             name="Test Writer",
             role="Quality Assurance Engineer",
             specialization="Test case generation, quality assurance, validation, and automated testing",
-            agent_type=AgentType.TEST_WRITER
+            agent_type=AgentType.TEST_WRITER,
         )
         self.test_frameworks = {
             "python": {
                 "unit": ["pytest", "unittest"],
                 "integration": ["pytest", "requests"],
-                "e2e": ["selenium", "playwright"]
+                "e2e": ["selenium", "playwright"],
             },
             "javascript": {
                 "unit": ["jest", "mocha", "vitest"],
                 "integration": ["supertest", "cypress"],
-                "e2e": ["cypress", "playwright"]
-            }
+                "e2e": ["cypress", "playwright"],
+            },
         }
-    
-    def process_request(self, request: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+
+    def process_request(
+        self, request: str, context: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """Process test generation requests"""
         context = context or {}
         messages = [
             {"role": "system", "content": self.get_system_prompt()},
-            {"role": "user", "content": f"Test generation request: {request}\n\nProject context: {json.dumps(context, indent=2)}"}
+            {
+                "role": "user",
+                "content": f"Test generation request: {request}\n\nProject context: {json.dumps(context, indent=2)}",
+            },
         ]
-        
+
         response_content = self.call_llm_sync(messages)
-        
+
         # Generate test files based on request
         generated_files = self.generate_test_files(request, context)
-        
+
         # Determine handoffs
         handoff_to = None
-        if any(keyword in request.lower() for keyword in ["debug", "fix", "error", "failing"]):
+        if any(
+            keyword in request.lower()
+            for keyword in ["debug", "fix", "error", "failing"]
+        ):
             handoff_to = "debugger"
-        elif any(keyword in request.lower() for keyword in ["code", "implementation", "backend"]):
+        elif any(
+            keyword in request.lower()
+            for keyword in ["code", "implementation", "backend"]
+        ):
             handoff_to = "code_generator"
-        elif any(keyword in request.lower() for keyword in ["ui", "frontend", "interface"]):
+        elif any(
+            keyword in request.lower() for keyword in ["ui", "frontend", "interface"]
+        ):
             handoff_to = "ui_designer"
-        
+
         self.add_to_history(request, response_content)
-        
+
         return {
             "content": response_content,
             "handoff_to": handoff_to,
             "agent": self.name,
-            "files": generated_files
+            "files": generated_files,
         }
-    
-    def process_handoff(self, handoff_content: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+
+    def process_handoff(
+        self, handoff_content: str, context: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """Process handoff from another agent"""
         context = context or {}
         messages = [
             {"role": "system", "content": self.get_system_prompt()},
-            {"role": "user", "content": f"Handoff from another agent: {handoff_content}\n\nTesting context: {json.dumps(context, indent=2)}"}
+            {
+                "role": "user",
+                "content": f"Handoff from another agent: {handoff_content}\n\nTesting context: {json.dumps(context, indent=2)}",
+            },
         ]
-        
+
         response_content = self.call_llm_sync(messages, temperature=0.5)
-        
+
         # Generate tests based on handoff
         generated_files = self.generate_tests_from_handoff(handoff_content, context)
-        
+
         self.add_to_history(f"Handoff: {handoff_content}", response_content)
-        
+
         return {
             "content": f"**Test Writer Implementation:**\n\n{response_content}",
             "agent": self.name,
-            "files": generated_files
+            "files": generated_files,
         }
-    
-    def generate_test_files(self, request: str, context: Dict[str, Any]) -> Dict[str, str]:
+
+    def generate_test_files(
+        self, request: str, context: Dict[str, Any]
+    ) -> Dict[str, str]:
         """Generate test files based on request"""
         files = {}
-        
+
         # Detect programming language and generate appropriate tests
-        if any(keyword in request.lower() for keyword in ["python", "fastapi", "django"]):
+        if any(
+            keyword in request.lower() for keyword in ["python", "fastapi", "django"]
+        ):
             files.update(self.generate_python_tests(request, context))
-        elif any(keyword in request.lower() for keyword in ["javascript", "node", "react", "vue"]):
+        elif any(
+            keyword in request.lower()
+            for keyword in ["javascript", "node", "react", "vue"]
+        ):
             files.update(self.generate_javascript_tests(request, context))
         else:
             # Default to Python tests
             files.update(self.generate_python_tests(request, context))
-        
+
         return files
-    
-    def generate_python_tests(self, request: str, context: Dict[str, Any]) -> Dict[str, str]:
+
+    def generate_python_tests(
+        self, request: str, context: Dict[str, Any]
+    ) -> Dict[str, str]:
         """Generate Python test files"""
         files = {}
-        
+
         files["tests/test_api.py"] = '''import pytest
 import json
 from fastapi.testclient import TestClient
@@ -401,7 +429,7 @@ if __name__ == "__main__":
     # Run tests directly
     pytest.main([__file__, "-v"])
 '''
-        
+
         files["tests/test_utils.py"] = '''import pytest
 import os
 import tempfile
@@ -723,7 +751,7 @@ if __name__ == "__main__":
     # Run tests directly
     pytest.main([__file__, "-v"])
 '''
-        
+
         files["tests/conftest.py"] = '''"""
 Pytest configuration and shared fixtures
 """
@@ -796,14 +824,16 @@ def pytest_collection_modifyitems(config, items):
         if "slow" in item.name:
             item.add_marker(pytest.mark.slow)
 '''
-        
+
         return files
-    
-    def generate_javascript_tests(self, request: str, context: Dict[str, Any]) -> Dict[str, str]:
+
+    def generate_javascript_tests(
+        self, request: str, context: Dict[str, Any]
+    ) -> Dict[str, str]:
         """Generate JavaScript test files"""
         files = {}
-        
-        files["tests/api.test.js"] = '''const request = require('supertest');
+
+        files["tests/api.test.js"] = """const request = require('supertest');
 const app = require('../app');
 
 describe('API Endpoints', () => {
@@ -1029,9 +1059,11 @@ describe('Error Handling', () => {
     expect(true).toBe(true);
   });
 });
-'''
-        
-        files["tests/components.test.js"] = '''// React component tests (if React is being used)
+"""
+
+        files[
+            "tests/components.test.js"
+        ] = """// React component tests (if React is being used)
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
@@ -1291,20 +1323,25 @@ describe('Performance Tests', () => {
     expect(renderTime).toBeLessThan(100);
   });
 });
-'''
-        
+"""
+
         return files
-    
-    def generate_tests_from_handoff(self, handoff_content: str, context: Dict[str, Any]) -> Dict[str, str]:
+
+    def generate_tests_from_handoff(
+        self, handoff_content: str, context: Dict[str, Any]
+    ) -> Dict[str, str]:
         """Generate tests based on handoff from another agent"""
         files = {}
-        
+
         # Parse handoff content to determine what tests to generate
         if "python" in handoff_content.lower() or "fastapi" in handoff_content.lower():
             files.update(self.generate_python_tests(handoff_content, context))
-        elif "javascript" in handoff_content.lower() or "react" in handoff_content.lower():
+        elif (
+            "javascript" in handoff_content.lower()
+            or "react" in handoff_content.lower()
+        ):
             files.update(self.generate_javascript_tests(handoff_content, context))
-        
+
         # Always add a basic test file for the handoff
         files["tests/test_handoff_integration.py"] = f'''"""
 Integration tests for handoff from another agent
@@ -1351,13 +1388,15 @@ class TestHandoffIntegration:
         
         assert valid_syntax == True
 '''
-        
+
         return files
-    
+
     def get_system_prompt(self) -> str:
         """Get specialized system prompt for test writer"""
         base_prompt = super().get_system_prompt()
-        return base_prompt + """
+        return (
+            base_prompt
+            + """
         
         As the Test Writer agent, you:
         - Generate comprehensive test suites for code quality assurance
@@ -1381,3 +1420,4 @@ class TestHandoffIntegration:
         - code_generator: When implementation needs fixing
         - ui_designer: For UI/UX testing and validation
         """
+        )

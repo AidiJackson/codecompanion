@@ -33,7 +33,13 @@
       "Bash(codecompanion:*)",
       "Bash(./scripts/quick-install.sh:*)",
       "Bash(./cc)",
-      "Bash(./cc auto)"
+      "Bash(./cc auto)",
+      "Bash(./cc detect)",
+      "Bash(find:*)",
+      "Bash(pip show:*)",
+      "Bash(timeout:*)",
+      "Bash(ruff:*)",
+      "Bash(export CODECOMPANION_TOKEN=test123)"
     ],
     "deny": []
   }

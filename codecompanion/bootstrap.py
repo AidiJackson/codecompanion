@@ -1,5 +1,6 @@
 from importlib.resources import files
-import os, shutil
+import os
+import shutil
 
 DEFAULT_PKG = "codecompanion.defaults"
 
@@ -20,6 +21,7 @@ STUB_TEXT = """# <AGENT_NAME> (stub)
 This is a placeholder for your ClaudeCode agent prompt.
 Paste the full prompt you use for <AGENT_NAME> here so CodeCompanion runs with your custom agents by default.
 """
+
 
 def ensure_bootstrap(project_root: str = ".") -> dict:
     """
@@ -45,7 +47,7 @@ def ensure_bootstrap(project_root: str = ".") -> dict:
     for af in AGENT_FILES:
         dest = os.path.join(agents_dir, af)
         if not os.path.exists(dest):
-            name = af.replace(".md","").replace("_"," ").title()
+            name = af.replace(".md", "").replace("_", " ").title()
             with open(dest, "w", encoding="utf-8") as f:
                 f.write(STUB_TEXT.replace("<AGENT_NAME>", name))
             created.append(dest)

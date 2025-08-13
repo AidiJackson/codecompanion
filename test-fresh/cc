@@ -1,0 +1,18 @@
+#!/bin/bash
+# CodeCompanion Quick Launcher
+case "$1" in
+    ""|"help")
+        echo "🤖 CodeCompanion Commands:"
+        echo "  ./cc check      - Verify setup"
+        echo "  ./cc auto       - Run full pipeline"
+        echo "  ./cc run <name> - Run specific agent"
+        echo "  ./cc detect     - Show project info"
+        echo "  ./cc chat       - Start chat REPL"
+        ;;
+    "check") codecompanion --check ;;
+    "auto") codecompanion --auto ;;
+    "run") codecompanion --run "$2" ;;
+    "detect") codecompanion --detect ;;
+    "chat") codecompanion --chat ;;
+    *) codecompanion "$@" ;;
+esac

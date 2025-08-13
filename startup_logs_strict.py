@@ -1,11 +1,13 @@
 """
 Startup logging for strict configuration system
 """
+
 import logging
 from settings import settings
 from bus import bus
 
 logger = logging.getLogger(__name__)
+
 
 def log_startup_configuration():
     """Print startup log with configuration status"""
@@ -26,15 +28,16 @@ def log_startup_configuration():
             db_url_safe = db_url
     else:
         db_url_safe = db_url
-    
-    print(f"🚀 STRICT CONFIG STARTUP")
-    print(f"EVENT_BUS = {settings.EVENT_BUS}")  
+
+    print("🚀 STRICT CONFIG STARTUP")
+    print(f"EVENT_BUS = {settings.EVENT_BUS}")
     print(f"DATABASE_URL = {db_url_safe}")
     print(f"STREAMLIT_DEBUG = {settings.STREAMLIT_DEBUG}")
-    
+
     # Show bus type
-    bus_type = "MockBus" if hasattr(bus, 'queues') else "RedisStreamsBus"
+    bus_type = "MockBus" if hasattr(bus, "queues") else "RedisStreamsBus"
     print(f"Bus initialized: {bus_type}")
+
 
 if __name__ == "__main__":
     log_startup_configuration()

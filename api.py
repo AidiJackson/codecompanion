@@ -20,6 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 def require_token(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
@@ -37,10 +38,13 @@ def require_token(
         provided = x_api_key.strip()
 
     if not TOKEN:
-        raise HTTPException(status_code=500, detail="Server missing CODECOMPANION_TOKEN")
+        raise HTTPException(
+            status_code=500, detail="Server missing CODECOMPANION_TOKEN"
+        )
     if provided != TOKEN:
         raise HTTPException(status_code=403, detail="Invalid or missing token")
     return None
+
 
 # --- Friendly homepage so the root URL isn't a 404 ---
 @app.get("/", response_class=HTMLResponse)
@@ -65,10 +69,12 @@ async def root():
     </html>
     """
 
+
 # --- Health (open) ---
 @app.get("/health")
 async def health():
     return {"ok": True, "event_bus": settings.EVENT_BUS}
+
 
 # --- Keys (protected) ---
 @app.get("/keys", dependencies=[Depends(require_token)])
@@ -78,6 +84,7 @@ async def keys():
         "gpt4": bool(settings.OPENAI_API_KEY),
         "gemini": bool(settings.GEMINI_API_KEY),
     }
+
 
 # --- Run real pipeline (protected) ---
 @app.post("/run_real", dependencies=[Depends(require_token)])

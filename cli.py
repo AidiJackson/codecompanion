@@ -7,9 +7,12 @@ app = typer.Typer()
 
 API_URL = "http://0.0.0.0:5050"  # Change this if deployed elsewhere
 
+
 @app.command()
 def run(
-    objective: List[str] = typer.Argument(..., metavar="OBJECTIVE...", help="Your goal text")
+    objective: List[str] = typer.Argument(
+        ..., metavar="OBJECTIVE...", help="Your goal text"
+    ),
 ):
     """
     Run the real agents with a goal.
@@ -29,15 +32,21 @@ def run(
     try:
         h = requests.get(f"{API_URL}/health", timeout=3)
         if h.status_code != 200:
-            typer.echo(f"💥 API /health returned {h.status_code}. Is the server running?")
+            typer.echo(
+                f"💥 API /health returned {h.status_code}. Is the server running?"
+            )
             raise typer.Exit(1)
     except Exception as e:
-        typer.echo(f"💥 Could not reach API on {API_URL} — is the app running?\nError: {e}")
+        typer.echo(
+            f"💥 Could not reach API on {API_URL} — is the app running?\nError: {e}"
+        )
         raise typer.Exit(1)
 
     # Call /run_real
     try:
-        res = requests.post(f"{API_URL}/run_real", json={"objective": goal}, timeout=180)
+        res = requests.post(
+            f"{API_URL}/run_real", json={"objective": goal}, timeout=180
+        )
     except Exception as e:
         typer.echo(f"💥 Network error calling /run_real: {e}")
         raise typer.Exit(1)
@@ -67,6 +76,7 @@ def run(
         typer.echo(f"--- {t} by {ag} (conf {conf:.2f}) ---")
         typer.echo(content[:4000])  # avoid flooding the terminal
         typer.echo("\n")
+
 
 if __name__ == "__main__":
     app()

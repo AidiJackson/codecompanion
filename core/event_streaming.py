@@ -9,16 +9,14 @@ Provides production-grade event streaming for multi-agent coordination:
 """
 
 import asyncio
-import json
 import logging
-import redis
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any, Callable, AsyncGenerator
+from typing import Dict, List, Optional, Any
 from uuid import uuid4
 from pydantic import BaseModel, Field
 from enum import Enum
 
-from schemas.artifacts import ArtifactType, ArtifactBase
+from schemas.artifacts import ArtifactBase
 from schemas.ledgers import TaskLedger
 
 logger = logging.getLogger(__name__)
@@ -26,8 +24,9 @@ logger = logging.getLogger(__name__)
 
 class EventStreamType(str, Enum):
     """Event stream types for different categories"""
+
     TASKS = "tasks"
-    ARTIFACTS = "artifacts" 
+    ARTIFACTS = "artifacts"
     REVIEWS = "reviews"
     METRICS = "metrics"
     AGENT_STATUS = "agent_status"
@@ -35,34 +34,35 @@ class EventStreamType(str, Enum):
 
 class EventType(str, Enum):
     """Types of events in the system"""
+
     # Task events
     TASK_CREATED = "task_created"
     TASK_ASSIGNED = "task_assigned"
     TASK_STARTED = "task_started"
     TASK_COMPLETED = "task_completed"
     TASK_FAILED = "task_failed"
-    
+
     # Artifact events
     ARTIFACT_CREATED = "artifact_created"
     ARTIFACT_VALIDATED = "artifact_validated"
     ARTIFACT_APPROVED = "artifact_approved"
     ARTIFACT_REJECTED = "artifact_rejected"
-    
+
     # Review events
     REVIEW_REQUESTED = "review_requested"
     REVIEW_SUBMITTED = "review_submitted"
     REVIEW_CONFLICT = "review_conflict"
-    
+
     # Agent events
     AGENT_REGISTERED = "agent_registered"
     AGENT_STARTED = "agent_started"
     AGENT_COMPLETED = "agent_completed"
     AGENT_ERROR = "agent_error"
-    
+
     # Workflow events
     WORKFLOW_STARTED = "workflow_started"
     WORKFLOW_COMPLETED = "workflow_completed"
-    
+
     # Metrics events
     PERFORMANCE_METRIC = "performance_metric"
     ROUTING_DECISION = "routing_decision"
@@ -70,24 +70,32 @@ class EventType(str, Enum):
 
 class StreamEvent(BaseModel):
     """Standardized event structure for Redis Streams"""
-    
+
     event_id: str = Field(default_factory=lambda: f"evt_{uuid4().hex[:8]}")
     correlation_id: str = Field(..., description="Correlation ID for related events")
     event_type: EventType = Field(..., description="Type of event")
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    
+
     # Event source
-    agent_id: Optional[str] = Field(None, description="ID of agent that generated event")
+    agent_id: Optional[str] = Field(
+        None, description="ID of agent that generated event"
+    )
     task_id: Optional[str] = Field(None, description="Related task ID")
     artifact_id: Optional[str] = Field(None, description="Related artifact ID")
-    
+
     # Event payload
-    payload: Dict[str, Any] = Field(default_factory=dict, description="Event-specific data")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
-    
+    payload: Dict[str, Any] = Field(
+        default_factory=dict, description="Event-specific data"
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="Additional metadata"
+    )
+
     # Event properties
     priority: str = Field(default="normal", description="Event priority level")
-    retryable: bool = Field(default=True, description="Whether event processing can be retried")
+    retryable: bool = Field(
+        default=True, description="Whether event processing can be retried"
+    )
 
 
 # EventBus removed - use singleton from bus.py
@@ -96,59 +104,62 @@ class StreamEvent(BaseModel):
 
 class StreamConsumer:
     """Base class for stream consumers with specific processing logic"""
-    
+
     def __init__(self, consumer_name: str):
         from bus import bus
+
         self.event_bus = bus
         self.consumer_name = consumer_name
         self.running = False
         self.processed_count = 0
         self.error_count = 0
-    
+
     async def start(self, stream_type: EventStreamType, group_name: str):
         """Start consuming events from stream"""
-        
+
         self.running = True
         logger.info(f"Starting consumer {self.consumer_name} for stream {stream_type}")
-        
+
         # Ensure consumer group exists
         await self.event_bus.create_consumer_group(stream_type, group_name)
-        
+
         while self.running:
             try:
                 events = await self.event_bus.consume_stream(
                     stream_type, group_name, self.consumer_name
                 )
-                
+
                 for event in events:
                     try:
                         await self.process_event(event)
                         self.processed_count += 1
-                        
+
                     except Exception as e:
                         logger.error(f"Error processing event {event.event_id}: {e}")
                         self.error_count += 1
-                        
+
                         if not event.retryable:
-                            logger.warning(f"Event {event.event_id} marked as non-retryable, skipping")
-                
+                            logger.warning(
+                                f"Event {event.event_id} marked as non-retryable, skipping"
+                            )
+
                 # Brief pause to avoid busy waiting
                 if not events:
                     await asyncio.sleep(0.1)
-                    
+
             except Exception as e:
                 logger.error(f"Consumer {self.consumer_name} error: {e}")
                 await asyncio.sleep(1)
-    
+
     def stop(self):
         """Stop consuming events"""
         self.running = False
         logger.info(f"Stopping consumer {self.consumer_name}")
-    
+
     async def process_event(self, event: StreamEvent):
         """Override this method to implement event processing logic"""
         raise NotImplementedError
-    
+
     def get_stats(self) -> Dict[str, Any]:
         """Get consumer statistics"""
         return {
@@ -156,52 +167,59 @@ class StreamConsumer:
             "running": self.running,
             "processed_count": self.processed_count,
             "error_count": self.error_count,
-            "success_rate": self.processed_count / (self.processed_count + self.error_count) if (self.processed_count + self.error_count) > 0 else 0
+            "success_rate": self.processed_count
+            / (self.processed_count + self.error_count)
+            if (self.processed_count + self.error_count) > 0
+            else 0,
         }
 
 
 class OrchestratorConsumer(StreamConsumer):
     """Consumer for orchestrating workflow progression based on events"""
-    
+
     def __init__(self, orchestrator):
         super().__init__("orchestrator_consumer")
         self.orchestrator = orchestrator
-    
+
     async def process_event(self, event: StreamEvent):
         """Process events for workflow orchestration"""
-        
-        logger.info(f"Orchestrator processing: {event.event_type} for {event.correlation_id}")
-        
+
+        logger.info(
+            f"Orchestrator processing: {event.event_type} for {event.correlation_id}"
+        )
+
         if event.event_type == EventType.TASK_CREATED:
             # Task created - assign to appropriate agent
             task_data = event.payload
             await self._assign_task(event.correlation_id, task_data)
-            
+
         elif event.event_type == EventType.ARTIFACT_CREATED:
             # Artifact created - validate and potentially trigger next task
             await self._handle_artifact_creation(event)
-            
+
         elif event.event_type == EventType.TASK_COMPLETED:
             # Task completed - check if workflow can progress
             await self._handle_task_completion(event)
-        
+
         elif event.event_type == EventType.REVIEW_CONFLICT:
             # Review conflict - escalate or retry
             await self._handle_review_conflict(event)
-    
+
     async def _assign_task(self, correlation_id: str, task_data: Dict[str, Any]):
         """Assign task to optimal agent"""
         # Implementation would integrate with routing system
-        logger.info(f"Assigning task {correlation_id} based on: {list(task_data.keys())}")
-    
+        logger.info(
+            f"Assigning task {correlation_id} based on: {list(task_data.keys())}"
+        )
+
     async def _handle_artifact_creation(self, event: StreamEvent):
         """Handle new artifact creation"""
         logger.info(f"New artifact created: {event.artifact_id} by {event.agent_id}")
-    
+
     async def _handle_task_completion(self, event: StreamEvent):
         """Handle task completion and trigger next steps"""
         logger.info(f"Task completed: {event.task_id} by {event.agent_id}")
-    
+
     async def _handle_review_conflict(self, event: StreamEvent):
         """Handle review conflicts"""
         logger.warning(f"Review conflict detected for {event.artifact_id}")
@@ -209,331 +227,360 @@ class OrchestratorConsumer(StreamConsumer):
 
 class MetricsConsumer(StreamConsumer):
     """Consumer for collecting performance analytics and metrics"""
-    
+
     def __init__(self):
         super().__init__("metrics_consumer")
         self.metrics_store: Dict[str, Any] = {}
-    
+
     async def process_event(self, event: StreamEvent):
         """Collect and store performance metrics"""
-        
+
         if event.event_type == EventType.PERFORMANCE_METRIC:
             metric_data = event.payload
             if event.agent_id:
                 self._store_metric(event.agent_id, metric_data)
-            
+
         elif event.event_type == EventType.ROUTING_DECISION:
             routing_data = event.payload
             self._store_routing_metric(routing_data)
-            
+
         elif event.event_type in [EventType.TASK_COMPLETED, EventType.TASK_FAILED]:
             self._update_task_metrics(event)
-    
+
     def _store_metric(self, agent_id: str, metric_data: Dict[str, Any]):
         """Store performance metric"""
         if agent_id not in self.metrics_store:
             self.metrics_store[agent_id] = []
         self.metrics_store[agent_id].append(metric_data)
-    
+
     def _store_routing_metric(self, routing_data: Dict[str, Any]):
         """Store routing decision metrics"""
         if "routing" not in self.metrics_store:
             self.metrics_store["routing"] = []
         self.metrics_store["routing"].append(routing_data)
-    
+
     def _update_task_metrics(self, event: StreamEvent):
         """Update task completion metrics"""
         task_metrics = self.metrics_store.get("tasks", [])
-        task_metrics.append({
-            "task_id": event.task_id or "unknown",
-            "agent_id": event.agent_id or "unknown",
-            "artifact_id": event.artifact_id or "unknown",
-            "status": "completed" if event.event_type == EventType.TASK_COMPLETED else "failed",
-            "timestamp": event.timestamp.isoformat(),
-            "metadata": event.metadata
-        })
+        task_metrics.append(
+            {
+                "task_id": event.task_id or "unknown",
+                "agent_id": event.agent_id or "unknown",
+                "artifact_id": event.artifact_id or "unknown",
+                "status": "completed"
+                if event.event_type == EventType.TASK_COMPLETED
+                else "failed",
+                "timestamp": event.timestamp.isoformat(),
+                "metadata": event.metadata,
+            }
+        )
         self.metrics_store["tasks"] = task_metrics
-    
+
     def get_metrics_summary(self) -> Dict[str, Any]:
         """Get aggregated metrics summary"""
         return {
-            "total_agents": len([k for k in self.metrics_store.keys() if k not in ["routing", "tasks"]]),
+            "total_agents": len(
+                [k for k in self.metrics_store.keys() if k not in ["routing", "tasks"]]
+            ),
             "total_tasks": len(self.metrics_store.get("tasks", [])),
             "total_routing_decisions": len(self.metrics_store.get("routing", [])),
-            "agents_with_metrics": list(k for k in self.metrics_store.keys() if k not in ["routing", "tasks"])
+            "agents_with_metrics": list(
+                k for k in self.metrics_store.keys() if k not in ["routing", "tasks"]
+            ),
         }
 
 
 class LiveCollaborationEngine:
     """
     Enhanced Live Collaboration Engine with Real-Time Streaming
-    
+
     Implements the complete live collaboration system that shows agents
     working together in real-time with event-driven architecture.
     """
-    
+
     def __init__(self):
         from bus import bus
+
         self.event_bus = bus
         self.streams = {
             "tasks": "task_stream",
-            "artifacts": "artifact_stream", 
+            "artifacts": "artifact_stream",
             "reviews": "review_stream",
-            "incidents": "incident_stream"
+            "incidents": "incident_stream",
         }
-        
+
         # Real-time collaboration state
         self.active_collaborations: Dict[str, Dict[str, Any]] = {}
         self.live_agent_activities: Dict[str, Any] = {}
         self.artifact_creation_queue: List[Dict[str, Any]] = []
-        
+
         # Progress tracking
         self.collaboration_metrics = {
             "total_sessions": 0,
             "active_agents": 0,
             "artifacts_created": 0,
-            "handoffs_completed": 0
+            "handoffs_completed": 0,
         }
-        
+
         logger.info("Live collaboration engine initialized with real-time streaming")
-    
+
     async def publish_event(self, stream: str, event_data: Dict[str, Any]):
         """
         Publish event with correlation_id and artifact_id tracking
         Updates live UI dynamically
         """
-        
+
         # Add correlation and tracking IDs
-        correlation_id = event_data.get('correlation_id', f"collab_{uuid4().hex[:8]}")
-        artifact_id = event_data.get('artifact_id', f"artifact_{uuid4().hex[:8]}")
-        
+        correlation_id = event_data.get("correlation_id", f"collab_{uuid4().hex[:8]}")
+        artifact_id = event_data.get("artifact_id", f"artifact_{uuid4().hex[:8]}")
+
         # Enhanced event structure
         enhanced_event = StreamEvent(
             event_id=f"live_{uuid4().hex[:8]}",
             correlation_id=correlation_id,
-            event_type=event_data.get('event_type', EventType.TASK_CREATED),
+            event_type=event_data.get("event_type", EventType.TASK_CREATED),
             payload={
                 **event_data,
-                'correlation_id': correlation_id,
-                'artifact_id': artifact_id,
-                'timestamp': datetime.now(timezone.utc).isoformat(),
-                'live_collaboration': True
+                "correlation_id": correlation_id,
+                "artifact_id": artifact_id,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "live_collaboration": True,
             },
             metadata={
-                'collaboration_engine': 'live_v2',
-                'real_time_updates': True,
-                'stream_name': stream
-            }
+                "collaboration_engine": "live_v2",
+                "real_time_updates": True,
+                "stream_name": stream,
+            },
         )
-        
+
         # Publish to appropriate stream
-        stream_type = EventStreamType.TASKS if stream == "tasks" else EventStreamType.ARTIFACTS
+        stream_type = (
+            EventStreamType.TASKS if stream == "tasks" else EventStreamType.ARTIFACTS
+        )
         event_id = await self.event_bus.publish_event(stream_type, enhanced_event)
-        
+
         # Update live collaboration state
         await self._update_live_state(enhanced_event)
-        
+
         # Trigger live UI updates
         await self._update_live_ui(enhanced_event)
-        
+
         logger.info(f"Published live collaboration event {event_id} to {stream}")
         return event_id
-    
+
     async def consume_events(self, stream: str, callback: callable):
         """
         Real-time event consumption with live UI updates
         """
-        
-        stream_type = EventStreamType.TASKS if stream == "tasks" else EventStreamType.ARTIFACTS
+
+        stream_type = (
+            EventStreamType.TASKS if stream == "tasks" else EventStreamType.ARTIFACTS
+        )
         consumer_group = f"live_collaboration_{stream}"
         consumer_name = f"live_consumer_{uuid4().hex[:8]}"
-        
+
         # Create consumer group
         await self.event_bus.create_consumer_group(stream_type, consumer_group)
-        
+
         # Start consuming
         while True:
             try:
                 events = await self.event_bus.consume_stream(
                     stream_type, consumer_group, consumer_name, count=5
                 )
-                
+
                 for event in events:
                     # Process with callback
                     await callback(event)
-                    
+
                     # Update live collaboration metrics
                     await self._update_collaboration_metrics(event)
-                
+
                 # Brief pause to avoid overwhelming
                 if not events:
                     await asyncio.sleep(0.5)
-                    
+
             except Exception as e:
                 logger.error(f"Error consuming from {stream}: {e}")
                 await asyncio.sleep(1)
-    
+
     async def _update_live_state(self, event: StreamEvent):
         """Update live collaboration state"""
-        
+
         correlation_id = event.correlation_id
-        
+
         if correlation_id not in self.active_collaborations:
             self.active_collaborations[correlation_id] = {
-                'correlation_id': correlation_id,
-                'status': 'active',
-                'start_time': event.timestamp,
-                'agents': set(),
-                'artifacts': [],
-                'events': [],
-                'current_stage': 'initialization'
+                "correlation_id": correlation_id,
+                "status": "active",
+                "start_time": event.timestamp,
+                "agents": set(),
+                "artifacts": [],
+                "events": [],
+                "current_stage": "initialization",
             }
-        
+
         collaboration = self.active_collaborations[correlation_id]
-        collaboration['events'].append({
-            'event_id': event.event_id,
-            'event_type': event.event_type.value,
-            'timestamp': event.timestamp.isoformat(),
-            'agent_id': event.agent_id,
-            'payload': event.payload
-        })
-        
+        collaboration["events"].append(
+            {
+                "event_id": event.event_id,
+                "event_type": event.event_type.value,
+                "timestamp": event.timestamp.isoformat(),
+                "agent_id": event.agent_id,
+                "payload": event.payload,
+            }
+        )
+
         # Track agent activities
         if event.agent_id:
-            collaboration['agents'].add(event.agent_id)
-            
+            collaboration["agents"].add(event.agent_id)
+
             self.live_agent_activities[event.agent_id] = {
-                'agent_id': event.agent_id,
-                'current_activity': event.payload.get('activity', 'Working'),
-                'status': event.payload.get('status', 'active'),
-                'last_update': event.timestamp.isoformat(),
-                'correlation_id': correlation_id
+                "agent_id": event.agent_id,
+                "current_activity": event.payload.get("activity", "Working"),
+                "status": event.payload.get("status", "active"),
+                "last_update": event.timestamp.isoformat(),
+                "correlation_id": correlation_id,
             }
-        
+
         # Track artifact creation
         if event.event_type == EventType.ARTIFACT_CREATED:
             artifact_data = {
-                'artifact_id': event.artifact_id or f"artifact_{uuid4().hex[:8]}",
-                'type': event.payload.get('artifact_type', 'unknown'),
-                'created_by': event.agent_id,
-                'creation_time': event.timestamp.isoformat(),
-                'correlation_id': correlation_id
+                "artifact_id": event.artifact_id or f"artifact_{uuid4().hex[:8]}",
+                "type": event.payload.get("artifact_type", "unknown"),
+                "created_by": event.agent_id,
+                "creation_time": event.timestamp.isoformat(),
+                "correlation_id": correlation_id,
             }
-            collaboration['artifacts'].append(artifact_data)
+            collaboration["artifacts"].append(artifact_data)
             self.artifact_creation_queue.append(artifact_data)
-    
+
     async def _update_live_ui(self, event: StreamEvent):
         """Update live UI components with real-time data"""
-        
+
         ui_update = {
-            'type': 'live_update',
-            'event_type': event.event_type.value,
-            'correlation_id': event.correlation_id,
-            'agent_id': event.agent_id,
-            'timestamp': event.timestamp.isoformat(),
-            'data': event.payload,
-            'ui_components': []
+            "type": "live_update",
+            "event_type": event.event_type.value,
+            "correlation_id": event.correlation_id,
+            "agent_id": event.agent_id,
+            "timestamp": event.timestamp.isoformat(),
+            "data": event.payload,
+            "ui_components": [],
         }
-        
+
         # Determine which UI components need updates
         if event.event_type == EventType.AGENT_STARTED:
-            ui_update['ui_components'].append('agent_status_panel')
-            ui_update['ui_components'].append('live_activity_feed')
-            
+            ui_update["ui_components"].append("agent_status_panel")
+            ui_update["ui_components"].append("live_activity_feed")
+
         elif event.event_type == EventType.ARTIFACT_CREATED:
-            ui_update['ui_components'].append('artifact_timeline')
-            ui_update['ui_components'].append('progress_indicators')
-            
+            ui_update["ui_components"].append("artifact_timeline")
+            ui_update["ui_components"].append("progress_indicators")
+
         elif event.event_type == EventType.TASK_COMPLETED:
-            ui_update['ui_components'].append('completion_metrics')
-            ui_update['ui_components'].append('collaboration_summary')
-        
+            ui_update["ui_components"].append("completion_metrics")
+            ui_update["ui_components"].append("collaboration_summary")
+
         # Publish UI update event
         ui_event = StreamEvent(
             correlation_id=event.correlation_id,
             event_type=EventType.PERFORMANCE_METRIC,
             payload=ui_update,
-            metadata={'ui_update': True, 'real_time': True}
+            metadata={"ui_update": True, "real_time": True},
         )
-        
+
         await self.event_bus.publish_event(EventStreamType.METRICS, ui_event)
-    
+
     async def _update_collaboration_metrics(self, event: StreamEvent):
         """Update collaboration metrics in real-time"""
-        
+
         if event.event_type == EventType.AGENT_STARTED:
-            self.collaboration_metrics['active_agents'] += 1
-            
+            self.collaboration_metrics["active_agents"] += 1
+
         elif event.event_type == EventType.AGENT_COMPLETED:
-            self.collaboration_metrics['active_agents'] = max(0, self.collaboration_metrics['active_agents'] - 1)
-            self.collaboration_metrics['handoffs_completed'] += 1
-            
+            self.collaboration_metrics["active_agents"] = max(
+                0, self.collaboration_metrics["active_agents"] - 1
+            )
+            self.collaboration_metrics["handoffs_completed"] += 1
+
         elif event.event_type == EventType.ARTIFACT_CREATED:
-            self.collaboration_metrics['artifacts_created'] += 1
-        
+            self.collaboration_metrics["artifacts_created"] += 1
+
         elif event.event_type == EventType.TASK_STARTED:
-            self.collaboration_metrics['total_sessions'] += 1
-    
+            self.collaboration_metrics["total_sessions"] += 1
+
     def get_live_collaboration_status(self) -> Dict[str, Any]:
         """Get current live collaboration status"""
-        
+
         return {
-            'active_collaborations': len(self.active_collaborations),
-            'live_agent_activities': self.live_agent_activities,
-            'recent_artifacts': self.artifact_creation_queue[-10:],  # Last 10
-            'collaboration_metrics': self.collaboration_metrics,
-            'collaboration_details': {
+            "active_collaborations": len(self.active_collaborations),
+            "live_agent_activities": self.live_agent_activities,
+            "recent_artifacts": self.artifact_creation_queue[-10:],  # Last 10
+            "collaboration_metrics": self.collaboration_metrics,
+            "collaboration_details": {
                 corr_id: {
-                    'status': collab['status'],
-                    'agents_count': len(collab['agents']),
-                    'artifacts_count': len(collab['artifacts']),
-                    'events_count': len(collab['events']),
-                    'current_stage': collab['current_stage'],
-                    'duration': (datetime.now(timezone.utc) - collab['start_time']).total_seconds()
+                    "status": collab["status"],
+                    "agents_count": len(collab["agents"]),
+                    "artifacts_count": len(collab["artifacts"]),
+                    "events_count": len(collab["events"]),
+                    "current_stage": collab["current_stage"],
+                    "duration": (
+                        datetime.now(timezone.utc) - collab["start_time"]
+                    ).total_seconds(),
                 }
                 for corr_id, collab in self.active_collaborations.items()
-            }
+            },
         }
-    
+
     def get_agent_activity_feed(self, limit: int = 20) -> List[Dict[str, Any]]:
         """Get live agent activity feed"""
-        
+
         activities = []
         for collaboration in self.active_collaborations.values():
-            for event in collaboration['events'][-limit:]:
-                activities.append({
-                    'timestamp': event['timestamp'],
-                    'agent_id': event['agent_id'],
-                    'event_type': event['event_type'],
-                    'activity': event['payload'].get('activity', 'Unknown activity'),
-                    'correlation_id': collaboration['correlation_id']
-                })
-        
+            for event in collaboration["events"][-limit:]:
+                activities.append(
+                    {
+                        "timestamp": event["timestamp"],
+                        "agent_id": event["agent_id"],
+                        "event_type": event["event_type"],
+                        "activity": event["payload"].get(
+                            "activity", "Unknown activity"
+                        ),
+                        "correlation_id": collaboration["correlation_id"],
+                    }
+                )
+
         # Sort by timestamp, most recent first
-        activities.sort(key=lambda x: x['timestamp'], reverse=True)
+        activities.sort(key=lambda x: x["timestamp"], reverse=True)
         return activities[:limit]
-    
+
     def get_artifact_creation_timeline(self) -> List[Dict[str, Any]]:
         """Get timeline of artifact creation events"""
-        
-        return sorted(self.artifact_creation_queue, key=lambda x: x['creation_time'], reverse=True)
-    
-    async def start_live_collaboration_session(self, project_description: str, 
-                                            project_type: str = "web_app") -> str:
+
+        return sorted(
+            self.artifact_creation_queue, key=lambda x: x["creation_time"], reverse=True
+        )
+
+    async def start_live_collaboration_session(
+        self, project_description: str, project_type: str = "web_app"
+    ) -> str:
         """Start a new live collaboration session"""
-        
+
         correlation_id = f"live_collab_{uuid4().hex[:8]}"
-        
+
         # Initialize collaboration
-        await self.publish_event("tasks", {
-            'event_type': EventType.TASK_STARTED,
-            'correlation_id': correlation_id,
-            'project_description': project_description,
-            'project_type': project_type,
-            'activity': 'Starting live collaboration session',
-            'live_session': True
-        })
-        
+        await self.publish_event(
+            "tasks",
+            {
+                "event_type": EventType.TASK_STARTED,
+                "correlation_id": correlation_id,
+                "project_description": project_description,
+                "project_type": project_type,
+                "activity": "Starting live collaboration session",
+                "live_session": True,
+            },
+        )
+
         logger.info(f"Started live collaboration session {correlation_id}")
         return correlation_id
 
@@ -541,52 +588,65 @@ class LiveCollaborationEngine:
 class RealTimeEventOrchestrator:
     """
     Production-grade event-sourced orchestrator using Redis Streams.
-    
+
     Coordinates multi-agent workflows through real-time event processing
     with full auditability and replay capability.
     """
-    
+
     def __init__(self, workflow_id: str, redis_url: str = "redis://localhost:6379"):
         self.workflow_id = workflow_id
         from bus import bus
+
         self.event_bus = bus
         self.consumers: List[StreamConsumer] = []
-        
+
         # Initialize consumers
         self.orchestrator_consumer = OrchestratorConsumer(self)
         self.metrics_consumer = MetricsConsumer()
-        
+
         self.consumers = [self.orchestrator_consumer, self.metrics_consumer]
-        
-        logger.info(f"Real-time event orchestrator initialized for workflow {workflow_id}")
-    
+
+        logger.info(
+            f"Real-time event orchestrator initialized for workflow {workflow_id}"
+        )
+
     async def start_workflow(self, tasks: List[TaskLedger]) -> str:
         """Start workflow and publish initial events"""
-        
+
         correlation_id = f"workflow_{self.workflow_id}_{uuid4().hex[:8]}"
-        
+
         # Start consumers
-        await asyncio.gather(*[
-            consumer.start(EventStreamType.TASKS, "orchestrator_group")
-            for consumer in self.consumers
-        ])
-        
+        await asyncio.gather(
+            *[
+                consumer.start(EventStreamType.TASKS, "orchestrator_group")
+                for consumer in self.consumers
+            ]
+        )
+
         # Publish workflow started event
         workflow_event = StreamEvent(
             correlation_id=correlation_id,
             event_type=EventType.TASK_CREATED,
-            payload={"workflow_id": self.workflow_id, "tasks": [task.model_dump() for task in tasks]},
-            metadata={"total_tasks": len(tasks)}
+            payload={
+                "workflow_id": self.workflow_id,
+                "tasks": [task.model_dump() for task in tasks],
+            },
+            metadata={"total_tasks": len(tasks)},
         )
-        
+
         await self.event_bus.publish_event(EventStreamType.TASKS, workflow_event)
-        
+
         return correlation_id
-    
-    async def publish_artifact_event(self, artifact: ArtifactBase, event_type: EventType,
-                                   agent_id: str, correlation_id: str):
+
+    async def publish_artifact_event(
+        self,
+        artifact: ArtifactBase,
+        event_type: EventType,
+        agent_id: str,
+        correlation_id: str,
+    ):
         """Publish artifact-related event"""
-        
+
         event = StreamEvent(
             correlation_id=correlation_id,
             event_type=event_type,
@@ -596,39 +656,43 @@ class RealTimeEventOrchestrator:
             metadata={
                 "confidence": artifact.confidence,
                 "version": artifact.version,
-                "created_by": artifact.created_by
-            }
+                "created_by": artifact.created_by,
+            },
         )
-        
+
         await self.event_bus.publish_event(EventStreamType.ARTIFACTS, event)
-    
+
     async def get_workflow_events(self, correlation_id: str) -> List[StreamEvent]:
         """Get all events for a workflow"""
-        
+
         events = []
         for stream_type in EventStreamType:
-            async for event in self.event_bus.replay_events(stream_type, correlation_id=correlation_id):
+            async for event in self.event_bus.replay_events(
+                stream_type, correlation_id=correlation_id
+            ):
                 events.append(event)
-        
+
         # Sort by timestamp
         events.sort(key=lambda e: e.timestamp)
         return events
-    
+
     def get_real_time_stats(self) -> Dict[str, Any]:
         """Get real-time orchestrator statistics"""
-        
+
         stats = {
             "workflow_id": self.workflow_id,
             "consumers": [consumer.get_stats() for consumer in self.consumers],
-            "stream_info": {}
+            "stream_info": {},
         }
-        
+
         # Get stream information
         for stream_type in EventStreamType:
-            stats["stream_info"][stream_type.value] = self.event_bus.get_stream_info(stream_type)
-        
+            stats["stream_info"][stream_type.value] = self.event_bus.get_stream_info(
+                stream_type
+            )
+
         return stats
-    
+
     async def stop(self):
         """Stop all consumers and cleanup"""
         for consumer in self.consumers:

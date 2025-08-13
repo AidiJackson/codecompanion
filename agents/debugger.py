@@ -1,18 +1,19 @@
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 import json
 import re
 from .base_agent import BaseAgent
 from core.model_orchestrator import AgentType
 
+
 class DebuggerAgent(BaseAgent):
     """Debugger Agent - Specialized in code analysis, bug fixing, and optimization"""
-    
+
     def __init__(self):
         super().__init__(
             name="Debugger",
             role="Software Debugger",
             specialization="Code analysis, bug detection, debugging, performance optimization, and code quality improvement",
-            agent_type=AgentType.DEBUGGER
+            agent_type=AgentType.DEBUGGER,
         )
         self.common_patterns = {
             "syntax_errors": [
@@ -21,7 +22,7 @@ class DebuggerAgent(BaseAgent):
                 r"unexpected token",
                 r"missing \)",
                 r"missing \}",
-                r"unclosed"
+                r"unclosed",
             ],
             "runtime_errors": [
                 r"AttributeError",
@@ -30,7 +31,7 @@ class DebuggerAgent(BaseAgent):
                 r"KeyError",
                 r"IndexError",
                 r"NullPointerException",
-                r"undefined"
+                r"undefined",
             ],
             "security_issues": [
                 r"eval\(",
@@ -38,77 +39,96 @@ class DebuggerAgent(BaseAgent):
                 r"os\.system",
                 r"subprocess\.call",
                 r"SQL injection",
-                r"XSS"
+                r"XSS",
             ],
             "performance_issues": [
                 r"O\(n\^2\)",
                 r"nested loop",
                 r"memory leak",
-                r"inefficient query"
-            ]
+                r"inefficient query",
+            ],
         }
-    
+
     def process_request(self, request: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """Process debugging and optimization requests"""
         messages = [
             {"role": "system", "content": self.get_system_prompt()},
-            {"role": "user", "content": f"Debug request: {request}\n\nCode context: {json.dumps(context, indent=2)}"}
+            {
+                "role": "user",
+                "content": f"Debug request: {request}\n\nCode context: {json.dumps(context, indent=2)}",
+            },
         ]
-        
+
         response_content = self.call_llm_sync(messages)
-        
+
         # Analyze code and generate fixes
         analysis_results = self.analyze_code(request, context)
         fixed_files = self.generate_fixes(request, context, analysis_results)
-        
+
         # Add analysis to response
         if analysis_results:
             response_content += f"\n\n🔍 **Code Analysis Results:**\n{self.format_analysis(analysis_results)}"
-        
+
         # Determine handoffs
         handoff_to = None
-        if any(keyword in request.lower() for keyword in ["test", "testing", "validate"]):
+        if any(
+            keyword in request.lower() for keyword in ["test", "testing", "validate"]
+        ):
             handoff_to = "test_writer"
-        elif any(keyword in request.lower() for keyword in ["implement", "generate", "create"]):
+        elif any(
+            keyword in request.lower()
+            for keyword in ["implement", "generate", "create"]
+        ):
             handoff_to = "code_generator"
-        elif any(keyword in request.lower() for keyword in ["ui", "interface", "frontend"]):
+        elif any(
+            keyword in request.lower() for keyword in ["ui", "interface", "frontend"]
+        ):
             handoff_to = "ui_designer"
-        
+
         self.add_to_history(request, response_content)
-        
+
         return {
             "content": response_content,
             "handoff_to": handoff_to,
             "agent": self.name,
             "files": fixed_files,
-            "analysis": analysis_results
+            "analysis": analysis_results,
         }
-    
-    def process_handoff(self, handoff_content: str, context: Dict[str, Any]) -> Dict[str, Any]:
+
+    def process_handoff(
+        self, handoff_content: str, context: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Process handoff from another agent"""
         messages = [
             {"role": "system", "content": self.get_system_prompt()},
-            {"role": "user", "content": f"Code review handoff: {handoff_content}\n\nDebugging context: {json.dumps(context, indent=2)}"}
+            {
+                "role": "user",
+                "content": f"Code review handoff: {handoff_content}\n\nDebugging context: {json.dumps(context, indent=2)}",
+            },
         ]
-        
-        response_content = self.call_llm_sync(messages, temperature=0.3)  # Lower temperature for debugging
-        
+
+        response_content = self.call_llm_sync(
+            messages, temperature=0.3
+        )  # Lower temperature for debugging
+
         # Analyze the handed-off content
         analysis_results = self.analyze_code(handoff_content, context)
         fixed_files = self.generate_fixes(handoff_content, context, analysis_results)
-        
+
         if analysis_results:
-            response_content += f"\n\n🔍 **Debug Analysis:**\n{self.format_analysis(analysis_results)}"
-        
+            response_content += (
+                f"\n\n🔍 **Debug Analysis:**\n{self.format_analysis(analysis_results)}"
+            )
+
         self.add_to_history(f"Handoff: {handoff_content}", response_content)
-        
+
         return {
             "content": f"**Debugger Analysis:**\n\n{response_content}",
             "agent": self.name,
             "files": fixed_files,
-            "analysis": analysis_results
+            "analysis": analysis_results,
         }
-    
+
     def analyze_code(self, content: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze code for potential issues"""
         analysis = {
@@ -117,144 +137,175 @@ class DebuggerAgent(BaseAgent):
             "security_issues": [],
             "performance_issues": [],
             "code_quality": [],
-            "suggestions": []
+            "suggestions": [],
         }
-        
+
         # Get project files from context if available
         project_files = context.get("project_files", {})
-        
+
         # Analyze content and project files
-        all_content = content + "\n" + "\n".join(project_files.values()) if project_files else content
-        
+        all_content = (
+            content + "\n" + "\n".join(project_files.values())
+            if project_files
+            else content
+        )
+
         # Check for common issues
         for category, patterns in self.common_patterns.items():
             for pattern in patterns:
                 matches = re.findall(pattern, all_content, re.IGNORECASE)
                 if matches:
-                    analysis[category].append({
-                        "pattern": pattern,
-                        "matches": len(matches),
-                        "severity": self.get_severity(category, pattern)
-                    })
-        
+                    analysis[category].append(
+                        {
+                            "pattern": pattern,
+                            "matches": len(matches),
+                            "severity": self.get_severity(category, pattern),
+                        }
+                    )
+
         # Code quality checks
         analysis["code_quality"] = self.check_code_quality(all_content)
-        
+
         # Generate suggestions
         analysis["suggestions"] = self.generate_suggestions(analysis)
-        
+
         return analysis
-    
+
     def get_severity(self, category: str, pattern: str) -> str:
         """Determine severity of an issue"""
         high_severity = ["eval(", "exec(", "os.system", "SQL injection", "XSS"]
         medium_severity = ["AttributeError", "TypeError", "memory leak"]
-        
+
         if any(hs in pattern for hs in high_severity):
             return "HIGH"
         elif any(ms in pattern for ms in medium_severity):
             return "MEDIUM"
         else:
             return "LOW"
-    
+
     def check_code_quality(self, content: str) -> List[Dict[str, Any]]:
         """Check code quality issues"""
         quality_issues = []
-        
+
         # Check for long functions (simple heuristic)
-        function_pattern = r'def\s+\w+.*?(?=\ndef|\Z)'
+        function_pattern = r"def\s+\w+.*?(?=\ndef|\Z)"
         functions = re.findall(function_pattern, content, re.DOTALL | re.MULTILINE)
-        
+
         for func in functions:
-            lines = func.split('\n')
+            lines = func.split("\n")
             if len(lines) > 50:  # Arbitrary threshold
-                quality_issues.append({
-                    "issue": "Long function",
-                    "description": f"Function has {len(lines)} lines, consider breaking it down",
-                    "severity": "MEDIUM"
-                })
-        
+                quality_issues.append(
+                    {
+                        "issue": "Long function",
+                        "description": f"Function has {len(lines)} lines, consider breaking it down",
+                        "severity": "MEDIUM",
+                    }
+                )
+
         # Check for missing docstrings
-        if 'def ' in content and '"""' not in content and "'''" not in content:
-            quality_issues.append({
-                "issue": "Missing docstrings",
-                "description": "Functions should have docstrings for better documentation",
-                "severity": "LOW"
-            })
-        
+        if "def " in content and '"""' not in content and "'''" not in content:
+            quality_issues.append(
+                {
+                    "issue": "Missing docstrings",
+                    "description": "Functions should have docstrings for better documentation",
+                    "severity": "LOW",
+                }
+            )
+
         # Check for magic numbers
-        magic_number_pattern = r'\b(?<!=\s)\d{2,}\b(?!\s*[;,\]\)])'
+        magic_number_pattern = r"\b(?<!=\s)\d{2,}\b(?!\s*[;,\]\)])"
         magic_numbers = re.findall(magic_number_pattern, content)
         if magic_numbers:
-            quality_issues.append({
-                "issue": "Magic numbers",
-                "description": f"Found {len(magic_numbers)} magic numbers, consider using named constants",
-                "severity": "LOW"
-            })
-        
+            quality_issues.append(
+                {
+                    "issue": "Magic numbers",
+                    "description": f"Found {len(magic_numbers)} magic numbers, consider using named constants",
+                    "severity": "LOW",
+                }
+            )
+
         return quality_issues
-    
+
     def generate_suggestions(self, analysis: Dict[str, Any]) -> List[str]:
         """Generate improvement suggestions based on analysis"""
         suggestions = []
-        
+
         # Security suggestions
         if analysis["security_issues"]:
-            suggestions.append("🔒 Review security issues and implement input validation")
-            suggestions.append("🔐 Consider using parameterized queries to prevent SQL injection")
+            suggestions.append(
+                "🔒 Review security issues and implement input validation"
+            )
+            suggestions.append(
+                "🔐 Consider using parameterized queries to prevent SQL injection"
+            )
             suggestions.append("🛡️ Implement proper authentication and authorization")
-        
+
         # Performance suggestions
         if analysis["performance_issues"]:
-            suggestions.append("⚡ Optimize algorithms and data structures for better performance")
+            suggestions.append(
+                "⚡ Optimize algorithms and data structures for better performance"
+            )
             suggestions.append("📊 Consider caching frequently accessed data")
-            suggestions.append("🔄 Review database queries for optimization opportunities")
-        
+            suggestions.append(
+                "🔄 Review database queries for optimization opportunities"
+            )
+
         # Code quality suggestions
         if analysis["code_quality"]:
             suggestions.append("✨ Improve code documentation and add docstrings")
             suggestions.append("🧹 Refactor long functions into smaller, focused units")
             suggestions.append("📏 Use named constants instead of magic numbers")
-        
+
         # General suggestions
-        suggestions.extend([
-            "🧪 Add comprehensive unit tests for better code reliability",
-            "📝 Implement proper error handling and logging",
-            "🔍 Consider using static analysis tools for continuous code quality",
-            "🚀 Implement CI/CD pipeline for automated testing and deployment"
-        ])
-        
+        suggestions.extend(
+            [
+                "🧪 Add comprehensive unit tests for better code reliability",
+                "📝 Implement proper error handling and logging",
+                "🔍 Consider using static analysis tools for continuous code quality",
+                "🚀 Implement CI/CD pipeline for automated testing and deployment",
+            ]
+        )
+
         return suggestions
-    
+
     def format_analysis(self, analysis: Dict[str, Any]) -> str:
         """Format analysis results for display"""
         formatted = ""
-        
+
         # Summary
-        total_issues = sum(len(issues) for key, issues in analysis.items() 
-                          if key in ["syntax_issues", "runtime_issues", "security_issues", "performance_issues"])
-        
+        total_issues = sum(
+            len(issues)
+            for key, issues in analysis.items()
+            if key
+            in [
+                "syntax_issues",
+                "runtime_issues",
+                "security_issues",
+                "performance_issues",
+            ]
+        )
+
         formatted += f"**Summary:** {total_issues} potential issues found\n\n"
-        
+
         # Issue categories
         categories = {
             "security_issues": "🔒 Security Issues",
             "performance_issues": "⚡ Performance Issues",
-            "runtime_issues": "🐛 Runtime Issues", 
-            "syntax_issues": "📝 Syntax Issues"
+            "runtime_issues": "🐛 Runtime Issues",
+            "syntax_issues": "📝 Syntax Issues",
         }
-        
+
         for key, title in categories.items():
             issues = analysis.get(key, [])
             if issues:
                 formatted += f"**{title}:**\n"
                 for issue in issues:
-                    severity = issue.get('severity', 'LOW')
-                    pattern = issue.get('pattern', '')
-                    matches = issue.get('matches', 0)
+                    severity = issue.get("severity", "LOW")
+                    pattern = issue.get("pattern", "")
+                    matches = issue.get("matches", 0)
                     formatted += f"- {severity}: {pattern} ({matches} occurrences)\n"
                 formatted += "\n"
-        
+
         # Code quality
         quality_issues = analysis.get("code_quality", [])
         if quality_issues:
@@ -262,74 +313,79 @@ class DebuggerAgent(BaseAgent):
             for issue in quality_issues:
                 formatted += f"- {issue['severity']}: {issue['issue']} - {issue['description']}\n"
             formatted += "\n"
-        
+
         # Suggestions
         suggestions = analysis.get("suggestions", [])
         if suggestions:
             formatted += "**💡 Suggestions:**\n"
             for suggestion in suggestions[:5]:  # Limit to top 5
                 formatted += f"- {suggestion}\n"
-        
+
         return formatted
-    
-    def generate_fixes(self, request: str, context: Dict[str, Any], analysis: Dict[str, Any]) -> Dict[str, str]:
+
+    def generate_fixes(
+        self, request: str, context: Dict[str, Any], analysis: Dict[str, Any]
+    ) -> Dict[str, str]:
         """Generate fixed code files"""
         files = {}
-        
+
         # Get project files from context
         project_files = context.get("project_files", {})
-        
+
         if not project_files:
             # Generate generic debugging utilities if no specific files to fix
             files.update(self.generate_debugging_utilities())
             return files
-        
+
         # Fix issues in existing files
         for filename, content in project_files.items():
             fixed_content = self.fix_code_issues(content, analysis)
             if fixed_content != content:
                 files[f"fixed_{filename}"] = fixed_content
-        
+
         # Add debugging utilities
         files.update(self.generate_debugging_utilities())
-        
+
         return files
-    
+
     def fix_code_issues(self, code: str, analysis: Dict[str, Any]) -> str:
         """Apply automatic fixes to code where possible"""
         fixed_code = code
-        
+
         # Fix common Python issues
         if "python" in code or "def " in code:
             # Add error handling for common patterns
             if "open(" in fixed_code and "with " not in fixed_code:
                 fixed_code = self.add_context_managers(fixed_code)
-            
+
             # Add try-catch blocks for risky operations
-            if any(pattern in fixed_code for pattern in ["requests.get", "json.loads", "int("]):
+            if any(
+                pattern in fixed_code
+                for pattern in ["requests.get", "json.loads", "int("]
+            ):
                 fixed_code = self.add_error_handling(fixed_code)
-            
+
             # Add input validation
             if "input(" in fixed_code:
                 fixed_code = self.add_input_validation(fixed_code)
-        
+
         # Fix JavaScript issues
         if "javascript" in code.lower() or "function " in code:
             # Add null checks
             fixed_code = self.add_null_checks(fixed_code)
-            
+
             # Fix async/await patterns
             fixed_code = self.fix_async_patterns(fixed_code)
-        
+
         return fixed_code
-    
+
     def add_context_managers(self, code: str) -> str:
         """Add context managers for file operations"""
         # Simple pattern replacement for file operations
-        pattern = r'(\w+)\s*=\s*open\((.*?)\)'
-        replacement = r'with open(\2) as \1:'
+        pattern = r"(\w+)\s*=\s*open\((.*?)\)"
+        replacement = r"with open(\2) as \1:"
         return re.sub(pattern, replacement, code)
-    
+
     def add_error_handling(self, code: str) -> str:
         """Add basic error handling"""
         if "try:" not in code:
@@ -337,26 +393,25 @@ class DebuggerAgent(BaseAgent):
             risky_patterns = ["requests.get", "json.loads", "int(", "float("]
             for pattern in risky_patterns:
                 if pattern in code and "try:" not in code:
-                    lines = code.split('\n')
+                    lines = code.split("\n")
                     for i, line in enumerate(lines):
-                        if pattern in line and not line.strip().startswith('#'):
+                        if pattern in line and not line.strip().startswith("#"):
                             # Add try-except around this line
                             indent = len(line) - len(line.lstrip())
-                            spaces = ' ' * indent
-                            lines[i] = f"{spaces}try:\n{line}\n{spaces}except Exception as e:\n{spaces}    logger.error(f'Error: {{e}}')\n{spaces}    raise"
+                            spaces = " " * indent
+                            lines[i] = (
+                                f"{spaces}try:\n{line}\n{spaces}except Exception as e:\n{spaces}    logger.error(f'Error: {{e}}')\n{spaces}    raise"
+                            )
                             break
-                    code = '\n'.join(lines)
+                    code = "\n".join(lines)
         return code
-    
+
     def add_input_validation(self, code: str) -> str:
         """Add input validation"""
         # Add validation for user inputs
         if "input(" in code:
-            code = code.replace(
-                "input(",
-                "validate_input(input("
-            )
-            
+            code = code.replace("input(", "validate_input(input(")
+
             # Add validation function if not present
             if "def validate_input" not in code:
                 validation_func = '''
@@ -368,17 +423,17 @@ def validate_input(user_input):
     return user_input.strip()
 '''
                 code = validation_func + "\n" + code
-        
+
         return code
-    
+
     def add_null_checks(self, code: str) -> str:
         """Add null checks for JavaScript"""
         # Simple null check additions
         if "." in code:
             # Add optional chaining where appropriate
-            code = re.sub(r'(\w+)\.(\w+)', r'\1?.\2', code)
+            code = re.sub(r"(\w+)\.(\w+)", r"\1?.\2", code)
         return code
-    
+
     def fix_async_patterns(self, code: str) -> str:
         """Fix async/await patterns"""
         # Ensure async functions use await properly
@@ -388,11 +443,11 @@ def validate_input(user_input):
             for pattern in promise_patterns:
                 code = code.replace(pattern, f"await {pattern}")
         return code
-    
+
     def generate_debugging_utilities(self) -> Dict[str, str]:
         """Generate debugging utility files"""
         files = {}
-        
+
         files["debug_utils.py"] = '''"""
 Debugging and monitoring utilities
 """
@@ -670,8 +725,9 @@ def test_debug_utilities():
     
     # Test code analysis
     test_code = '''
+
+
 def unsafe_function(user_input):
     eval(user_input)  # Security issue
     for i in range(len(items)):  # items not defined
         result += items[i]  # result not defined
-

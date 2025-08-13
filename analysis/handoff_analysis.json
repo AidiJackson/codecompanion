@@ -1,0 +1,119 @@
+{
+  "entrypoints": [
+    "FastAPI server at server.py (port 5050) - Main production API endpoint",
+    "Streamlit web application at app.py - Full-featured web interface with embedded API",
+    "CLI client at cli.py - Command-line interface for API interaction using typer",
+    "CodeCompanion CLI at codecompanion/cli.py - Standalone agent runner with OpenRouter backend",
+    "Direct API client at codecompanion/cc.py - Minimal client with artifact saving capabilities",
+    "Demo scripts: demo_*.py files for showcasing specific functionality",
+    "Test runners: test_*.py files for validation and integration testing"
+  ],
+  "stubs": [
+    {
+      "file": "/home/runner/workspace/demo_live_collaboration.py",
+      "lines": [61, 73, 95, 116, 128, 139, 177, 246, 302],
+      "type": "demo_delays",
+      "description": "Visual demonstration delays - consider making configurable"
+    },
+    {
+      "file": "/home/runner/workspace/demo_intelligent_router.py", 
+      "lines": [178],
+      "type": "demo_delays",
+      "description": "Router demonstration delay"
+    },
+    {
+      "file": "/home/runner/workspace/core/parallel_execution.py",
+      "lines": [242, 393],
+      "type": "monitoring_polls",
+      "description": "Legitimate monitoring polling intervals - not stubs"
+    },
+    {
+      "file": "/home/runner/workspace/core/live_orchestrator.py",
+      "lines": [378, 435], 
+      "type": "orchestration_polls",
+      "description": "Orchestrator polling intervals - legitimate delays"
+    },
+    {
+      "file": "/home/runner/workspace/core/event_streaming.py",
+      "lines": [135, 139, 368, 372],
+      "type": "event_processing",
+      "description": "Event stream processing delays - may be legitimate"
+    },
+    {
+      "file": "/home/runner/workspace/demo_live_agents.py",
+      "lines": [98],
+      "type": "demo_delays",
+      "description": "Agent demonstration delay"
+    },
+    {
+      "file": "/home/runner/workspace/test_production_bus.py",
+      "lines": [44, 51, 100, 107],
+      "type": "test_coordination",
+      "description": "Test timing coordination - may be necessary"
+    },
+    {
+      "file": "/home/runner/workspace/tests/test_bus.py",
+      "lines": [68, 75, 165, 176, 179],
+      "type": "test_timing",
+      "description": "Test synchronization delays - may be necessary"
+    }
+  ],
+  "dead": [
+    "Backup files: api.py.bak, api_server.py.bak, start_api_server.py.bak - can be removed",
+    "Test directories: test-fresh/, test-install/ - archive or remove after validation",
+    "Patch files: patch_1.diff through patch_5.diff - archive if successfully applied",
+    "Mock executable: mock_claude - verify if still needed for testing",
+    "Duplicate database files in different locations - consolidate storage",
+    "Unused imports in some demo scripts",
+    "Potentially unused utility functions in utils/ modules"
+  ],
+  "analysis_summary": {
+    "architecture_strengths": [
+      "Well-structured event-sourced orchestration",
+      "Clear separation of concerns with layered architecture", 
+      "Schema-driven communication between agents",
+      "Multiple deployment options (CLI, web, API)",
+      "Comprehensive monitoring and quality assurance"
+    ],
+    "areas_for_improvement": [
+      "Remove backup files and consolidate test directories",
+      "Replace demo asyncio.sleep() delays with configurable parameters",
+      "Implement comprehensive error handling for production use",
+      "Add rate limiting and security hardening for API endpoints",
+      "Consolidate duplicate database files and storage locations"
+    ],
+    "production_readiness": "Moderate - Core functionality is solid but needs cleanup and hardening",
+    "complexity_assessment": "High - Multi-agent system with event sourcing requires careful orchestration",
+    "maintenance_recommendations": [
+      "Regular cleanup of temporary files and directories",
+      "Monitoring of AI API usage and costs",
+      "Performance optimization of agent coordination",
+      "Documentation updates for deployment procedures"
+    ]
+  },
+  "key_insights": {
+    "core_innovation": "Event-sourced multi-agent orchestration with intelligent routing",
+    "scalability_approach": "Redis Streams for event bus, parallel agent execution",
+    "quality_assurance": "Multi-agent review cascades with consensus validation",
+    "ai_integration": "Real API clients for Claude, GPT-4, and Gemini with fallbacks",
+    "user_interfaces": "Multiple access patterns: CLI, Web UI, Direct API",
+    "configuration_management": "Environment-based with fail-fast validation"
+  },
+  "technical_debt": {
+    "high_priority": [
+      "Remove backup (.bak) files",
+      "Consolidate test directories", 
+      "Clean up patch files"
+    ],
+    "medium_priority": [
+      "Replace demo sleep() delays with configurable timing",
+      "Consolidate database file locations",
+      "Optimize imports and remove unused code"
+    ],
+    "low_priority": [
+      "Documentation improvements",
+      "Code style consistency",
+      "Additional error handling"
+    ]
+  }
+}

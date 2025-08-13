@@ -1,89 +1,110 @@
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any
 import json
 from .base_agent import BaseAgent
 from core.model_orchestrator import AgentType
 
+
 class UIDesignerAgent(BaseAgent):
     """UI Designer Agent - Specialized in frontend development and user experience design"""
-    
+
     def __init__(self):
         super().__init__(
             name="UI Designer",
             role="Frontend Developer",
             specialization="User interface design, user experience, frontend development, and visual design",
-            agent_type=AgentType.UI_DESIGNER
+            agent_type=AgentType.UI_DESIGNER,
         )
         self.ui_frameworks = {
             "react": {
                 "components": ["Button", "Input", "Card", "Modal", "Navigation"],
-                "styling": ["CSS Modules", "Styled Components", "Tailwind CSS"]
+                "styling": ["CSS Modules", "Styled Components", "Tailwind CSS"],
             },
             "vue": {
-                "components": ["v-btn", "v-text-field", "v-card", "v-dialog", "v-navigation-drawer"],
-                "styling": ["Vuetify", "Vue CSS", "Tailwind CSS"]
+                "components": [
+                    "v-btn",
+                    "v-text-field",
+                    "v-card",
+                    "v-dialog",
+                    "v-navigation-drawer",
+                ],
+                "styling": ["Vuetify", "Vue CSS", "Tailwind CSS"],
             },
             "html_css": {
                 "components": ["button", "input", "div", "nav", "form"],
-                "styling": ["Bootstrap", "CSS Grid", "Flexbox"]
-            }
+                "styling": ["Bootstrap", "CSS Grid", "Flexbox"],
+            },
         }
-    
-    def process_request(self, request: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+
+    def process_request(
+        self, request: str, context: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """Process UI/UX design requests"""
         context = context or {}
         messages = [
             {"role": "system", "content": self.get_system_prompt()},
-            {"role": "user", "content": f"UI/UX design request: {request}\n\nProject context: {json.dumps(context, indent=2)}"}
+            {
+                "role": "user",
+                "content": f"UI/UX design request: {request}\n\nProject context: {json.dumps(context, indent=2)}",
+            },
         ]
-        
+
         response_content = self.call_llm_sync(messages)
-        
+
         # Generate UI components and styling
         generated_files = self.generate_ui_files(request, context)
-        
+
         # Determine handoffs
         handoff_to = None
-        if any(keyword in request.lower() for keyword in ["test", "testing", "validate"]):
+        if any(
+            keyword in request.lower() for keyword in ["test", "testing", "validate"]
+        ):
             handoff_to = "test_writer"
         elif any(keyword in request.lower() for keyword in ["backend", "api", "data"]):
             handoff_to = "code_generator"
         elif any(keyword in request.lower() for keyword in ["debug", "fix", "error"]):
             handoff_to = "debugger"
-        
+
         self.add_to_history(request, response_content)
-        
+
         return {
             "content": response_content,
             "handoff_to": handoff_to,
             "agent": self.name,
-            "files": generated_files
+            "files": generated_files,
         }
-    
-    def process_handoff(self, handoff_content: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+
+    def process_handoff(
+        self, handoff_content: str, context: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """Process handoff from another agent"""
         context = context or {}
         messages = [
             {"role": "system", "content": self.get_system_prompt()},
-            {"role": "user", "content": f"Handoff from another agent: {handoff_content}\n\nDesign context: {json.dumps(context, indent=2)}"}
+            {
+                "role": "user",
+                "content": f"Handoff from another agent: {handoff_content}\n\nDesign context: {json.dumps(context, indent=2)}",
+            },
         ]
-        
+
         response_content = self.call_llm_sync(messages, temperature=0.5)
-        
+
         # Generate UI components based on handoff
         generated_files = self.generate_ui_from_handoff(handoff_content, context)
-        
+
         self.add_to_history(f"Handoff: {handoff_content}", response_content)
-        
+
         return {
             "content": f"**UI Designer Implementation:**\n\n{response_content}",
             "agent": self.name,
-            "files": generated_files
+            "files": generated_files,
         }
-    
-    def generate_ui_files(self, request: str, context: Dict[str, Any]) -> Dict[str, str]:
+
+    def generate_ui_files(
+        self, request: str, context: Dict[str, Any]
+    ) -> Dict[str, str]:
         """Generate UI files based on request"""
         files = {}
-        
+
         # Detect UI framework preference
         if any(keyword in request.lower() for keyword in ["react", "jsx"]):
             files.update(self.generate_react_components(request))
@@ -91,14 +112,14 @@ class UIDesignerAgent(BaseAgent):
             files.update(self.generate_vue_components(request))
         else:
             files.update(self.generate_html_css_components(request))
-        
+
         return files
-    
+
     def generate_react_components(self, request: str) -> Dict[str, str]:
         """Generate React components"""
         files = {}
-        
-        files["src/App.jsx"] = '''import React, { useState, useEffect } from 'react';
+
+        files["src/App.jsx"] = """import React, { useState, useEffect } from 'react';
 import './App.css';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -170,9 +191,9 @@ function App() {
 }
 
 export default App;
-'''
-        
-        files["src/components/Header.jsx"] = '''import React from 'react';
+"""
+
+        files["src/components/Header.jsx"] = """import React from 'react';
 import './Header.css';
 
 const Header = ({ onMenuClick, title }) => {
@@ -208,9 +229,9 @@ const Header = ({ onMenuClick, title }) => {
 };
 
 export default Header;
-'''
-        
-        files["src/components/Sidebar.jsx"] = '''import React from 'react';
+"""
+
+        files["src/components/Sidebar.jsx"] = """import React from 'react';
 import './Sidebar.css';
 
 const Sidebar = ({ isOpen, currentPage, onPageChange, onClose }) => {
@@ -261,9 +282,9 @@ const Sidebar = ({ isOpen, currentPage, onPageChange, onClose }) => {
 };
 
 export default Sidebar;
-'''
-        
-        files["src/components/MainContent.jsx"] = '''import React from 'react';
+"""
+
+        files["src/components/MainContent.jsx"] = """import React from 'react';
 import './MainContent.css';
 import Dashboard from './pages/Dashboard';
 import ProductList from './pages/ProductList';
@@ -306,9 +327,9 @@ const MainContent = ({ currentPage, data, loading, onDataUpdate }) => {
 };
 
 export default MainContent;
-'''
-        
-        files["src/App.css"] = '''/* Global Styles */
+"""
+
+        files["src/App.css"] = """/* Global Styles */
 * {
   margin: 0;
   padding: 0;
@@ -576,15 +597,15 @@ body {
     padding: 15px;
   }
 }
-'''
-        
+"""
+
         return files
-    
+
     def generate_vue_components(self, request: str) -> Dict[str, str]:
         """Generate Vue.js components"""
         files = {}
-        
-        files["src/App.vue"] = '''<template>
+
+        files["src/App.vue"] = """<template>
   <div id="app">
     <AppHeader 
       :title="appTitle"
@@ -692,9 +713,9 @@ body {
   color: #333;
 }
 </style>
-'''
-        
-        files["src/components/AppHeader.vue"] = '''<template>
+"""
+
+        files["src/components/AppHeader.vue"] = """<template>
   <header class="app-header">
     <div class="header-left">
       <button 
@@ -828,15 +849,15 @@ export default {
   font-weight: 600;
 }
 </style>
-'''
-        
+"""
+
         return files
-    
+
     def generate_html_css_components(self, request: str) -> Dict[str, str]:
         """Generate HTML/CSS components"""
         files = {}
-        
-        files["index.html"] = '''<!DOCTYPE html>
+
+        files["index.html"] = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1041,9 +1062,9 @@ export default {
     <script src="script.js"></script>
 </body>
 </html>
-'''
-        
-        files["styles.css"] = '''/* Reset and Base Styles */
+"""
+
+        files["styles.css"] = """/* Reset and Base Styles */
 * {
     margin: 0;
     padding: 0;
@@ -1583,9 +1604,9 @@ body {
         font-size: 28px;
     }
 }
-'''
-        
-        files["script.js"] = '''// Application JavaScript
+"""
+
+        files["script.js"] = """// Application JavaScript
 class AppManager {
     constructor() {
         this.currentPage = 'dashboard';
@@ -1886,14 +1907,16 @@ document.addEventListener('DOMContentLoaded', () => {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = AppManager;
 }
-'''
-        
+"""
+
         return files
-    
-    def generate_ui_from_handoff(self, handoff_content: str, context: Dict[str, Any]) -> Dict[str, str]:
+
+    def generate_ui_from_handoff(
+        self, handoff_content: str, context: Dict[str, Any]
+    ) -> Dict[str, str]:
         """Generate UI components based on handoff from another agent"""
         files = {}
-        
+
         # Parse handoff content to determine UI requirements
         if "react" in handoff_content.lower():
             files.update(self.generate_react_components(handoff_content))
@@ -1901,13 +1924,15 @@ if (typeof module !== 'undefined' && module.exports) {
             files.update(self.generate_vue_components(handoff_content))
         else:
             files.update(self.generate_html_css_components(handoff_content))
-        
+
         return files
-    
+
     def get_system_prompt(self) -> str:
         """Get specialized system prompt for UI designer"""
         base_prompt = super().get_system_prompt()
-        return base_prompt + """
+        return (
+            base_prompt
+            + """
         
         As the UI Designer agent, you:
         - Create intuitive and accessible user interfaces
@@ -1930,3 +1955,4 @@ if (typeof module !== 'undefined' && module.exports) {
         - test_writer: For UI testing and accessibility validation
         - debugger: If UI issues or bugs are detected
         """
+        )

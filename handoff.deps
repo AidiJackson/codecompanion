@@ -1,0 +1,107 @@
+{
+  "removed": [
+    "altair",
+    "numpy", 
+    "pandas",
+    "scipy",
+    "scikit-learn",
+    "matplotlib",
+    "plotly",
+    "seaborn",
+    "streamlit",
+    "jupyter",
+    "google-generativeai",
+    "openai",
+    "requests",
+    "aiohttp",
+    "gevent",
+    "redis",
+    "gitpython",
+    "joblib",
+    "pillow",
+    "pyarrow",
+    "duckdb",
+    "watchdog",
+    "websocket-client",
+    "websockets",
+    "tornado",
+    "typer",
+    "click",
+    "blinker",
+    "cachetools",
+    "greenlet",
+    "grpcio",
+    "hiredis",
+    "protobuf",
+    "proto-plus",
+    "google-auth",
+    "google-api-core",
+    "googleapis-common-protos",
+    "uritemplate",
+    "pyasn1",
+    "pyasn1-modules",
+    "rsa",
+    "six",
+    "async-timeout",
+    "attrs",
+    "cffi",
+    "charset-normalizer",
+    "colorama",
+    "jsonschema",
+    "jsonschema-specifications",
+    "markupsafe",
+    "pyparsing",
+    "python-dateutil",
+    "pytz",
+    "referencing",
+    "rpds-py",
+    "setuptools",
+    "shellingham",
+    "smmap",
+    "tenacity",
+    "threadpoolctl",
+    "toml",
+    "tqdm",
+    "tzdata"
+  ],
+  "added": [
+    "pydantic-settings"
+  ],
+  "reasons": [
+    {
+      "package": "streamlit + data science stack (numpy, pandas, scipy, etc.)",
+      "reason": "Only used in dashboard component - moved to optional dependency",
+      "impact": "Reduces install size by ~300MB, eliminates 40+ transitive dependencies"
+    },
+    {
+      "package": "google-generativeai, openai",
+      "reason": "Multiple AI clients installed but typically only one needed",
+      "impact": "Reduces API client bloat, kept anthropic as primary client"
+    },
+    {
+      "package": "requests, aiohttp", 
+      "reason": "Multiple HTTP clients providing same functionality as httpx",
+      "impact": "Eliminates redundant HTTP implementations"
+    },
+    {
+      "package": "redis, gevent, tornado",
+      "reason": "Heavy server/async dependencies not used in core functionality", 
+      "impact": "Reduces complexity and potential security surface"
+    },
+    {
+      "package": "Development tools in main requirements",
+      "reason": "pytest, ruff moved to requirements-dev.txt for cleaner production builds",
+      "impact": "Separates dev dependencies from runtime requirements"
+    },
+    {
+      "package": "Transitive dependency bloat",
+      "reason": "Many packages pulled in unused transitive dependencies",
+      "impact": "Eliminated ~50+ packages that provide no value to core functionality"
+    },
+    {
+      "package": "pydantic-settings",
+      "reason": "Added for proper configuration management used in settings.py",
+      "impact": "Explicitly declares configuration dependency instead of relying on transitive"
+    }
+  ]
+}

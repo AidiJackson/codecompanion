@@ -2,7 +2,7 @@
 CodeCompanion Orchestra v3 - Comprehensive JSON Schema-based Multi-Agent System
 
 Demonstrates the complete artifact-driven communication system with:
-- Event-sourced orchestration 
+- Event-sourced orchestration
 - Data-driven model routing
 - Structured artifact validation
 - Agent I/O contracts
@@ -16,18 +16,13 @@ import requests
 import httpx
 import os
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, Any
 import logging
-import threading
 import time
-import openai
-import uvicorn
-import socket
 
 from server_launcher import start_api_once
 
 # Guard API embedding for production vs development
-import os
 EMBED_API = os.getenv("CC_EMBED_API", "true").lower() == "true"
 if EMBED_API:
     start_api_once()
@@ -35,8 +30,8 @@ if EMBED_API:
 # Ensure the UI calls the correct base URL:
 API_BASE = "http://0.0.0.0:5050"
 
+
 # health ping in sidebar
-import httpx, asyncio, streamlit as st
 async def _ping():
     try:
         async with httpx.AsyncClient(timeout=2.0) as c:
@@ -45,6 +40,7 @@ async def _ping():
     except Exception:
         return False
 
+
 async def _keys():
     try:
         async with httpx.AsyncClient(timeout=2.0) as c:
@@ -52,6 +48,7 @@ async def _keys():
             return r.json()
     except Exception:
         return {}
+
 
 # Check API health and keys
 try:
@@ -62,10 +59,13 @@ except Exception:
     keys_data = {}
 
 st.sidebar.markdown(f"**API (5050)**: {'✅' if api_ok else '❌'}")
-st.sidebar.caption(f"Keys → Claude: {'✅' if keys_data.get('claude') else '❌'} | GPT-4: {'✅' if keys_data.get('gpt4') else '❌'} | Gemini: {'✅' if keys_data.get('gemini') else '❌'}")
+st.sidebar.caption(
+    f"Keys → Claude: {'✅' if keys_data.get('claude') else '❌'} | GPT-4: {'✅' if keys_data.get('gpt4') else '❌'} | Gemini: {'✅' if keys_data.get('gemini') else '❌'}"
+)
 
 # Import and run strict config startup logging
 from startup_logs_strict import log_startup_configuration
+
 log_startup_configuration()
 
 # Initialize log consumer (runs once at startup) - DISABLED FOR STABLE DEV
@@ -83,15 +83,15 @@ log_startup_configuration()
 #         _consumer_initialized = True
 
 # Schema imports
-from schemas.artifacts import ArtifactType, SpecDoc, DesignDoc, CodePatch, TestPlan, EvalReport, Runbook
-from schemas.ledgers import TaskLedger, ProgressLedger, WorkItem, TaskStatus, Priority
-from schemas.routing import ModelType, TaskType, TaskComplexity, ModelRouter, MODEL_CAPABILITIES
+from schemas.artifacts import ArtifactType, SpecDoc, DesignDoc
+from schemas.ledgers import TaskLedger, WorkItem, TaskStatus, Priority
+from schemas.routing import ModelType, TaskType, TaskComplexity, MODEL_CAPABILITIES
 
-# Core system imports  
-from core.orchestrator import EventSourcedOrchestrator, EventType, WorkflowEvent
-from core.router import DataDrivenRouter, RoutingContext
+# Core system imports
+from core.orchestrator import EventSourcedOrchestrator, EventType
+from core.router import DataDrivenRouter
 from core.artifacts import ArtifactValidator, ArtifactHandler
-from core.event_streaming import RealTimeEventOrchestrator, StreamEvent, EventType as StreamEventType, EventStreamType
+from core.event_streaming import RealTimeEventOrchestrator
 
 # Enhanced intelligent routing imports
 from core.model_router import IntelligentRouter
@@ -99,16 +99,15 @@ from core.model_router import IntelligentRouter
 # Real execution engine import
 from core.real_execution_engine import RealExecutionEngine
 from schemas.outcomes import TaskOutcome
-from core.cost_governor import CostGovernor, ProjectComplexity
+from core.cost_governor import ProjectComplexity
 from monitoring.performance_tracker import PerformanceTracker
 
 # Agent imports
-from agents.base_agent import BaseAgent, AgentInput, AgentOutput, AgentCapability, AgentType
 
 # Quality system imports
-from core.quality_cascade import QualityCascade, TaskComplexity as QualityTaskComplexity
-from core.consensus_validator import ConsensusValidator, ValidationDomain
-from core.learning_engine import ContinuousLearner, LearningMode
+from core.quality_cascade import QualityCascade
+from core.consensus_validator import ConsensusValidator
+from core.learning_engine import ContinuousLearner
 from monitoring.quality_dashboard import quality_monitoring_dashboard
 from storage.performance_store import PerformanceStore
 
@@ -134,8 +133,9 @@ try:
 except RuntimeError as e:
     logger.critical(f"❌ Critical configuration error: {e}")
     # In production, we would exit here, but for Streamlit we'll show error
-    if hasattr(st, 'error'):  # Check if streamlit is available
+    if hasattr(st, "error"):  # Check if streamlit is available
         import streamlit as st
+
         st.error(f"System configuration error: {e}")
         st.stop()
 
@@ -144,8 +144,9 @@ st.set_page_config(
     page_title="CodeCompanion Orchestra v3",
     page_icon="🎼",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
+
 
 # Initialize database and event bus with strict configuration
 @st.cache_resource
@@ -162,29 +163,32 @@ def get_database_manager():
         st.error(f"Database initialization failed: {e}")
         return None
 
-@st.cache_resource  
+
+@st.cache_resource
 def initialize_production_bus():
     """Initialize production bus with fail-fast configuration"""
     try:
         from bus import bus
-        
+
         logger.info(f"✅ Production bus initialized: {type(bus).__name__}")
         return bus
-        
+
     except RuntimeError as e:
         # Redis configured but unreachable - FAIL FAST
         logger.error(f"❌ Production bus initialization failed: {e}")
         st.error(f"System initialization failed: {e}")
         st.stop()
-        
+
     except Exception as e:
         logger.error(f"❌ Unexpected error during bus init: {e}")
         st.error(f"System initialization error: {e}")
         st.stop()
 
+
 # Initialize core systems with strict configuration
 db = get_database_manager()
 production_bus = initialize_production_bus()
+
 
 # Safe database access helper - prevents None attribute errors on db
 def get_safe_db():
@@ -193,29 +197,33 @@ def get_safe_db():
         st.error("Database unavailable - please check configuration")
     return db
 
+
 def get_or_create_session_id():
     """Get or create a unique session ID for database operations"""
-    if 'session_id' not in st.session_state:
+    if "session_id" not in st.session_state:
         st.session_state.session_id = str(uuid.uuid4())
-        
+
         # Create project session in database
         if db is not None:
             try:
-                project_description = st.session_state.get('project_description', 'Multi-Agent AI System')
-                project_type = st.session_state.get('project_type', 'AI Development')
-                complexity = st.session_state.get('project_complexity', 'Medium')
-                
+                project_description = st.session_state.get(
+                    "project_description", "Multi-Agent AI System"
+                )
+                project_type = st.session_state.get("project_type", "AI Development")
+                complexity = st.session_state.get("project_complexity", "Medium")
+
                 db.create_project_session(
                     session_id=st.session_state.session_id,
                     project_description=project_description,
                     project_type=project_type,
-                    complexity=complexity
+                    complexity=complexity,
                 )
                 logger.info(f"Created database session: {st.session_state.session_id}")
             except Exception as e:
                 logger.warning(f"Failed to create database session: {e}")
-    
+
     return st.session_state.session_id
+
 
 def execute_project_sync(project_config):
     """Execute complete workflow with all 5 agents and live updates"""
@@ -226,59 +234,68 @@ def execute_project_sync(project_config):
         pm_result = simulate_project_manager(project_config)
         update_status("✅ Project plan created by Project Manager")
         add_agent_output("Project Manager (Claude)", pm_result)
-        
+
         # Step 2: Code Generator
         update_status("💻 Code Generator creating application structure...")
         time.sleep(0.5)
         code_result = simulate_code_generator(pm_result)
         update_status("✅ Code structure generated by Code Generator")
         add_agent_output("Code Generator (GPT-4)", code_result)
-        
+
         # Step 3: UI Designer
         update_status("🎨 UI Designer creating interface design...")
         time.sleep(0.5)
         ui_result = simulate_ui_designer(project_config)
         update_status("✅ UI design completed by UI Designer")
         add_agent_output("UI Designer (Gemini)", ui_result)
-        
+
         # Step 4: Test Writer
         update_status("🧪 Test Writer creating test suite...")
         time.sleep(0.5)
         test_result = simulate_test_writer(code_result, project_config)
         update_status("✅ Test suite created by Test Writer")
         add_agent_output("Test Writer (GPT-4)", test_result)
-        
+
         # Step 5: Debugger
         update_status("🔍 Debugger reviewing and optimizing...")
         time.sleep(0.5)
         debug_result = simulate_debugger(code_result, test_result)
         update_status("✅ Code review completed by Debugger")
         add_agent_output("Debugger (Claude)", debug_result)
-        
+
         # Final completion
-        update_status("🎉 All agents completed successfully! Project ready for deployment.")
-        
+        update_status(
+            "🎉 All agents completed successfully! Project ready for deployment."
+        )
+
         return {
             "status": "completed",
             "correlation_id": f"live_project_{datetime.now().strftime('%H%M%S')}",
-            "agents_completed": ["Project Manager", "Code Generator", "UI Designer", "Test Writer", "Debugger"],
+            "agents_completed": [
+                "Project Manager",
+                "Code Generator",
+                "UI Designer",
+                "Test Writer",
+                "Debugger",
+            ],
             "project_plan": pm_result,
             "code_structure": code_result,
             "ui_design": ui_result,
             "test_suite": test_result,
-            "debug_report": debug_result
+            "debug_report": debug_result,
         }
-        
+
     except Exception as e:
         update_status(f"❌ Error occurred: {str(e)}")
         return {"status": "failed", "error": str(e)}
 
+
 async def real_project_manager(config):
     """Real Project Manager agent using API"""
     from services.real_models import call_best_available
-    
+
     prompt = f"""
-You are a senior project manager. Create a detailed project breakdown for: {config['description']}
+You are a senior project manager. Create a detailed project breakdown for: {config["description"]}
 
 Include:
 1. Core features and requirements analysis
@@ -289,14 +306,15 @@ Include:
 
 Format as a structured document with clear sections and actionable items.
 """
-    
+
     result = await call_best_available(prompt, "analysis")
     return result if result else simulate_project_manager_fallback(config)
+
 
 def simulate_project_manager_fallback(config):
     """Fallback simulation for Project Manager when API unavailable"""
     return f"""
-📋 PROJECT BREAKDOWN: {config['description']}
+📋 PROJECT BREAKDOWN: {config["description"]}
 
 🎯 CORE FEATURES:
 • Real-time data processing and analytics
@@ -321,19 +339,22 @@ Phase 4: Integration testing and deployment (Week 4-5)
 [Note: Using simulation mode - real API unavailable]
 """
 
+
 def simulate_project_manager(config):
     """Legacy function - redirects to async real implementation"""
     import asyncio
+
     try:
         loop = asyncio.get_event_loop()
         return loop.run_until_complete(real_project_manager(config))
     except:
         return simulate_project_manager_fallback(config)
 
+
 async def real_code_generator(project_plan):
     """Real Code Generator agent using API"""
     from services.real_models import call_best_available
-    
+
     prompt = f"""
 You are a senior software architect and developer. Based on this project plan:
 
@@ -350,9 +371,10 @@ Generate a comprehensive application structure including:
 
 Provide actual code snippets and file structures, not just descriptions.
 """
-    
+
     result = await call_best_available(prompt, "code")
     return result if result else simulate_code_generator_fallback(project_plan)
+
 
 def simulate_code_generator_fallback(project_plan):
     """Fallback simulation for Code Generator when API unavailable"""
@@ -393,14 +415,17 @@ def simulate_code_generator_fallback(project_plan):
 [Note: Using simulation mode - real API unavailable]
 """
 
+
 def simulate_code_generator(project_plan):
     """Legacy function - redirects to async real implementation"""
     import asyncio
+
     try:
         loop = asyncio.get_event_loop()
         return loop.run_until_complete(real_code_generator(project_plan))
     except:
         return simulate_code_generator_fallback(project_plan)
+
 
 def simulate_ui_designer(config):
     """Simulate UI Designer agent work"""
@@ -429,36 +454,39 @@ def simulate_ui_designer(config):
 • Offline mode with sync capability when reconnected
 """
 
+
 def update_status(message):
     """Update project status with real timestamp - connects to live UI display and database"""
     # CRITICAL DEBUG: Log all status updates
     logger.info(f"📢 update_status called with message: {message}")
-    
-    if 'project_status' not in st.session_state:
+
+    if "project_status" not in st.session_state:
         st.session_state.project_status = []
         logger.info("📊 Created new project_status array")
-    
+
     # Clear simulation data and use ONLY real timestamps
     real_timestamp = datetime.now()
     current_time = real_timestamp.strftime("%H:%M:%S")
-    
+
     logger.info(f"⏰ Using REAL timestamp: {current_time}")
-    
+
     # ONLY add REAL events - NO simulation data
     status_entry = {
-        'time': current_time,
-        'message': message,
-        'real_timestamp': real_timestamp,
-        'is_real': True,  # Flag to distinguish from simulation
-        'debug_source': 'update_status_function',
-        'execution_source': st.session_state.get('execution_source', 'unknown')
+        "time": current_time,
+        "message": message,
+        "real_timestamp": real_timestamp,
+        "is_real": True,  # Flag to distinguish from simulation
+        "debug_source": "update_status_function",
+        "execution_source": st.session_state.get("execution_source", "unknown"),
     }
-    
+
     st.session_state.project_status.append(status_entry)
-    
-    logger.info(f"✅ Status added - Total status events: {len(st.session_state.project_status)}")
+
+    logger.info(
+        f"✅ Status added - Total status events: {len(st.session_state.project_status)}"
+    )
     logger.info(f"🔍 Latest status entry: {status_entry}")
-    
+
     # Save to database if available
     if db is not None:
         try:
@@ -467,60 +495,65 @@ def update_status(message):
                 session_id=session_id,
                 timestamp=current_time,
                 message=message,
-                event_type="status_update"
+                event_type="status_update",
             )
             logger.info("💾 Status saved to database")
         except Exception as e:
             logger.warning(f"Failed to save status to database: {e}")
-    
+
     # Force immediate UI update for real-time display
     try:
         st.rerun()
     except:
         pass  # Handle case where rerun is called too frequently
 
+
 def add_agent_output(agent_name, content):
     """Add real agent output from API calls to live display and database"""
     # CRITICAL DEBUG: Log all agent outputs
-    logger.info(f"🤖 add_agent_output called - Agent: {agent_name}, Content length: {len(str(content))}")
-    
-    if 'agent_outputs' not in st.session_state:
+    logger.info(
+        f"🤖 add_agent_output called - Agent: {agent_name}, Content length: {len(str(content))}"
+    )
+
+    if "agent_outputs" not in st.session_state:
         st.session_state.agent_outputs = []
         logger.info("📊 Created new agent_outputs array")
-    
+
     if content and len(str(content).strip()) > 0:  # Only add non-empty REAL outputs
         real_timestamp = datetime.now()
         content_str = str(content)
         word_count = len(content_str.split())
         current_time = real_timestamp.strftime("%H:%M:%S")
-        
+
         logger.info(f"⏰ Adding agent output with REAL timestamp: {current_time}")
         logger.info(f"📝 Content preview: {content_str[:100]}...")
-        
+
         # ONLY add REAL agent outputs - NO simulation data
         output_entry = {
-            'agent': agent_name,
-            'content': content_str,
-            'timestamp': real_timestamp,
-            'formatted_time': current_time,
-            'word_count': word_count,
-            'is_real': True,  # Flag to distinguish from simulation
-            'api_generated': True,  # Confirm this is from actual API call
-            'debug_source': 'add_agent_output_function',
-            'execution_source': st.session_state.get('execution_source', 'unknown')
+            "agent": agent_name,
+            "content": content_str,
+            "timestamp": real_timestamp,
+            "formatted_time": current_time,
+            "word_count": word_count,
+            "is_real": True,  # Flag to distinguish from simulation
+            "api_generated": True,  # Confirm this is from actual API call
+            "debug_source": "add_agent_output_function",
+            "execution_source": st.session_state.get("execution_source", "unknown"),
         }
-        
+
         st.session_state.agent_outputs.append(output_entry)
-        
-        logger.info(f"✅ Agent output added - Total outputs: {len(st.session_state.agent_outputs)}")
-        
+
+        logger.info(
+            f"✅ Agent output added - Total outputs: {len(st.session_state.agent_outputs)}"
+        )
+
         # Save to database if available
         if db is not None:
             try:
                 session_id = get_or_create_session_id()
                 # Calculate quality score (simple heuristic based on content length and structure)
                 quality_score = min(0.9, max(0.3, word_count / 500))
-                
+
                 # Save artifact to database
                 artifact_id = db.save_artifact(
                     project_id=session_id,
@@ -528,35 +561,36 @@ def add_agent_output(agent_name, content):
                     title=f"{agent_name} Output",
                     content=content_str,
                     agent_name=agent_name,
-                    quality_score=quality_score
+                    quality_score=quality_score,
                 )
-                
+
                 logger.info(f"💾 Artifact saved to database with ID: {artifact_id}")
-                
+
                 # Update agent performance
                 db.update_agent_performance(
                     model_name=agent_name,
                     task_type="content_generation",
                     success=True,
-                    quality_score=quality_score
+                    quality_score=quality_score,
                 )
-                
+
                 # Save timeline event
                 db.save_timeline_event(
                     session_id=session_id,
                     timestamp=real_timestamp.strftime("%H:%M:%S"),
                     message=f"{agent_name} generated artifact (ID: {artifact_id})",
                     agent_name=agent_name,
-                    event_type="artifact_created"
+                    event_type="artifact_created",
                 )
-                
+
             except Exception as e:
                 logger.warning(f"Failed to save agent output to database: {e}")
-        
+
         # Update total artifacts counter for live display
-        if 'total_artifacts' not in st.session_state:
+        if "total_artifacts" not in st.session_state:
             st.session_state.total_artifacts = 0
         st.session_state.total_artifacts += 1
+
 
 def simulate_test_writer(code_structure, project_config):
     """Simulate Test Writer agent work"""
@@ -600,6 +634,7 @@ def test_user_registration_validation():
 • Mobile responsiveness validated
 """
 
+
 def simulate_debugger(code_structure, test_results):
     """Simulate Debugger agent work"""
     return """
@@ -637,89 +672,97 @@ def simulate_debugger(code_structure, test_results):
 • Rollback procedures documented and tested
 """
 
+
 def init_session_state():
     """Initialize session state with system components"""
-    
-    if 'orchestrator' not in st.session_state:
+
+    if "orchestrator" not in st.session_state:
         st.session_state.orchestrator = EventSourcedOrchestrator("workflow_001")
-    
-    if 'router' not in st.session_state:
+
+    if "router" not in st.session_state:
         st.session_state.router = DataDrivenRouter()
-    
-    if 'intelligent_router' not in st.session_state:
+
+    if "intelligent_router" not in st.session_state:
         try:
             st.session_state.intelligent_router = IntelligentRouter()
         except Exception as e:
             st.session_state.intelligent_router = None
             logger.warning(f"Could not initialize intelligent router: {e}")
-    
-    if 'artifact_handler' not in st.session_state:
+
+    if "artifact_handler" not in st.session_state:
         st.session_state.artifact_handler = ArtifactHandler()
-    
+
     # Initialize typed artifact system
-    if 'typed_artifact_handler' not in st.session_state:
+    if "typed_artifact_handler" not in st.session_state:
         from core.artifact_handler import TypedArtifactHandler
+
         st.session_state.typed_artifact_handler = TypedArtifactHandler()
-    
-    if 'active_workflow' not in st.session_state:
+
+    if "active_workflow" not in st.session_state:
         st.session_state.active_workflow = None
-        
-    if 'demo_data' not in st.session_state:
+
+    if "demo_data" not in st.session_state:
         st.session_state.demo_data = create_demo_data()
-    
-    if 'real_time_orchestrator' not in st.session_state:
+
+    if "real_time_orchestrator" not in st.session_state:
         try:
-            st.session_state.real_time_orchestrator = RealTimeEventOrchestrator("streamlit_workflow")
+            st.session_state.real_time_orchestrator = RealTimeEventOrchestrator(
+                "streamlit_workflow"
+            )
         except:
             st.session_state.real_time_orchestrator = None
-    
-    if 'api_connected' not in st.session_state:
+
+    if "api_connected" not in st.session_state:
         st.session_state.api_connected = check_api_connection()
-    
-    if 'event_stream' not in st.session_state:
+
+    if "event_stream" not in st.session_state:
         st.session_state.event_stream = []
-    
+
     # Project configuration session state
-    if 'project_configured' not in st.session_state:
+    if "project_configured" not in st.session_state:
         st.session_state.project_configured = False
-    
-    if 'project_description' not in st.session_state:
+
+    if "project_description" not in st.session_state:
         st.session_state.project_description = "Build a RESTful API for a task management system with user authentication, task CRUD operations, and real-time notifications."
-    
-    if 'project_type' not in st.session_state:
+
+    if "project_type" not in st.session_state:
         st.session_state.project_type = "api"
-    
-    if 'complexity_level' not in st.session_state:
+
+    if "complexity_level" not in st.session_state:
         st.session_state.complexity_level = "Medium"
-    
-    if 'configuration_step' not in st.session_state:
-        st.session_state.configuration_step = 1  # 1: Configure, 2: Review, 3: Launch, 4: Monitor
-    
-    if 'active_live_project' not in st.session_state:
+
+    if "configuration_step" not in st.session_state:
+        st.session_state.configuration_step = (
+            1  # 1: Configure, 2: Review, 3: Launch, 4: Monitor
+        )
+
+    if "active_live_project" not in st.session_state:
         st.session_state.active_live_project = None
-    
+
     # Initialize performance tracker
-    if 'performance_tracker' not in st.session_state:
+    if "performance_tracker" not in st.session_state:
         st.session_state.performance_tracker = PerformanceTracker()
-    
+
     # Initialize quality system components
-    if 'quality_cascade' not in st.session_state:
+    if "quality_cascade" not in st.session_state:
         st.session_state.quality_cascade = QualityCascade()
-    
-    if 'consensus_validator' not in st.session_state:
+
+    if "consensus_validator" not in st.session_state:
         st.session_state.consensus_validator = ConsensusValidator()
-    
-    if 'continuous_learner' not in st.session_state:
+
+    if "continuous_learner" not in st.session_state:
         st.session_state.continuous_learner = ContinuousLearner()
-    
-    if 'performance_store' not in st.session_state:
+
+    if "performance_store" not in st.session_state:
         st.session_state.performance_store = PerformanceStore()
+
 
 def create_demo_data() -> Dict[str, Any]:
     """Create demonstration data showing the schema system"""
-    
+
     # Example task ledger with all required parameters
     from datetime import datetime
+
     task = TaskLedger(
         task_id="task_api_development",
         title="Build E-commerce API",
@@ -729,39 +772,43 @@ def create_demo_data() -> Dict[str, Any]:
             {
                 "test_id": "test_001",
                 "description": "All endpoints respond with proper HTTP status codes",
-                "criteria": "200 for successful requests, 404 for not found, 500 for server errors"
+                "criteria": "200 for successful requests, 404 for not found, 500 for server errors",
             },
             {
-                "test_id": "test_002", 
+                "test_id": "test_002",
                 "description": "API documentation is auto-generated and complete",
-                "criteria": "OpenAPI 3.0 spec covers all endpoints with examples"
-            }
+                "criteria": "OpenAPI 3.0 spec covers all endpoints with examples",
+            },
         ],
         success_criteria=[
             "All tests pass with 95% coverage",
             "API responds within 200ms for 95th percentile",
-            "Comprehensive documentation available"
+            "Comprehensive documentation available",
         ],
         assumptions=[
             "PostgreSQL database is available",
             "Redis for caching is configured",
-            "Authentication service is external"
+            "Authentication service is external",
         ],
         risks=[
             {
                 "risk_id": "risk_001",
                 "description": "Database performance issues with large product catalogs",
                 "probability": 0.3,
-                "impact": "high"
+                "impact": "high",
             }
         ],
-        expected_artifacts=[ArtifactType.SPEC_DOC, ArtifactType.DESIGN_DOC, ArtifactType.CODE_PATCH],
+        expected_artifacts=[
+            ArtifactType.SPEC_DOC,
+            ArtifactType.DESIGN_DOC,
+            ArtifactType.CODE_PATCH,
+        ],
         estimated_duration=120,  # minutes
         actual_duration=0,
         started_at=datetime.now(),
-        completed_at=None
+        completed_at=None,
     )
-    
+
     # Example artifacts
     spec_doc = SpecDoc(
         artifact_id="spec_ecommerce_api",
@@ -773,22 +820,22 @@ def create_demo_data() -> Dict[str, Any]:
                 "id": "REQ_001",
                 "description": "Product catalog management with CRUD operations",
                 "priority": "high",
-                "category": "functional"
+                "category": "functional",
             },
             {
                 "id": "REQ_002",
                 "description": "User authentication and authorization",
-                "priority": "high", 
-                "category": "security"
-            }
+                "priority": "high",
+                "category": "security",
+            },
         ],
         acceptance_criteria=[
             "All endpoints documented with OpenAPI spec",
             "Rate limiting implemented (1000 requests/hour per user)",
-            "Input validation on all endpoints"
-        ]
+            "Input validation on all endpoints",
+        ],
     )
-    
+
     design_doc = DesignDoc(
         artifact_id="design_ecommerce_api",
         created_by="gpt4_agent",
@@ -798,10 +845,10 @@ def create_demo_data() -> Dict[str, Any]:
         components=[
             {
                 "id": "api_gateway",
-                "name": "API Gateway", 
+                "name": "API Gateway",
                 "description": "Request routing, authentication, rate limiting",
                 "technology": "FastAPI",
-                "interfaces": ["HTTP REST", "WebSocket"]
+                "interfaces": ["HTTP REST", "WebSocket"],
             }
         ],
         design_decisions=[
@@ -810,11 +857,11 @@ def create_demo_data() -> Dict[str, Any]:
                 "name": "Database Technology",
                 "description": "PostgreSQL for ACID compliance and complex queries",
                 "alternatives": ["MongoDB", "MySQL"],
-                "rationale": "Strong consistency required for financial transactions"
+                "rationale": "Strong consistency required for financial transactions",
             }
-        ]
+        ],
     )
-    
+
     # Example task complexity
     complexity = TaskComplexity(
         technical_complexity=0.8,
@@ -825,26 +872,25 @@ def create_demo_data() -> Dict[str, Any]:
         estimated_tokens=8000,
         requires_reasoning=True,
         requires_creativity=False,
-        time_sensitive=False
+        time_sensitive=False,
     )
-    
+
     return {
         "task": task,
-        "artifacts": {
-            "spec_doc": spec_doc,
-            "design_doc": design_doc
-        },
-        "complexity": complexity
+        "artifacts": {"spec_doc": spec_doc, "design_doc": design_doc},
+        "complexity": complexity,
     }
+
 
 def render_real_mode():
     """Real Mode Interface with Live AI Models"""
     st.title("CodeCompanion — Real Mode")
     st.markdown("**Direct AI Model Pipeline (No Redis Required)**")
-    
+
     from settings import settings
+
     models = settings.get_available_models()
-    
+
     st.subheader("📋 Available Models")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -853,48 +899,58 @@ def render_real_mode():
         st.write(f"GPT-4: {'✅' if models['gpt4'] else '❌'}")
     with col3:
         st.write(f"Gemini: {'✅' if models['gemini'] else '❌'}")
-    
-    objective = st.text_input("Objective", placeholder="e.g., Add Google OAuth to Flask app")
-    
+
+    objective = st.text_input(
+        "Objective", placeholder="e.g., Add Google OAuth to Flask app"
+    )
+
     if st.button("🚀 Run Real Agents", type="primary"):
         if not objective.strip():
             st.warning("Please enter an objective.")
         else:
             with st.spinner("Calling real AI models..."):
+
                 async def go(obj):
                     async with httpx.AsyncClient(timeout=90) as client:
-                        r = await client.post(f"{API_BASE}/run_real", json={"objective": obj})
+                        r = await client.post(
+                            f"{API_BASE}/run_real", json={"objective": obj}
+                        )
                         try:
                             js = r.json()
                         except Exception:
-                            js = {"error": f"Non-JSON response: {r.text[:500]}", "status": r.status_code}
+                            js = {
+                                "error": f"Non-JSON response: {r.text[:500]}",
+                                "status": r.status_code,
+                            }
                         return r.status_code, js
-                
+
                 try:
                     status, data = asyncio.run(go(objective.strip()))
-                    
+
                     if status != 200 or "error" in data:
                         st.error("Real API failed")
                         st.code(data, language="json")
                         st.stop()
-                    
+
                     if "artifacts" in data:
                         st.success("✅ Real AI Pipeline Complete!")
-                        
+
                         # Show save completion with run_id
                         if "run_id" in data:
                             st.info(f"💾 Save complete - Run ID: {data['run_id']}")
-                        
+
                         st.subheader("📊 Generated Artifacts")
                         for i, artifact in enumerate(data["artifacts"]):
-                            with st.expander(f"{artifact['type']} — {artifact['agent']} (confidence {artifact['confidence']:.2f})"):
+                            with st.expander(
+                                f"{artifact['type']} — {artifact['agent']} (confidence {artifact['confidence']:.2f})"
+                            ):
                                 st.code(artifact["content"], language="markdown")
-                        
+
                         # Show model usage details
                         if data.get("usage"):
                             st.subheader("📊 Model Usage Details")
                             usage_data = data["usage"]
-                            
+
                             # Display usage metrics in a table format
                             usage_rows = []
                             for call_name, metrics in usage_data.items():
@@ -902,41 +958,57 @@ def render_real_mode():
                                     row = {
                                         "Call": call_name,
                                         "Status": metrics.get("status", "N/A"),
-                                        "Latency (ms)": metrics.get("latency_ms", "N/A")
+                                        "Latency (ms)": metrics.get(
+                                            "latency_ms", "N/A"
+                                        ),
                                     }
                                     # Add token usage if available
                                     if "usage" in metrics:
                                         token_usage = metrics["usage"]
                                         if isinstance(token_usage, dict):
-                                            row["Input Tokens"] = token_usage.get("input_tokens", token_usage.get("prompt_tokens", "N/A"))
-                                            row["Output Tokens"] = token_usage.get("output_tokens", token_usage.get("completion_tokens", "N/A"))
-                                            row["Total Tokens"] = token_usage.get("total_tokens", "N/A")
-                                    
+                                            row["Input Tokens"] = token_usage.get(
+                                                "input_tokens",
+                                                token_usage.get("prompt_tokens", "N/A"),
+                                            )
+                                            row["Output Tokens"] = token_usage.get(
+                                                "output_tokens",
+                                                token_usage.get(
+                                                    "completion_tokens", "N/A"
+                                                ),
+                                            )
+                                            row["Total Tokens"] = token_usage.get(
+                                                "total_tokens", "N/A"
+                                            )
+
                                     # Add rate limiting info if available
                                     if "rate_remaining" in metrics:
-                                        row["Rate Remaining"] = metrics["rate_remaining"]
-                                    
+                                        row["Rate Remaining"] = metrics[
+                                            "rate_remaining"
+                                        ]
+
                                     usage_rows.append(row)
-                            
+
                             if usage_rows:
                                 import pandas as pd
+
                                 df = pd.DataFrame(usage_rows)
                                 st.dataframe(df, use_container_width=True)
                             else:
                                 st.info("No detailed usage metrics available")
-                        
+
                         # Show general model availability
                         st.subheader("🤖 Model Availability")
                         st.json(data["models"])
                     else:
                         st.error(f"Error: {data}")
-                
+
                 except Exception as e:
                     st.error(f"API call failed: {e}")
                     st.stop()
-    
+
     # Add History section
     from storage.runs import init, load_runs, load_artifacts
+
     init()
     with st.expander("📜 History (last 20)"):
         rows = load_runs(20)
@@ -944,111 +1016,126 @@ def render_real_mode():
             if st.button(f"Open {rid} — {obj} ({ts})", key=f"open_{rid}"):
                 arts = load_artifacts(rid)
                 st.markdown(f"### Run {rid} — {obj}")
-                for k,a,c,txt in arts:
+                for k, a, c, txt in arts:
                     st.markdown(f"**{k}** — _{a}_ (conf {c:.2f})")
                     st.code(txt)
 
+
 def main():
     """Main application interface"""
-    
+
     init_session_state()
-    
+
     # API status is already shown in sidebar at top of file
-    
+
     st.title("🎼 CodeCompanion Orchestra v3")
     st.markdown("**Comprehensive JSON Schema-based Multi-Agent AI Development System**")
-    
+
     # API Status indicator
     col1, col2, col3 = st.columns([1, 1, 1])
     with col1:
-        api_status = "🟢 Connected" if st.session_state.api_connected else "🔴 Disconnected"
+        api_status = (
+            "🟢 Connected" if st.session_state.api_connected else "🔴 Disconnected"
+        )
         st.markdown(f"**API Status**: {api_status}")
     with col2:
-        redis_status = "🟢 Available" if st.session_state.real_time_orchestrator and hasattr(st.session_state.real_time_orchestrator.event_bus, 'r') else "🟡 Mock Mode"
+        redis_status = (
+            "🟢 Available"
+            if st.session_state.real_time_orchestrator
+            and hasattr(st.session_state.real_time_orchestrator.event_bus, "r")
+            else "🟡 Mock Mode"
+        )
         st.markdown(f"**Event Streaming**: {redis_status}")
     with col3:
         event_count = len(st.session_state.event_stream)
         st.markdown(f"**Live Events**: {event_count}")
 
     # Main navigation
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
-        "🚀 Real Mode",
-        "🤖 Intelligent Router",
-        "🎯 Typed Artifact System", 
-        "📋 Schema Demonstration",
-        "🎯 Task & Artifact Management", 
-        "🤖 Agent Orchestration",
-        "📊 Routing & Performance",
-        "⚡ Live Workflow Monitor",
-        "🌊 Event Streaming (New)",
-        "🎯 Quality Dashboard",
-        "🗄️ Database Infrastructure"
-    ])
-    
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs(
+        [
+            "🚀 Real Mode",
+            "🤖 Intelligent Router",
+            "🎯 Typed Artifact System",
+            "📋 Schema Demonstration",
+            "🎯 Task & Artifact Management",
+            "🤖 Agent Orchestration",
+            "📊 Routing & Performance",
+            "⚡ Live Workflow Monitor",
+            "🌊 Event Streaming (New)",
+            "🎯 Quality Dashboard",
+            "🗄️ Database Infrastructure",
+        ]
+    )
+
     with tab1:
         render_real_mode()
-        
+
     with tab2:
         render_intelligent_router()
-    
+
     with tab3:
         render_typed_artifacts_page()
-    
+
     with tab4:
         render_schema_demo()
-    
+
     with tab5:
         render_task_management()
-    
+
     with tab6:
         render_agent_orchestration()
-        
+
     with tab7:
         render_routing_dashboard()
-    
+
     with tab8:
         render_workflow_monitor()
-    
+
     with tab9:
         render_event_streaming_dashboard()
-    
+
     with tab10:
         quality_monitoring_dashboard()
-    
+
     with tab11:
         render_database_dashboard()
 
 
 def render_schema_demo():
     """Demonstrate the comprehensive schema system"""
-    
+
     st.header("📋 Schema System Demonstration")
     st.markdown("Explore the complete JSON Schema framework with Pydantic validation")
-    
+
     # Schema type selector
     schema_type = st.selectbox(
         "Select Schema Type to Explore:",
         options=[
-            "Artifacts", "Task Ledgers", "Progress Tracking", 
-            "Model Routing", "Agent I/O Contracts"
-        ]
+            "Artifacts",
+            "Task Ledgers",
+            "Progress Tracking",
+            "Model Routing",
+            "Agent I/O Contracts",
+        ],
     )
-    
+
     col1, col2 = st.columns([1, 1])
-    
+
     with col1:
         st.subheader("📝 Schema Structure")
-        
+
         if schema_type == "Artifacts":
             st.markdown("### Available Artifact Types")
             for artifact_type in ArtifactType:
-                st.markdown(f"- **{artifact_type.value}**: {get_artifact_description(artifact_type)}")
-            
+                st.markdown(
+                    f"- **{artifact_type.value}**: {get_artifact_description(artifact_type)}"
+                )
+
             # Show example artifact
             st.markdown("### Example: SpecDoc Schema")
             example_spec = st.session_state.demo_data["artifacts"]["spec_doc"]
             st.json(example_spec.model_dump())
-            
+
         elif schema_type == "Task Ledgers":
             st.markdown("### Task Ledger Components")
             st.markdown("""
@@ -1058,10 +1145,10 @@ def render_schema_demo():
             - **Dependencies**: Task and artifact dependencies
             - **Progress Tracking**: Real-time completion status
             """)
-            
+
             example_task = st.session_state.demo_data["task"]
             st.json(example_task.model_dump())
-            
+
         elif schema_type == "Model Routing":
             st.markdown("### Routing Decision Framework")
             st.markdown("""
@@ -1070,82 +1157,90 @@ def render_schema_demo():
             - **Load Balancing**: Dynamic resource allocation
             - **Failure Recovery**: Automatic fallback strategies
             """)
-            
+
             # Show model capabilities
             for model_capability in MODEL_CAPABILITIES[:2]:
                 st.markdown(f"**{model_capability.display_name}**")
                 st.json(model_capability.model_dump())
                 break
-    
+
     with col2:
         st.subheader("✅ Validation & Quality")
-        
+
         # Artifact validation demonstration
         if st.button("Validate Demo Artifacts"):
             validator = ArtifactValidator()
-            
-            for artifact_name, artifact in st.session_state.demo_data["artifacts"].items():
+
+            for artifact_name, artifact in st.session_state.demo_data[
+                "artifacts"
+            ].items():
                 validation_result = validator.validate_artifact(artifact.dict())
-                
+
                 status = "✅ Valid" if validation_result.is_valid else "❌ Invalid"
                 st.markdown(f"**{artifact_name}**: {status}")
                 st.markdown(f"- Quality Score: {validation_result.quality_score:.2f}")
-                st.markdown(f"- Completeness: {validation_result.completeness_score:.2f}")
-                
+                st.markdown(
+                    f"- Completeness: {validation_result.completeness_score:.2f}"
+                )
+
                 if validation_result.validation_errors:
                     st.error("Validation Errors:")
                     for error in validation_result.validation_errors:
                         st.markdown(f"  - {error}")
-                
+
                 if validation_result.validation_warnings:
                     st.warning("Warnings:")
                     for warning in validation_result.validation_warnings:
                         st.markdown(f"  - {warning}")
-        
+
         # Schema statistics
         st.subheader("📊 Schema Statistics")
         stats = st.session_state.artifact_handler.get_artifact_stats()
         st.json(stats)
 
+
 def render_task_management():
     """Task and artifact management interface"""
-    
+
     st.header("🎯 Task & Artifact Management")
-    
+
     col1, col2 = st.columns([1, 1])
-    
+
     with col1:
         st.subheader("📋 Current Tasks")
-        
+
         # Display demo task
         demo_task = st.session_state.demo_data["task"]
-        
+
         with st.expander(f"Task: {demo_task.title}", expanded=True):
             st.markdown(f"**Goal**: {demo_task.goal}")
             st.markdown(f"**Status**: {demo_task.status.value}")
             st.markdown(f"**Priority**: {demo_task.priority.value}")
-            
+
             # Progress calculation
             progress = demo_task.calculate_progress()
             st.progress(progress / 100)
             st.caption(f"Progress: {progress:.1f}%")
-            
+
             # Acceptance tests
             st.markdown("**Acceptance Tests:**")
             for test in demo_task.acceptance_tests:
                 st.markdown(f"- {test['description']}")
-            
+
             # Risks
             if demo_task.risks:
                 st.markdown("**Identified Risks:**")
                 for risk in demo_task.risks:
-                    risk_level = "🔴" if risk['impact'] == "high" else "🟡"
-                    st.markdown(f"{risk_level} {risk['description']} (P: {risk['probability']})")
-        
+                    risk_level = "🔴" if risk["impact"] == "high" else "🟡"
+                    st.markdown(
+                        f"{risk_level} {risk['description']} (P: {risk['probability']})"
+                    )
+
         # Work item management
         st.subheader("📝 Work Items")
         if st.button("Add Work Item"):
             from datetime import datetime
+
             new_item = WorkItem(
                 item_id=f"item_{len(demo_task.work_items) + 1:03d}",
                 title=f"Implementation Task {len(demo_task.work_items) + 1}",
@@ -1156,35 +1251,45 @@ def render_task_management():
                 estimated_effort=60,  # minutes
                 actual_effort=0,
                 started_at=datetime.now(),
-                completed_at=None
+                completed_at=None,
             )
             demo_task.work_items.append(new_item)
             st.rerun()
-        
+
         for item in demo_task.work_items:
-            status_emoji = {"pending": "⏳", "in_progress": "🔄", "completed": "✅", "failed": "❌"}.get(item.status.value, "❓")
+            status_emoji = {
+                "pending": "⏳",
+                "in_progress": "🔄",
+                "completed": "✅",
+                "failed": "❌",
+            }.get(item.status.value, "❓")
             st.markdown(f"{status_emoji} **{item.title}** ({item.status.value})")
-    
+
     with col2:
         st.subheader("📄 Artifact Repository")
-        
+
         # Artifact creation
         artifact_type = st.selectbox(
-            "Create New Artifact:",
-            options=[at.value for at in ArtifactType]
+            "Create New Artifact:", options=[at.value for at in ArtifactType]
         )
-        
+
         if st.button("Generate Artifact Template"):
             template = create_artifact_template(ArtifactType(artifact_type))
             st.json(template)
-            
+
             if st.button("Store Artifact"):
-                validation_result = st.session_state.artifact_handler.store_artifact(template)
+                validation_result = st.session_state.artifact_handler.store_artifact(
+                    template
+                )
                 if validation_result.is_valid:
-                    st.success(f"Artifact stored successfully! Quality: {validation_result.quality_score:.2f}")
+                    st.success(
+                        f"Artifact stored successfully! Quality: {validation_result.quality_score:.2f}"
+                    )
                 else:
-                    st.error(f"Validation failed: {validation_result.validation_errors}")
-        
+                    st.error(
+                        f"Validation failed: {validation_result.validation_errors}"
+                    )
+
         # Display stored artifacts
         st.subheader("📦 Stored Artifacts")
         for artifact_name, artifact in st.session_state.demo_data["artifacts"].items():
@@ -1192,190 +1297,212 @@ def render_task_management():
                 st.markdown(f"**Created by**: {artifact.created_by}")
                 st.markdown(f"**Confidence**: {artifact.confidence:.2f}")
                 st.markdown(f"**Version**: {artifact.version}")
-                
+
                 if st.button(f"View {artifact_name}", key=f"view_{artifact_name}"):
                     st.json(artifact.model_dump())
 
+
 def render_agent_orchestration():
     """Agent orchestration and live project management"""
-    
+
     st.header("🤖 Live AI Agent Collaboration")
-    
+
     # Progress indicator
     step_names = ["Configure", "Review", "Launch", "Monitor"]
     current_step = st.session_state.configuration_step
-    
+
     progress_cols = st.columns(4)
     for i, step_name in enumerate(step_names, 1):
-        with progress_cols[i-1]:
+        with progress_cols[i - 1]:
             if i < current_step:
                 st.markdown(f"✅ **{step_name}**")
             elif i == current_step:
                 st.markdown(f"🔄 **{step_name}**")
             else:
                 st.markdown(f"⚪ {step_name}")
-    
+
     st.markdown("---")
-    
+
     # Step 1: Project Configuration
     if current_step == 1:
         render_project_configuration()
-    
+
     # Step 2: Review and Planning
     elif current_step == 2:
         render_project_review()
-    
+
     # Step 3: Launch Controls
     elif current_step == 3:
         render_project_launch()
-    
+
     # Step 4: Live Monitoring
     elif current_step == 4:
         render_live_monitoring()
 
+
 def render_project_configuration():
     """Step 1: Project Configuration"""
-    
+
     st.subheader("🎯 Step 1: Configure Your Project")
-    
+
     # Check API key availability
     api_keys = {
-        'Claude': bool(os.environ.get('ANTHROPIC_API_KEY')),
-        'GPT-4': bool(os.environ.get('OPENAI_API_KEY')),
-        'Gemini': bool(os.environ.get('GEMINI_API_KEY'))
+        "Claude": bool(os.environ.get("ANTHROPIC_API_KEY")),
+        "GPT-4": bool(os.environ.get("OPENAI_API_KEY")),
+        "Gemini": bool(os.environ.get("GEMINI_API_KEY")),
     }
-    
+
     # API Status
     st.markdown("#### AI Agent Status")
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
-        status = "🟢 Ready" if api_keys['Claude'] else "🔴 Missing Key"
+        status = "🟢 Ready" if api_keys["Claude"] else "🔴 Missing Key"
         st.markdown(f"**Claude**: {status}")
-        
+
     with col2:
-        status = "🟢 Ready" if api_keys['GPT-4'] else "🔴 Missing Key"
+        status = "🟢 Ready" if api_keys["GPT-4"] else "🔴 Missing Key"
         st.markdown(f"**GPT-4**: {status}")
-        
+
     with col3:
-        status = "🟢 Ready" if api_keys['Gemini'] else "🔴 Missing Key"
+        status = "🟢 Ready" if api_keys["Gemini"] else "🔴 Missing Key"
         st.markdown(f"**Gemini**: {status}")
-    
+
     available_agents = sum(api_keys.values())
-    
+
     if available_agents == 0:
         st.error("⚠️ No AI agents available. Please configure API keys to proceed.")
         return
     elif available_agents < 3:
-        st.warning(f"⚠️ Only {available_agents}/3 agents available. Project will use available agents.")
+        st.warning(
+            f"⚠️ Only {available_agents}/3 agents available. Project will use available agents."
+        )
     else:
         st.success("✅ All AI agents ready for collaboration!")
-    
+
     st.markdown("---")
-    
+
     # Project configuration form
     st.markdown("#### Project Details")
-    
+
     col1, col2 = st.columns([2, 1])
-    
+
     with col1:
         project_description = st.text_area(
             "Project Description",
             value=st.session_state.project_description,
             height=120,
             help="Describe what you want the AI agents to build together",
-            key="project_desc_input"
+            key="project_desc_input",
         )
-        
+
         # Update session state when changed
         if project_description != st.session_state.project_description:
             st.session_state.project_description = project_description
-        
+
     with col2:
         project_type = st.selectbox(
             "Project Type",
-            options=["web_application", "api", "ui_application", "data_pipeline", "mobile_app"],
-            index=["web_application", "api", "ui_application", "data_pipeline", "mobile_app"].index(st.session_state.project_type),
+            options=[
+                "web_application",
+                "api",
+                "ui_application",
+                "data_pipeline",
+                "mobile_app",
+            ],
+            index=[
+                "web_application",
+                "api",
+                "ui_application",
+                "data_pipeline",
+                "mobile_app",
+            ].index(st.session_state.project_type),
             help="Type of project affects the workflow phases",
-            key="project_type_input"
+            key="project_type_input",
         )
-        
+
         # Update session state when changed
         if project_type != st.session_state.project_type:
             st.session_state.project_type = project_type
-        
+
         complexity_level = st.selectbox(
             "Complexity Level",
             options=["Simple", "Medium", "Complex", "Advanced"],
-            index=["Simple", "Medium", "Complex", "Advanced"].index(st.session_state.complexity_level),
-            key="complexity_input"
+            index=["Simple", "Medium", "Complex", "Advanced"].index(
+                st.session_state.complexity_level
+            ),
+            key="complexity_input",
         )
-        
+
         # Update session state when changed
         if complexity_level != st.session_state.complexity_level:
             st.session_state.complexity_level = complexity_level
-    
+
     # Real-time pricing preview when project type or complexity changes
     st.markdown("---")
     st.markdown("#### 💰 Estimated Project Metrics (Live Preview)")
-    
+
     # Define project phases for pricing calculation
     workflow_preview = {
         "web_application": 6,  # 6 phases
-        "api": 5,              # 5 phases  
-        "ui_application": 5,   # 5 phases
-        "data_pipeline": 5,    # 5 phases
-        "mobile_app": 5        # 5 phases
+        "api": 5,  # 5 phases
+        "ui_application": 5,  # 5 phases
+        "data_pipeline": 5,  # 5 phases
+        "mobile_app": 5,  # 5 phases
     }
-    
+
     complexity_multipliers = {
         "Simple": 1.0,
         "Medium": 1.5,
         "Complex": 2.2,
-        "Advanced": 3.0
+        "Advanced": 3.0,
     }
-    
+
     base_phases = workflow_preview.get(st.session_state.project_type, 6)
     multiplier = complexity_multipliers[st.session_state.complexity_level]
     estimated_time = int(base_phases * 8 * multiplier)  # minutes
     estimated_cost = round(base_phases * 0.50 * multiplier, 2)  # USD
-    
+
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
         st.metric("Estimated Time", f"{estimated_time} minutes")
-    
+
     with col2:
         st.metric("Estimated Cost", f"${estimated_cost}")
-    
+
     with col3:
         st.metric("Total Phases", f"{base_phases}")
-    
-    st.caption(f"💡 Cost varies by project type and complexity. {st.session_state.project_type.replace('_', ' ').title()} projects have {base_phases} phases with {st.session_state.complexity_level.lower()} complexity multiplier.")
-    
+
+    st.caption(
+        f"💡 Cost varies by project type and complexity. {st.session_state.project_type.replace('_', ' ').title()} projects have {base_phases} phases with {st.session_state.complexity_level.lower()} complexity multiplier."
+    )
+
     # Configuration validation
     current_description = st.session_state.project_description or ""
     config_valid = (
-        current_description.strip() != "" and
-        len(current_description.strip()) >= 20 and
-        available_agents > 0
+        current_description.strip() != ""
+        and len(current_description.strip()) >= 20
+        and available_agents > 0
     )
-    
+
     if not config_valid:
         if not current_description.strip():
             st.error("Please provide a project description")
         elif len(current_description.strip()) < 20:
             st.error("Project description should be at least 20 characters")
-    
+
     # Navigation buttons
     col1, col2, col3 = st.columns([1, 1, 1])
-    
+
     with col2:
-        if st.button("📋 Review Configuration", type="primary", disabled=not config_valid):
+        if st.button(
+            "📋 Review Configuration", type="primary", disabled=not config_valid
+        ):
             st.session_state.configuration_step = 2
             st.session_state.project_configured = True
             st.rerun()
-    
+
     with col3:
         if st.button("🔄 Reset Configuration"):
             # Reset to defaults
@@ -1386,109 +1513,162 @@ def render_project_configuration():
             st.session_state.project_configured = False
             st.rerun()
 
+
 def render_project_review():
     """Step 2: Review and Planning"""
-    
+
     st.subheader("📋 Step 2: Review Your Project Plan")
-    
+
     # Configuration Summary
     with st.container():
         st.markdown("#### Project Configuration Summary")
-        
+
         col1, col2 = st.columns([2, 1])
-        
+
         with col1:
             st.markdown(f"**Description:** {st.session_state.project_description}")
-            
+
         with col2:
-            st.markdown(f"**Type:** {st.session_state.project_type.replace('_', ' ').title()}")
+            st.markdown(
+                f"**Type:** {st.session_state.project_type.replace('_', ' ').title()}"
+            )
             st.markdown(f"**Complexity:** {st.session_state.complexity_level}")
-    
+
     # Workflow preview
     st.markdown("#### 🔄 Planned Agent Workflow")
-    
+
     workflow_preview = {
         "web_application": [
-            ("📋 Requirements Analysis", "Claude", "Analyze requirements and create project specification"),
-            ("🏗️ System Architecture", "Claude", "Design system architecture and component structure"), 
-            ("💻 Core Implementation", "GPT-4", "Implement core business logic and backend services"),
-            ("🎨 UI Development", "GPT-4", "Create user interface and frontend components"),
-            ("🧪 Testing & QA", "Gemini", "Generate comprehensive tests and quality assurance"),
-            ("📚 Documentation", "Claude", "Create complete project documentation")
+            (
+                "📋 Requirements Analysis",
+                "Claude",
+                "Analyze requirements and create project specification",
+            ),
+            (
+                "🏗️ System Architecture",
+                "Claude",
+                "Design system architecture and component structure",
+            ),
+            (
+                "💻 Core Implementation",
+                "GPT-4",
+                "Implement core business logic and backend services",
+            ),
+            (
+                "🎨 UI Development",
+                "GPT-4",
+                "Create user interface and frontend components",
+            ),
+            (
+                "🧪 Testing & QA",
+                "Gemini",
+                "Generate comprehensive tests and quality assurance",
+            ),
+            ("📚 Documentation", "Claude", "Create complete project documentation"),
         ],
         "api": [
-            ("📋 API Specification", "Claude", "Define API endpoints and data contracts"),
+            (
+                "📋 API Specification",
+                "Claude",
+                "Define API endpoints and data contracts",
+            ),
             ("🏗️ System Architecture", "Claude", "Design scalable API architecture"),
-            ("💻 Core Implementation", "GPT-4", "Implement API endpoints and business logic"), 
+            (
+                "💻 Core Implementation",
+                "GPT-4",
+                "Implement API endpoints and business logic",
+            ),
             ("🧪 Testing & QA", "Gemini", "Create API tests and validation"),
-            ("📚 API Documentation", "Claude", "Generate comprehensive API documentation")
+            (
+                "📚 API Documentation",
+                "Claude",
+                "Generate comprehensive API documentation",
+            ),
         ],
         "ui_application": [
             ("📋 UI Requirements", "Claude", "Analyze UI requirements and user flows"),
             ("🎨 Design System", "GPT-4", "Create design system and component library"),
             ("💻 Component Implementation", "GPT-4", "Build interactive UI components"),
             ("🧪 UI Testing", "Gemini", "Test user interface and interactions"),
-            ("📚 User Documentation", "Claude", "Create user guides and documentation")
+            ("📚 User Documentation", "Claude", "Create user guides and documentation"),
         ],
         "data_pipeline": [
             ("📋 Data Requirements", "Claude", "Analyze data sources and requirements"),
-            ("🏗️ Pipeline Architecture", "Claude", "Design data processing architecture"),
+            (
+                "🏗️ Pipeline Architecture",
+                "Claude",
+                "Design data processing architecture",
+            ),
             ("💻 Pipeline Implementation", "GPT-4", "Build data processing pipeline"),
-            ("🧪 Data Validation", "Gemini", "Test data quality and pipeline reliability"),
-            ("📚 Pipeline Documentation", "Claude", "Document pipeline operations and maintenance")
+            (
+                "🧪 Data Validation",
+                "Gemini",
+                "Test data quality and pipeline reliability",
+            ),
+            (
+                "📚 Pipeline Documentation",
+                "Claude",
+                "Document pipeline operations and maintenance",
+            ),
         ],
         "mobile_app": [
-            ("📋 App Requirements", "Claude", "Define mobile app requirements and features"),
+            (
+                "📋 App Requirements",
+                "Claude",
+                "Define mobile app requirements and features",
+            ),
             ("🎨 UI/UX Design", "GPT-4", "Design mobile user interface and experience"),
             ("💻 App Implementation", "GPT-4", "Develop mobile application"),
             ("🧪 App Testing", "Gemini", "Test app functionality and user experience"),
-            ("📚 App Documentation", "Claude", "Create app documentation and guides")
-        ]
+            ("📚 App Documentation", "Claude", "Create app documentation and guides"),
+        ],
     }
-    
-    phases = workflow_preview.get(st.session_state.project_type, workflow_preview["web_application"])
-    
+
+    phases = workflow_preview.get(
+        st.session_state.project_type, workflow_preview["web_application"]
+    )
+
     for i, (phase_name, agent, description) in enumerate(phases, 1):
         with st.container():
             col1, col2, col3 = st.columns([0.5, 2, 1])
-            
+
             with col1:
                 st.markdown(f"**{i}.**")
-            
+
             with col2:
                 st.markdown(f"**{phase_name}**")
                 st.caption(description)
-            
+
             with col3:
                 agent_color = {"Claude": "🟦", "GPT-4": "🟩", "Gemini": "🟨"}
                 st.markdown(f"{agent_color.get(agent, '🟪')} **{agent}**")
-    
+
     # Cost and time estimation
     st.markdown("#### 💰 Estimated Project Metrics")
-    
+
     complexity_multipliers = {
         "Simple": 1.0,
         "Medium": 1.5,
         "Complex": 2.2,
-        "Advanced": 3.0
+        "Advanced": 3.0,
     }
-    
+
     base_phases = len(phases)
     multiplier = complexity_multipliers[st.session_state.complexity_level]
     estimated_time = int(base_phases * 8 * multiplier)  # minutes
     estimated_cost = round(base_phases * 0.50 * multiplier, 2)  # USD
-    
+
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
         st.metric("Estimated Time", f"{estimated_time} minutes")
-    
+
     with col2:
         st.metric("Estimated Cost", f"${estimated_cost}")
-    
+
     with col3:
         st.metric("Total Phases", f"{base_phases}")
-    
+
     # Quality cascade explanation
     with st.expander("🔄 Quality Assurance Process"):
         st.markdown("""
@@ -1505,104 +1685,130 @@ def render_project_review():
         - Conflict resolution when agents disagree
         - Cost and performance tracking
         """)
-    
+
     # Navigation buttons
     col1, col2, col3 = st.columns([1, 1, 1])
-    
+
     with col1:
         if st.button("⬅️ Back to Configuration"):
             st.session_state.configuration_step = 1
             st.rerun()
-    
+
     with col2:
         if st.button("🚀 Launch Project", type="primary"):
             st.session_state.configuration_step = 3
             st.rerun()
 
+
 def render_project_launch():
     """Step 3: Launch Controls"""
-    
+
     st.subheader("🚀 Step 3: Launch Your REAL AI Project")
-    
+
     st.markdown("#### Final Confirmation")
-    st.success("🔑 REAL AI EXECUTION: The system will make actual API calls to Claude, GPT-4, and Gemini to collaboratively build your project.")
-    
+    st.success(
+        "🔑 REAL AI EXECUTION: The system will make actual API calls to Claude, GPT-4, and Gemini to collaboratively build your project."
+    )
+
     # Project summary
     with st.container():
         st.markdown("**Project Summary:**")
         col1, col2 = st.columns([3, 1])
-        
+
         with col1:
-            st.markdown(f"• **Description:** {st.session_state.project_description[:100]}...")
-            st.markdown(f"• **Type:** {st.session_state.project_type.replace('_', ' ').title()}")
+            st.markdown(
+                f"• **Description:** {st.session_state.project_description[:100]}..."
+            )
+            st.markdown(
+                f"• **Type:** {st.session_state.project_type.replace('_', ' ').title()}"
+            )
             st.markdown(f"• **Complexity:** {st.session_state.complexity_level}")
-        
+
         with col2:
             # Check API availability one more time
             api_keys = {
-                'Claude': bool(os.environ.get('ANTHROPIC_API_KEY')),
-                'GPT-4': bool(os.environ.get('OPENAI_API_KEY')),
-                'Gemini': bool(os.environ.get('GEMINI_API_KEY'))
+                "Claude": bool(os.environ.get("ANTHROPIC_API_KEY")),
+                "GPT-4": bool(os.environ.get("OPENAI_API_KEY")),
+                "Gemini": bool(os.environ.get("GEMINI_API_KEY")),
             }
             available_agents = sum(api_keys.values())
             st.markdown(f"**Available Agents:** {available_agents}/3")
-    
+
     # Launch controls
     col1, col2, col3 = st.columns([1, 2, 1])
-    
+
     with col1:
         if st.button("⬅️ Review Plan"):
             st.session_state.configuration_step = 2
             st.rerun()
-    
+
     with col2:
-        launch_disabled = available_agents == 0 or not st.session_state.project_description.strip()
-        
-        if st.button("⚡ Start REAL AI Project", type="primary", disabled=launch_disabled):
+        launch_disabled = (
+            available_agents == 0 or not st.session_state.project_description.strip()
+        )
+
+        if st.button(
+            "⚡ Start REAL AI Project", type="primary", disabled=launch_disabled
+        ):
             if st.session_state.project_description.strip():
                 # CRITICAL DEBUG: Clear ALL session state to prevent simulation interference
                 logger.info("🔥 BUTTON CLICKED - Starting comprehensive debug trace")
-                logger.info(f"Pre-clear session state keys: {list(st.session_state.keys())}")
-                
+                logger.info(
+                    f"Pre-clear session state keys: {list(st.session_state.keys())}"
+                )
+
                 # Clear EVERYTHING to prevent any simulation data interference
                 for key in list(st.session_state.keys()):
-                    if key not in ['project_description', 'project_type', 'complexity_level', 'configuration_step']:
+                    if key not in [
+                        "project_description",
+                        "project_type",
+                        "complexity_level",
+                        "configuration_step",
+                    ]:
                         del st.session_state[key]
-                
+
                 logger.info("🧹 Session state cleared completely")
-                logger.info(f"Post-clear session state keys: {list(st.session_state.keys())}")
-                
+                logger.info(
+                    f"Post-clear session state keys: {list(st.session_state.keys())}"
+                )
+
                 # Show immediate feedback
                 st.success("🚀 Starting REAL AI Project! Please wait...")
-                
+
                 # Initialize ONLY real execution state with DEBUG flags
                 st.session_state.execution_started = True
                 st.session_state.execution_phase = "starting"
                 st.session_state.debug_mode = True  # Enable comprehensive debugging
-                st.session_state.execution_source = "REAL_API_ONLY"  # Flag to prevent simulation
+                st.session_state.execution_source = (
+                    "REAL_API_ONLY"  # Flag to prevent simulation
+                )
                 st.session_state.project_status = []
                 st.session_state.agent_outputs = []
                 st.session_state.live_timeline = []
                 st.session_state.real_artifacts = []
-                
+
                 # Add initial status message with REAL timestamp
                 current_time = datetime.now().strftime("%H:%M:%S")
                 logger.info(f"⏰ Adding initial status with REAL time: {current_time}")
-                
-                st.session_state.project_status.append({
-                    'time': current_time,
-                    'message': '🔥 REAL EXECUTION STARTED - Button pressed - Initializing REAL AI execution...',
-                    'is_real': True,
-                    'debug_source': 'BUTTON_HANDLER',
-                    'real_timestamp': datetime.now()
-                })
-                
-                logger.info(f"✅ Initial status added: {len(st.session_state.project_status)} events")
-                
+
+                st.session_state.project_status.append(
+                    {
+                        "time": current_time,
+                        "message": "🔥 REAL EXECUTION STARTED - Button pressed - Initializing REAL AI execution...",
+                        "is_real": True,
+                        "debug_source": "BUTTON_HANDLER",
+                        "real_timestamp": datetime.now(),
+                    }
+                )
+
+                logger.info(
+                    f"✅ Initial status added: {len(st.session_state.project_status)} events"
+                )
+
                 st.rerun()
             else:
                 st.error("Please provide a project description")
-    
+
     with col3:
         if st.button("🔄 Start Over"):
             # Reset everything
@@ -1614,477 +1820,617 @@ def render_project_launch():
             st.session_state.project_status = []
             st.session_state.agent_outputs = []
             st.rerun()
-    
+
     # CRITICAL DEBUG CONTROLS
     st.markdown("---")
     with st.expander("🔍 DEBUG CONTROLS", expanded=False):
         col1, col2, col3 = st.columns(3)
-        
+
         with col1:
             if st.button("🔥 DEBUG: Show Session State"):
                 st.write("Session State Keys:", list(st.session_state.keys()))
                 for key, value in st.session_state.items():
-                    st.write(f"**{key}:** {type(value).__name__} = {str(value)[:200]}...")
-        
+                    st.write(
+                        f"**{key}:** {type(value).__name__} = {str(value)[:200]}..."
+                    )
+
         with col2:
             if st.button("🧹 DEBUG: Clear All Data"):
                 # Clear everything except project config
-                preserved = ['project_description', 'project_type', 'complexity_level']
+                preserved = ["project_description", "project_type", "complexity_level"]
                 to_delete = [k for k in st.session_state.keys() if k not in preserved]
-                
+
                 for key in to_delete:
                     del st.session_state[key]
-                
+
                 st.success(f"🧹 Cleared {len(to_delete)} session state items")
                 st.rerun()
-        
+
         with col3:
             if st.button("⏰ DEBUG: Show Current Time"):
                 current_real_time = datetime.now().strftime("%H:%M:%S")
                 st.success(f"Current Real Time: {current_real_time}")
-                
+
                 # Check for simulation data
                 simulation_check = []
-                if 'project_status' in st.session_state:
+                if "project_status" in st.session_state:
                     for status in st.session_state.project_status:
                         if isinstance(status, dict):
-                            time_val = status.get('time', '')
-                            if time_val.startswith('14:3'):  # Check for fake 14:30 timestamps
+                            time_val = status.get("time", "")
+                            if time_val.startswith(
+                                "14:3"
+                            ):  # Check for fake 14:30 timestamps
                                 simulation_check.append(f"FAKE TIME FOUND: {time_val}")
-                
+
                 if simulation_check:
                     st.error("🚨 SIMULATION DATA DETECTED:")
                     for check in simulation_check:
                         st.write(check)
                 else:
                     st.success("✅ No fake timestamps detected")
-    
+
     # CRITICAL: ISOLATED REAL EXECUTION BUTTON
     st.markdown("---")
     st.subheader("🔥 ISOLATED REAL EXECUTION")
-    st.warning("⚡ This completely bypasses all simulation systems and makes direct API calls")
-    
+    st.warning(
+        "⚡ This completely bypasses all simulation systems and makes direct API calls"
+    )
+
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
         if st.button("🚀 ISOLATED Real Claude Call", type="primary"):
             # Import and use isolated executor
             from core.isolated_real_execution import IsolatedRealExecutor
-            
+
             # Clear any existing simulation data
-            for key in ['project_status', 'agent_outputs', 'live_timeline', 'real_artifacts']:
+            for key in [
+                "project_status",
+                "agent_outputs",
+                "live_timeline",
+                "real_artifacts",
+            ]:
                 if key in st.session_state:
                     st.session_state[key] = []
-            
+
             # Create isolated executor
             executor = IsolatedRealExecutor()
-            
+
             # Execute ONLY real Claude call
-            result = executor.execute_real_claude_only(st.session_state.project_description)
-            
+            result = executor.execute_real_claude_only(
+                st.session_state.project_description
+            )
+
             # Store isolated execution state
             st.session_state.isolated_executor = executor
             st.session_state.isolated_result = result
-            
+
             st.success("✅ Isolated real execution started!")
-    
+
     with col2:
         if st.button("📊 Show Isolated Results"):
-            if 'isolated_executor' in st.session_state:
+            if "isolated_executor" in st.session_state:
                 st.session_state.isolated_executor.display_isolated_results()
             else:
-                st.warning("❌ No isolated execution found. Run isolated Claude call first.")
-    
+                st.warning(
+                    "❌ No isolated execution found. Run isolated Claude call first."
+                )
+
     with col3:
         if st.button("🧹 Clear All Real Data"):
             # Clear isolated data
-            for key in ['ISOLATED_REAL_STATUS', 'ISOLATED_REAL_OUTPUTS', 'isolated_executor', 'isolated_result']:
+            for key in [
+                "ISOLATED_REAL_STATUS",
+                "ISOLATED_REAL_OUTPUTS",
+                "isolated_executor",
+                "isolated_result",
+            ]:
                 if key in st.session_state:
                     del st.session_state[key]
-            
+
             # Clear direct UI data
-            for key in ['DIRECT_REAL_STATUS', 'DIRECT_REAL_OUTPUTS', 'DIRECT_REAL_ARTIFACTS']:
+            for key in [
+                "DIRECT_REAL_STATUS",
+                "DIRECT_REAL_OUTPUTS",
+                "DIRECT_REAL_ARTIFACTS",
+            ]:
                 if key in st.session_state:
                     del st.session_state[key]
-            
+
             st.success("🧹 All real data cleared")
-    
+
     # CRITICAL: DIRECT UI BYPASS TEST
     col1, col2 = st.columns(2)
-    
+
     with col1:
         if st.button("🚀 TEST Direct UI Bypass", type="secondary"):
             # Import direct UI updater
             from core.direct_ui_updater import DirectUIUpdater
-            
+
             # Clear any existing data first
-            for key in ['DIRECT_REAL_STATUS', 'DIRECT_REAL_OUTPUTS', 'DIRECT_REAL_ARTIFACTS']:
+            for key in [
+                "DIRECT_REAL_STATUS",
+                "DIRECT_REAL_OUTPUTS",
+                "DIRECT_REAL_ARTIFACTS",
+            ]:
                 if key in st.session_state:
                     st.session_state[key] = []
-            
+
             # Create direct updater and test it
             updater = DirectUIUpdater()
-            
+
             # Test direct updates
-            updater.update_status_direct("Testing direct UI bypass system", "test_agent")
-            updater.add_agent_output_direct("Test Agent", "This is a test of the direct UI bypass system that completely skips the event bus and mock data generation. Current timestamp should be accurate.", 25)
-            updater.add_artifact_direct("Test Artifact", "This artifact was created using the direct UI bypass system, confirming that real API data can reach the UI without event bus interference.", "test")
-            
+            updater.update_status_direct(
+                "Testing direct UI bypass system", "test_agent"
+            )
+            updater.add_agent_output_direct(
+                "Test Agent",
+                "This is a test of the direct UI bypass system that completely skips the event bus and mock data generation. Current timestamp should be accurate.",
+                25,
+            )
+            updater.add_artifact_direct(
+                "Test Artifact",
+                "This artifact was created using the direct UI bypass system, confirming that real API data can reach the UI without event bus interference.",
+                "test",
+            )
+
             st.success("✅ Direct UI bypass test completed!")
-    
+
     with col2:
         if st.button("📊 Show Direct UI Summary"):
             from core.direct_ui_updater import DirectUIUpdater
+
             updater = DirectUIUpdater()
             summary = updater.get_status_summary()
-            
-            st.json({
-                "execution_id": summary['execution_id'],
-                "status_updates": summary['status_count'],
-                "agent_outputs": summary['output_count'], 
-                "artifacts": summary['artifact_count'],
-                "total_items": summary['total_items'],
-                "last_update": summary['last_update']
-            })
+
+            st.json(
+                {
+                    "execution_id": summary["execution_id"],
+                    "status_updates": summary["status_count"],
+                    "agent_outputs": summary["output_count"],
+                    "artifacts": summary["artifact_count"],
+                    "total_items": summary["total_items"],
+                    "last_update": summary["last_update"],
+                }
+            )
 
     # Execute workflow if started
-    if st.session_state.get('execution_started', False) and st.session_state.get('execution_phase') != "completed":
+    if (
+        st.session_state.get("execution_started", False)
+        and st.session_state.get("execution_phase") != "completed"
+    ):
         execute_workflow_step()
-        
+
+
 def execute_workflow_step():
     """Execute the current workflow step with REAL AI execution"""
-    phase = st.session_state.get('execution_phase', 'starting')
-    
+    phase = st.session_state.get("execution_phase", "starting")
+
     # CRITICAL DEBUG: Log execution flow
     logger.info(f"🚀 execute_workflow_step called - Phase: {phase}")
     logger.info(f"📊 Session state keys: {list(st.session_state.keys())}")
     logger.info(f"🔍 Debug mode: {st.session_state.get('debug_mode', False)}")
-    logger.info(f"🎯 Execution source: {st.session_state.get('execution_source', 'unknown')}")
-    
+    logger.info(
+        f"🎯 Execution source: {st.session_state.get('execution_source', 'unknown')}"
+    )
+
     project_config = {
-        'description': st.session_state.project_description,
-        'type': st.session_state.project_type.lower(),
-        'complexity': st.session_state.complexity_level
+        "description": st.session_state.project_description,
+        "type": st.session_state.project_type.lower(),
+        "complexity": st.session_state.complexity_level,
     }
-    
+
     logger.info(f"📝 Project config: {project_config}")
-    
+
     # Initialize real execution engine if not already done
-    if 'real_execution_engine' not in st.session_state:
+    if "real_execution_engine" not in st.session_state:
         logger.info("🔧 Creating RealExecutionEngine with REAL callbacks")
         st.session_state.real_execution_engine = RealExecutionEngine(
-            status_callback=update_status,
-            output_callback=add_agent_output
+            status_callback=update_status, output_callback=add_agent_output
         )
         logger.info("✅ RealExecutionEngine created successfully")
-    
+
     if phase == "starting":
         # Show loading message immediately
         st.info("🔄 Checking API readiness and initializing agents...")
-        
+
         update_status("🚀 Starting REAL AI project execution...")
-        
+
         # Check API readiness
         api_status = st.session_state.real_execution_engine.check_api_readiness()
         available_agents = st.session_state.real_execution_engine.get_available_agents()
-        
-        update_status(f"🔑 APIs Ready: Claude={api_status['claude']}, GPT-4={api_status['gpt4']}, Gemini={api_status['gemini']}")
+
+        update_status(
+            f"🔑 APIs Ready: Claude={api_status['claude']}, GPT-4={api_status['gpt4']}, Gemini={api_status['gemini']}"
+        )
         update_status(f"🤖 Available Agents: {', '.join(available_agents)}")
-        
+
         st.session_state.execution_phase = "real_execution"
         time.sleep(0.5)
         st.rerun()
-        
+
     elif phase == "real_execution":
         # Show execution message immediately
         st.warning("⚡ Executing REAL AI workflow - This may take 30-60 seconds...")
-        
+
         # Execute the complete real AI workflow asynchronously
         update_status("⚡ Launching real AI multi-agent collaboration...")
-        
+
         try:
             # Run the real execution in a synchronous context for Streamlit
             execution_engine = st.session_state.real_execution_engine
-            
+
             # Create event loop and run the async workflow
             import asyncio
-            
+
             async def run_real_workflow():
                 try:
                     # Try the complex workflow first
-                    return await execution_engine.execute_real_project_workflow(project_config)
+                    return await execution_engine.execute_real_project_workflow(
+                        project_config
+                    )
                 except Exception as e:
                     # If complex workflow fails due to validation, use simple workflow
-                    update_status(f"⚠️ Complex workflow failed, switching to simple workflow: {str(e)[:100]}")
-                    return await execution_engine.execute_simple_workflow(project_config)
-            
+                    update_status(
+                        f"⚠️ Complex workflow failed, switching to simple workflow: {str(e)[:100]}"
+                    )
+                    return await execution_engine.execute_simple_workflow(
+                        project_config
+                    )
+
             # Clear any previous simulation data to show only real API results
-            if 'live_timeline' not in st.session_state:
+            if "live_timeline" not in st.session_state:
                 st.session_state.live_timeline = []
-            if 'real_artifacts' not in st.session_state:
+            if "real_artifacts" not in st.session_state:
                 st.session_state.real_artifacts = []
-            
+
             # Clear old simulation data
             st.session_state.live_timeline.clear()
             st.session_state.real_artifacts.clear()
-            
+
             # Execute the real AI workflow
             result = asyncio.run(run_real_workflow())
-            
+
             if result["status"] == "completed":
                 st.session_state.execution_phase = "completed"
                 st.session_state.active_live_project = result["execution_id"]
                 st.session_state.real_execution_result = result
                 st.session_state.configuration_step = 4
-                
+
                 # Mark completion in real timeline with current timestamp
                 completion_time = datetime.now().strftime("%H:%M:%S")
-                update_status(f"🎉 REAL AI Multi-Agent Project Completed at {completion_time}")
-                
+                update_status(
+                    f"🎉 REAL AI Multi-Agent Project Completed at {completion_time}"
+                )
+
                 time.sleep(0.5)
                 st.rerun()
             else:
-                update_status(f"❌ Real execution failed: {result.get('error', 'Unknown error')}")
+                update_status(
+                    f"❌ Real execution failed: {result.get('error', 'Unknown error')}"
+                )
                 st.session_state.execution_phase = "failed"
-                
+
         except Exception as e:
             update_status(f"❌ Error in real execution: {str(e)}")
             logger.error(f"Real execution error: {e}")
             st.session_state.execution_phase = "failed"
 
     # COMPREHENSIVE DEBUG PANEL - Always show when execution is active
-    if st.session_state.get('execution_started', False):
+    if st.session_state.get("execution_started", False):
         st.markdown("---")
-        
+
         # CRITICAL DEBUG INFORMATION PANEL
-        if st.session_state.get('debug_mode', False):
+        if st.session_state.get("debug_mode", False):
             st.error("🔥 DEBUG MODE ACTIVE - Real API Execution Only")
-            
+
             with st.expander("🔍 CRITICAL DEBUG INFORMATION", expanded=True):
                 col1, col2, col3 = st.columns(3)
-                
+
                 with col1:
                     st.subheader("🕐 Time Check")
                     current_time = datetime.now().strftime("%H:%M:%S")
                     st.write(f"**Current Real Time:** {current_time}")
-                    st.write(f"**Execution Source:** {st.session_state.get('execution_source', 'unknown')}")
-                    st.write(f"**Execution Phase:** {st.session_state.get('execution_phase', 'unknown')}")
-                
+                    st.write(
+                        f"**Execution Source:** {st.session_state.get('execution_source', 'unknown')}"
+                    )
+                    st.write(
+                        f"**Execution Phase:** {st.session_state.get('execution_phase', 'unknown')}"
+                    )
+
                 with col2:
                     st.subheader("📊 Data Counts")
                     st.write(f"**Session State Keys:** {len(st.session_state.keys())}")
-                    st.write(f"**Status Events:** {len(st.session_state.get('project_status', []))}")
-                    st.write(f"**Agent Outputs:** {len(st.session_state.get('agent_outputs', []))}")
-                    st.write(f"**Live Timeline:** {len(st.session_state.get('live_timeline', []))}")
-                
+                    st.write(
+                        f"**Status Events:** {len(st.session_state.get('project_status', []))}"
+                    )
+                    st.write(
+                        f"**Agent Outputs:** {len(st.session_state.get('agent_outputs', []))}"
+                    )
+                    st.write(
+                        f"**Live Timeline:** {len(st.session_state.get('live_timeline', []))}"
+                    )
+
                 with col3:
                     st.subheader("🔍 Real Data Check")
-                    real_status_count = len([s for s in st.session_state.get('project_status', []) 
-                                          if isinstance(s, dict) and s.get('is_real', False)])
-                    real_output_count = len([o for o in st.session_state.get('agent_outputs', []) 
-                                           if o.get('is_real', False)])
+                    real_status_count = len(
+                        [
+                            s
+                            for s in st.session_state.get("project_status", [])
+                            if isinstance(s, dict) and s.get("is_real", False)
+                        ]
+                    )
+                    real_output_count = len(
+                        [
+                            o
+                            for o in st.session_state.get("agent_outputs", [])
+                            if o.get("is_real", False)
+                        ]
+                    )
                     st.write(f"**Real Status Events:** {real_status_count}")
                     st.write(f"**Real Agent Outputs:** {real_output_count}")
-                    
+
                     # Show warning if no real data
                     if real_status_count == 0 and real_output_count == 0:
                         st.warning("❌ NO REAL DATA FOUND!")
                     else:
                         st.success("✅ Real data detected")
-        
+
         st.subheader("🔄 Live Agent Activity")
-        
+
         # Show REAL timeline events (not simulation)
-        if 'live_timeline' in st.session_state and st.session_state.live_timeline:
+        if "live_timeline" in st.session_state and st.session_state.live_timeline:
             st.markdown("#### 🔄 Real-Time Agent Timeline")
             for event in st.session_state.live_timeline:
-                if event.get('is_real', False):  # Only show real events
+                if event.get("is_real", False):  # Only show real events
                     st.write(f"⏰ {event['time']} - {event['message']}")
-        
+
         # Show status updates (real only)
-        elif 'project_status' in st.session_state and st.session_state.project_status:
+        elif "project_status" in st.session_state and st.session_state.project_status:
             st.markdown("#### 📊 Real Progress Updates")
             for status in st.session_state.project_status[-10:]:  # Show last 10 updates
                 # Only show real status updates, not simulation
-                if isinstance(status, dict) and status.get('is_real', False):
-                    time_str = status.get('time', 'N/A')
-                    message = status.get('message', 'N/A')
+                if isinstance(status, dict) and status.get("is_real", False):
+                    time_str = status.get("time", "N/A")
+                    message = status.get("message", "N/A")
                     st.write(f"⏰ {time_str} - {message}")
                 elif not isinstance(status, dict):
                     # Legacy format
                     current_time = datetime.now().strftime("%H:%M:%S")
                     st.write(f"⏰ {current_time} - {str(status)}")
-        
+
         # HIGHEST PRIORITY: Show DIRECT UI BYPASS results (completely bypasses event bus)
-        if ('DIRECT_REAL_STATUS' in st.session_state or 
-            'DIRECT_REAL_OUTPUTS' in st.session_state or 
-            'DIRECT_REAL_ARTIFACTS' in st.session_state):
-            
+        if (
+            "DIRECT_REAL_STATUS" in st.session_state
+            or "DIRECT_REAL_OUTPUTS" in st.session_state
+            or "DIRECT_REAL_ARTIFACTS" in st.session_state
+        ):
             st.subheader("🚀 DIRECT UI BYPASS RESULTS")
-            st.success("✅ Showing real API data via DIRECT UI updates (bypasses all event systems)")
-            
+            st.success(
+                "✅ Showing real API data via DIRECT UI updates (bypasses all event systems)"
+            )
+
             # Show direct status updates
-            if 'DIRECT_REAL_STATUS' in st.session_state and st.session_state.DIRECT_REAL_STATUS:
+            if (
+                "DIRECT_REAL_STATUS" in st.session_state
+                and st.session_state.DIRECT_REAL_STATUS
+            ):
                 st.markdown("#### 📊 DIRECT Status Updates")
                 for status in st.session_state.DIRECT_REAL_STATUS:
-                    st.write(f"⏰ {status['time']} - {status['message']} | DIRECT | {status['source']}")
-            
+                    st.write(
+                        f"⏰ {status['time']} - {status['message']} | DIRECT | {status['source']}"
+                    )
+
             # Show direct agent outputs
-            if 'DIRECT_REAL_OUTPUTS' in st.session_state and st.session_state.DIRECT_REAL_OUTPUTS:
+            if (
+                "DIRECT_REAL_OUTPUTS" in st.session_state
+                and st.session_state.DIRECT_REAL_OUTPUTS
+            ):
                 st.markdown("#### 🤖 DIRECT Agent Outputs")
                 for output in st.session_state.DIRECT_REAL_OUTPUTS:
-                    with st.expander(f"📄 {output['agent']} - {output['time']} | DIRECT REAL", expanded=True):
-                        st.markdown(output['content'])
-                        st.caption(f"Word count: {output['word_count']} | DIRECT real API call | {output['source']}")
-            
+                    with st.expander(
+                        f"📄 {output['agent']} - {output['time']} | DIRECT REAL",
+                        expanded=True,
+                    ):
+                        st.markdown(output["content"])
+                        st.caption(
+                            f"Word count: {output['word_count']} | DIRECT real API call | {output['source']}"
+                        )
+
             # Show direct artifacts
-            if 'DIRECT_REAL_ARTIFACTS' in st.session_state and st.session_state.DIRECT_REAL_ARTIFACTS:
+            if (
+                "DIRECT_REAL_ARTIFACTS" in st.session_state
+                and st.session_state.DIRECT_REAL_ARTIFACTS
+            ):
                 st.markdown("#### 📄 DIRECT AI Artifacts")
                 for artifact in st.session_state.DIRECT_REAL_ARTIFACTS:
-                    with st.expander(f"📋 {artifact['title']} - {artifact['time']} | DIRECT REAL", expanded=True):
-                        st.markdown(artifact['content'])
-                        st.caption(f"Word count: {artifact['word_count']} | DIRECT real API call | {artifact['source']}")
-        
-        # SECONDARY PRIORITY: Show ISOLATED real execution results  
-        elif 'ISOLATED_REAL_STATUS' in st.session_state or 'ISOLATED_REAL_OUTPUTS' in st.session_state:
+                    with st.expander(
+                        f"📋 {artifact['title']} - {artifact['time']} | DIRECT REAL",
+                        expanded=True,
+                    ):
+                        st.markdown(artifact["content"])
+                        st.caption(
+                            f"Word count: {artifact['word_count']} | DIRECT real API call | {artifact['source']}"
+                        )
+
+        # SECONDARY PRIORITY: Show ISOLATED real execution results
+        elif (
+            "ISOLATED_REAL_STATUS" in st.session_state
+            or "ISOLATED_REAL_OUTPUTS" in st.session_state
+        ):
             st.subheader("🔥 ISOLATED REAL EXECUTION RESULTS")
-            
+
             # Show isolated status
-            if 'ISOLATED_REAL_STATUS' in st.session_state and st.session_state.ISOLATED_REAL_STATUS:
+            if (
+                "ISOLATED_REAL_STATUS" in st.session_state
+                and st.session_state.ISOLATED_REAL_STATUS
+            ):
                 st.markdown("#### 📊 ISOLATED Status Updates")
                 for status in st.session_state.ISOLATED_REAL_STATUS:
-                    st.write(f"⏰ {status['time']} - {status['message']} | ISOLATED REAL | ID: {status.get('execution_id', 'unknown')}")
-            
+                    st.write(
+                        f"⏰ {status['time']} - {status['message']} | ISOLATED REAL | ID: {status.get('execution_id', 'unknown')}"
+                    )
+
             # Show isolated outputs
-            if 'ISOLATED_REAL_OUTPUTS' in st.session_state and st.session_state.ISOLATED_REAL_OUTPUTS:
+            if (
+                "ISOLATED_REAL_OUTPUTS" in st.session_state
+                and st.session_state.ISOLATED_REAL_OUTPUTS
+            ):
                 st.markdown("#### 🤖 ISOLATED Agent Outputs")
                 for output in st.session_state.ISOLATED_REAL_OUTPUTS:
-                    with st.expander(f"📄 {output['agent']} - {output['time']} | ISOLATED REAL", expanded=True):
-                        st.markdown(output['content'])
-                        st.caption(f"Word count: {output['word_count']} | ISOLATED real API call | ID: {output.get('execution_id', 'unknown')}")
-        
+                    with st.expander(
+                        f"📄 {output['agent']} - {output['time']} | ISOLATED REAL",
+                        expanded=True,
+                    ):
+                        st.markdown(output["content"])
+                        st.caption(
+                            f"Word count: {output['word_count']} | ISOLATED real API call | ID: {output.get('execution_id', 'unknown')}"
+                        )
+
         # Show REAL AI-generated artifacts (not simulation) - Secondary priority
-        elif 'real_artifacts' in st.session_state and st.session_state.real_artifacts:
+        elif "real_artifacts" in st.session_state and st.session_state.real_artifacts:
             st.subheader("📄 AI-Generated Artifacts")
             for artifact in st.session_state.real_artifacts:
-                if artifact.get('is_real', False):  # Only show real artifacts
-                    with st.expander(f"📋 {artifact['title']} ({artifact['word_count']} words) | Real API", expanded=False):
-                        st.markdown(artifact['content'])
-                        st.caption(f"Generated at {artifact['formatted_time']} via real API call")
-        
+                if artifact.get("is_real", False):  # Only show real artifacts
+                    with st.expander(
+                        f"📋 {artifact['title']} ({artifact['word_count']} words) | Real API",
+                        expanded=False,
+                    ):
+                        st.markdown(artifact["content"])
+                        st.caption(
+                            f"Generated at {artifact['formatted_time']} via real API call"
+                        )
+
         # Show real agent outputs if available
-        elif 'agent_outputs' in st.session_state and st.session_state.agent_outputs:
+        elif "agent_outputs" in st.session_state and st.session_state.agent_outputs:
             st.markdown("#### 🤖 Agent Results")
             for output in st.session_state.agent_outputs:
                 # Only show real agent outputs, not simulation
-                if output.get('is_real', False):
+                if output.get("is_real", False):
                     timestamp_str = ""
-                    if 'formatted_time' in output:
+                    if "formatted_time" in output:
                         timestamp_str = f" - {output['formatted_time']}"
-                    elif 'timestamp' in output:
+                    elif "timestamp" in output:
                         timestamp_str = f" - {output['timestamp'].strftime('%H:%M:%S') if hasattr(output['timestamp'], 'strftime') else str(output['timestamp'])}"
-                    
-                    with st.expander(f"📄 {output.get('agent', 'Unknown')}{timestamp_str} | Real API", expanded=False):
-                        st.markdown(output.get('content', 'No content available'))
-                        if output.get('word_count'):
-                            st.caption(f"Word count: {output['word_count']} | Generated via real API call")
-        
+
+                    with st.expander(
+                        f"📄 {output.get('agent', 'Unknown')}{timestamp_str} | Real API",
+                        expanded=False,
+                    ):
+                        st.markdown(output.get("content", "No content available"))
+                        if output.get("word_count"):
+                            st.caption(
+                                f"Word count: {output['word_count']} | Generated via real API call"
+                            )
+
         # Show completion status
-        if st.session_state.get('execution_phase') == "completed":
-            if 'real_execution_result' in st.session_state:
+        if st.session_state.get("execution_phase") == "completed":
+            if "real_execution_result" in st.session_state:
                 result = st.session_state.real_execution_result
                 st.success("🎉 REAL AI Multi-Agent Project Completed Successfully!")
                 st.balloons()
-                
+
                 # Show execution summary
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.metric("AI Agents Used", len(result.get('agents_executed', [])))
+                    st.metric("AI Agents Used", len(result.get("agents_executed", [])))
                 with col2:
-                    st.metric("Real API Calls", result.get('total_api_calls', 0))
+                    st.metric("Real API Calls", result.get("total_api_calls", 0))
                 with col3:
-                    st.metric("Artifacts Created", len(result.get('artifacts', {})))
-                
-                st.info(f"✨ Real execution completed at {result.get('completion_time', 'unknown')}")
+                    st.metric("Artifacts Created", len(result.get("artifacts", {})))
+
+                st.info(
+                    f"✨ Real execution completed at {result.get('completion_time', 'unknown')}"
+                )
             else:
                 st.success("🎉 Multi-Agent Project Completed Successfully!")
                 st.balloons()
-            
+
             # Show next steps
             if st.button("📊 View Live Monitoring", type="primary"):
                 st.session_state.configuration_step = 4
                 st.rerun()
-        
-        elif st.session_state.get('execution_phase') == "failed":
-            st.error("❌ Project execution failed. Please check the error messages above and try again.")
+
+        elif st.session_state.get("execution_phase") == "failed":
+            st.error(
+                "❌ Project execution failed. Please check the error messages above and try again."
+            )
             if st.button("🔄 Retry Real Execution"):
                 st.session_state.execution_phase = "starting"
                 st.session_state.project_status = []
                 st.session_state.agent_outputs = []
                 st.rerun()
 
+
 def render_live_monitoring():
     """Step 4: Live Project Monitoring with Real Database Polling"""
-    
+
     st.subheader("📊 Step 4: Live Project Monitoring")
-    
+
     # Import the new live status panel
     from ui.live_status_panel import render_live_monitoring_dashboard
-    
+
     # Get current task ID if available
-    task_id = st.session_state.get('current_task_id', None)
-    
-    if not st.session_state.get('execution_started', False):
+    task_id = st.session_state.get("current_task_id", None)
+
+    if not st.session_state.get("execution_started", False):
         st.info("⏳ Start project execution to see live monitoring data")
         # Still show status panel even without execution
         safe_db = get_safe_db()
         if safe_db:
             render_live_monitoring_dashboard(safe_db, task_id=task_id)
         return
-    
+
     # Render comprehensive live monitoring dashboard
     safe_db = get_safe_db()
     if safe_db:
         render_live_monitoring_dashboard(safe_db, task_id=task_id)
-    
+
     # Legacy data comparison for debugging
     with st.expander("🔧 Debug: Compare Data Sources", expanded=False):
         col1, col2 = st.columns(2)
-        
+
         with col1:
             st.write("**Session State Data**")
-            session_status_count = len(st.session_state.get('project_status', []))
-            session_output_count = len(st.session_state.get('agent_outputs', []))
+            session_status_count = len(st.session_state.get("project_status", []))
+            session_output_count = len(st.session_state.get("agent_outputs", []))
             st.write(f"Status updates: {session_status_count}")
             st.write(f"Agent outputs: {session_output_count}")
-            
+
         with col2:
-            st.write("**Database Data**") 
+            st.write("**Database Data**")
             safe_db = get_safe_db()
             if safe_db:
                 from datetime import timedelta
-                recent_artifacts = safe_db.get_recent_artifacts(since_timestamp=datetime.now() - timedelta(hours=1))
+
+                recent_artifacts = safe_db.get_recent_artifacts(
+                    since_timestamp=datetime.now() - timedelta(hours=1)
+                )
                 db_artifact_count = len(recent_artifacts)
                 st.write(f"Recent artifacts: {db_artifact_count}")
-                
+
                 if recent_artifacts:
                     latest = recent_artifacts[0]
-                    st.write(f"Latest: {latest['artifact_type']} by {latest['agent_name']}")
+                    st.write(
+                        f"Latest: {latest['artifact_type']} by {latest['agent_name']}"
+                    )
             else:
                 st.write("Database unavailable")
-    
+
     # Control panel
     st.markdown("---")
-    
+
     col1, col2, col3, col4 = st.columns(4)
-    
+
     with col1:
-        auto_refresh = st.checkbox("🔄 Auto-refresh (1s)", value=True, key="auto_refresh_monitoring")
-    
+        auto_refresh = st.checkbox(
+            "🔄 Auto-refresh (1s)", value=True, key="auto_refresh_monitoring"
+        )
+
     with col2:
         if st.button("🔄 Refresh Now", key="manual_refresh"):
             st.rerun()
-    
+
     with col3:
         if st.button("🧹 Clear Cache", key="clear_cache"):
             # Clear Streamlit caches to force fresh data
@@ -2092,123 +2438,131 @@ def render_live_monitoring():
             st.cache_resource.clear()
             st.success("Cache cleared")
             st.rerun()
-    
+
     with col4:
         current_time = datetime.now().strftime("%H:%M:%S")
         st.write(f"🕐 {current_time}")
-    
+
     # Auto-refresh implementation with 1 second polling
     if auto_refresh:
         time.sleep(1)
         st.rerun()
 
-    # Show legacy project data if available 
-    if st.session_state.get('active_live_project'):
+    # Show legacy project data if available
+    if st.session_state.get("active_live_project"):
         correlation_id = st.session_state.active_live_project
-        
+
         # Enhanced Project Header with Live Collaboration Status
         col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
-        
+
         with col1:
             st.markdown(f"**Project ID:** `{correlation_id}`")
-            st.markdown(f"**Status:** {'🟢 Active' if correlation_id != 'demo_mode' else '🟡 Demo Mode'}")
-        
+            st.markdown(
+                f"**Status:** {'🟢 Active' if correlation_id != 'demo_mode' else '🟡 Demo Mode'}"
+            )
+
         with col2:
             if st.button("🔄 Refresh Status"):
                 st.rerun()
-        
+
         with col3:
             if st.button("⚡ Start Parallel Agents"):
                 try:
                     # Launch parallel agent execution
                     project_config = {
-                        'description': st.session_state.project_description,
-                        'type': st.session_state.project_type,
-                        'complexity': getattr(st.session_state, 'complexity_level', 'medium')
+                        "description": st.session_state.project_description,
+                        "type": st.session_state.project_type,
+                        "complexity": getattr(
+                            st.session_state, "complexity_level", "medium"
+                        ),
                     }
-                    
+
                     execution_id = asyncio.run(
-                        st.session_state.parallel_execution_engine.execute_parallel_agents(project_config)
+                        st.session_state.parallel_execution_engine.execute_parallel_agents(
+                            project_config
+                        )
                     )
                     st.success(f"Launched parallel execution: {execution_id[-8:]}")
                     st.session_state.active_parallel_execution = execution_id
                 except Exception as e:
                     st.error(f"Failed to launch parallel agents: {e}")
-        
+
         with col4:
             if st.button("⏹️ Stop Project"):
                 st.session_state.active_live_project = None
                 st.session_state.configuration_step = 1
                 st.success("Project stopped successfully")
                 st.rerun()
-        
+
         st.markdown("---")
-        
+
         # Enhanced monitoring with live collaboration
         if correlation_id == "demo_mode":
             render_enhanced_demo_monitoring()
         else:
             render_enhanced_real_monitoring(correlation_id)
-        
+
         # Enhanced live monitoring dashboard
         from ui.live_monitoring import render_live_monitoring_dashboard
-        
+
         try:
             render_live_monitoring_dashboard(
-                progress_tracker=st.session_state.get('live_progress_tracker'),
-                execution_engine=st.session_state.get('parallel_execution_engine')
+                progress_tracker=st.session_state.get("live_progress_tracker"),
+                execution_engine=st.session_state.get("parallel_execution_engine"),
             )
         except Exception as e:
             st.error(f"Error rendering live monitoring dashboard: {e}")
             st.info("Falling back to basic monitoring")
-            
+
             # Fallback to basic monitoring
             render_basic_live_status()
-        
+
         # Enhanced Quick Actions
         st.markdown("#### Real-Time Collaboration Controls")
         col1, col2, col3, col4 = st.columns(4)
-        
+
         with col1:
             if st.button("🔴 Start Live Session"):
                 try:
                     session_id = asyncio.run(
                         st.session_state.live_collaboration_engine.start_live_collaboration_session(
                             st.session_state.project_description,
-                            st.session_state.project_type
+                            st.session_state.project_type,
                         )
                     )
                     st.success(f"Live session started: {session_id[-8:]}")
                     st.session_state.active_live_session = session_id
                 except Exception as e:
                     st.error(f"Failed to start live session: {e}")
-        
+
         with col2:
             if st.button("📊 Collaboration Status"):
                 try:
                     status = st.session_state.live_collaboration_engine.get_live_collaboration_status()
-                    st.json({
-                        'active_collaborations': status['active_collaborations'],
-                        'collaboration_metrics': status['collaboration_metrics'],
-                        'live_agents': len(status['live_agent_activities'])
-                    })
+                    st.json(
+                        {
+                            "active_collaborations": status["active_collaborations"],
+                            "collaboration_metrics": status["collaboration_metrics"],
+                            "live_agents": len(status["live_agent_activities"]),
+                        }
+                    )
                 except Exception as e:
                     st.error(f"Failed to get status: {e}")
-        
+
         with col3:
             if st.button("📈 System Health"):
                 try:
                     health = st.session_state.live_progress_tracker.get_system_health()
                     col_a, col_b, col_c = st.columns(3)
                     with col_a:
-                        st.metric("Events Processed", health['events_processed'])
+                        st.metric("Events Processed", health["events_processed"])
                     with col_b:
                         st.metric("Success Rate", f"{health['success_rate']:.1%}")
                     with col_c:
-                        st.metric("Active Workflows", health['active_workflows'])
+                        st.metric("Active Workflows", health["active_workflows"])
                 except Exception as e:
                     st.error(f"Failed to get health metrics: {e}")
-        
+
         with col4:
             if st.button("🆕 Start New Project"):
                 st.session_state.configuration_step = 1
@@ -2224,34 +2578,39 @@ def render_live_monitoring():
 
 def render_basic_live_status():
     """Basic live status when enhanced monitoring is not available"""
-    
+
     st.markdown("#### 📡 Basic Live Status")
-    
+
     # Show live collaboration engine status if available
-    if hasattr(st.session_state, 'live_collaboration_engine'):
+    if hasattr(st.session_state, "live_collaboration_engine"):
         try:
             status = st.session_state.live_collaboration_engine.get_live_collaboration_status()
-            
+
             col1, col2, col3 = st.columns(3)
-            
+
             with col1:
-                st.metric("Active Collaborations", status['active_collaborations'])
-            
+                st.metric("Active Collaborations", status["active_collaborations"])
+
             with col2:
-                st.metric("Live Agents", len(status['live_agent_activities']))
-            
+                st.metric("Live Agents", len(status["live_agent_activities"]))
+
             with col3:
-                st.metric("Artifacts Created", status['collaboration_metrics']['artifacts_created'])
-            
+                st.metric(
+                    "Artifacts Created",
+                    status["collaboration_metrics"]["artifacts_created"],
+                )
+
             # Recent activities
-            if status['live_agent_activities']:
+            if status["live_agent_activities"]:
                 st.markdown("##### Recent Agent Activities")
-                for agent_id, activity in list(status['live_agent_activities'].items())[:3]:
+                for agent_id, activity in list(status["live_agent_activities"].items())[
+                    :3
+                ]:
                     st.write(f"🤖 **{agent_id}**: {activity['current_activity']}")
-        
+
         except Exception as e:
             st.warning(f"Live collaboration status unavailable: {e}")
-    
+
     else:
         st.info("Live collaboration engine not initialized")
 
@@ -2259,170 +2618,229 @@ def render_basic_live_status():
 def render_enhanced_demo_monitoring():
     """DISABLED - Enhanced demo monitoring with live collaboration simulation"""
     # SIMULATION SYSTEM DISABLED - Only show real API data
-    
-    st.warning("🔥 REAL API MODE: Simulation systems have been disabled. Only authentic API results are displayed.")
-    
+
+    st.warning(
+        "🔥 REAL API MODE: Simulation systems have been disabled. Only authentic API results are displayed."
+    )
+
     # Show debug information
     current_time = datetime.now().strftime("%H:%M:%S")
     st.info(f"⏰ Current Real Time: {current_time}")
-    
+
     # Only show real data that exists in session state
-    if 'project_status' in st.session_state and st.session_state.project_status:
+    if "project_status" in st.session_state and st.session_state.project_status:
         st.markdown("#### 📊 REAL Status Updates Only")
-        real_events = [s for s in st.session_state.project_status if isinstance(s, dict) and s.get('is_real', False)]
+        real_events = [
+            s
+            for s in st.session_state.project_status
+            if isinstance(s, dict) and s.get("is_real", False)
+        ]
         if real_events:
             for status in real_events[-5:]:  # Show last 5 real events
-                st.write(f"⏰ {status.get('time', 'N/A')} - {status.get('message', 'N/A')} | REAL API")
+                st.write(
+                    f"⏰ {status.get('time', 'N/A')} - {status.get('message', 'N/A')} | REAL API"
+                )
         else:
             st.write("❌ No real status updates found")
-    
-    if 'agent_outputs' in st.session_state and st.session_state.agent_outputs:
+
+    if "agent_outputs" in st.session_state and st.session_state.agent_outputs:
         st.markdown("#### 🤖 REAL Agent Outputs Only")
-        real_outputs = [o for o in st.session_state.agent_outputs if o.get('is_real', False)]
+        real_outputs = [
+            o for o in st.session_state.agent_outputs if o.get("is_real", False)
+        ]
         if real_outputs:
             for output in real_outputs[-3:]:  # Show last 3 real outputs
-                agent_name = output.get('agent', 'Unknown')
-                content_preview = output.get('content', 'No content')[:100] + "..."
+                agent_name = output.get("agent", "Unknown")
+                content_preview = output.get("content", "No content")[:100] + "..."
                 st.write(f"📄 {agent_name}: {content_preview} | REAL API")
         else:
             st.write("❌ No real agent outputs found")
-    
+
     # DISABLED ALL SIMULATION DATA - No fake timestamps, no random metrics
     return  # Early return - all simulation logic disabled
+
 
 def render_demo_monitoring():
     """DISABLED - Demo monitoring interface"""
     # SIMULATION SYSTEM DISABLED - Only show real API data
-    
-    st.warning("🔥 REAL API MODE: Demo simulation has been disabled. Only authentic API results are displayed.")
-    
+
+    st.warning(
+        "🔥 REAL API MODE: Demo simulation has been disabled. Only authentic API results are displayed."
+    )
+
     current_time = datetime.now().strftime("%H:%M:%S")
     st.info(f"⏰ Current Real Time: {current_time}")
-    
+
     # Show session state debug info
     st.markdown("#### 🔍 Session State Debug")
     with st.expander("View Session State", expanded=False):
         st.write("Session State Keys:", list(st.session_state.keys()))
-        
+
         # Show real events only
-        if 'project_status' in st.session_state:
-            real_status = [s for s in st.session_state.project_status if isinstance(s, dict) and s.get('is_real', False)]
+        if "project_status" in st.session_state:
+            real_status = [
+                s
+                for s in st.session_state.project_status
+                if isinstance(s, dict) and s.get("is_real", False)
+            ]
             st.write(f"Real Status Events: {len(real_status)}")
-            
-        if 'agent_outputs' in st.session_state:
-            real_outputs = [o for o in st.session_state.agent_outputs if o.get('is_real', False)]
+
+        if "agent_outputs" in st.session_state:
+            real_outputs = [
+                o for o in st.session_state.agent_outputs if o.get("is_real", False)
+            ]
             st.write(f"Real Agent Outputs: {len(real_outputs)}")
-    
+
     return  # Early return - all simulation logic disabled
+
 
 def render_enhanced_real_monitoring(correlation_id):
     """Enhanced real project monitoring with live collaboration"""
-    
-    if hasattr(st.session_state, 'live_orchestrator') and st.session_state.live_orchestrator:
+
+    if (
+        hasattr(st.session_state, "live_orchestrator")
+        and st.session_state.live_orchestrator
+    ):
         try:
             # Get real agent results with live collaboration data
-            real_results = st.session_state.live_orchestrator.get_real_agent_results(correlation_id)
-            project_progress = st.session_state.live_orchestrator.get_project_progress(correlation_id)
-            
+            real_results = st.session_state.live_orchestrator.get_real_agent_results(
+                correlation_id
+            )
+            project_progress = st.session_state.live_orchestrator.get_project_progress(
+                correlation_id
+            )
+
             if project_progress:
                 # Enhanced project overview with live collaboration
                 col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
-                
+
                 with col1:
                     st.markdown(f"**Description**: {project_progress['description']}")
-                    status_emoji = "🟢" if project_progress['status'] == 'completed' else "🔄" if project_progress['status'] == 'active' else "🔴"
-                    st.markdown(f"**Status**: {status_emoji} {project_progress['status'].title()}")
-                    
+                    status_emoji = (
+                        "🟢"
+                        if project_progress["status"] == "completed"
+                        else "🔄"
+                        if project_progress["status"] == "active"
+                        else "🔴"
+                    )
+                    st.markdown(
+                        f"**Status**: {status_emoji} {project_progress['status'].title()}"
+                    )
+
                 with col2:
-                    st.metric("Progress", f"{project_progress['progress_percentage']:.0f}%")
-                    st.progress(project_progress['progress_percentage'] / 100)
-                    
+                    st.metric(
+                        "Progress", f"{project_progress['progress_percentage']:.0f}%"
+                    )
+                    st.progress(project_progress["progress_percentage"] / 100)
+
                 with col3:
-                    st.metric("Phases Complete", f"{project_progress['phases_completed']}/{project_progress['total_phases']}")
-                
+                    st.metric(
+                        "Phases Complete",
+                        f"{project_progress['phases_completed']}/{project_progress['total_phases']}",
+                    )
+
                 with col4:
                     # Live collaboration metrics
                     try:
                         collab_status = st.session_state.live_collaboration_engine.get_live_collaboration_status()
-                        st.metric("Live Agents", len(collab_status['live_agent_activities']))
+                        st.metric(
+                            "Live Agents", len(collab_status["live_agent_activities"])
+                        )
                     except:
                         st.metric("Live Agents", 0)
-                
+
                 # Enhanced agent activities with real-time collaboration
                 st.markdown("#### 🔴 Live Agent Activities")
-                
+
                 # Combine real results with live collaboration data
                 live_activities = []
-                
+
                 if real_results:
                     for phase_name, result in real_results.items():
                         if result:
-                            live_activities.append({
-                                'agent': result.get('agent_type', 'Unknown'),
-                                'phase': phase_name,
-                                'status': result.get('status', 'unknown'),
-                                'timestamp': result.get('timestamp', 'Unknown'),
-                                'collaboration': result.get('collaboration_note', 'Individual work'),
-                                'quality': result.get('quality_score', 0),
-                                'artifacts': result.get('artifacts_created', [])
-                            })
-                
+                            live_activities.append(
+                                {
+                                    "agent": result.get("agent_type", "Unknown"),
+                                    "phase": phase_name,
+                                    "status": result.get("status", "unknown"),
+                                    "timestamp": result.get("timestamp", "Unknown"),
+                                    "collaboration": result.get(
+                                        "collaboration_note", "Individual work"
+                                    ),
+                                    "quality": result.get("quality_score", 0),
+                                    "artifacts": result.get("artifacts_created", []),
+                                }
+                            )
+
                 # Add live collaboration activities
                 try:
-                    live_agent_activities = st.session_state.live_collaboration_engine.get_agent_activity_feed(5)
+                    live_agent_activities = st.session_state.live_collaboration_engine.get_agent_activity_feed(
+                        5
+                    )
                     for activity in live_agent_activities:
-                        live_activities.append({
-                            'agent': activity['agent_id'],
-                            'phase': activity['activity'],
-                            'status': 'live',
-                            'timestamp': activity['timestamp'],
-                            'collaboration': 'Real-time collaboration',
-                            'quality': None,
-                            'artifacts': []
-                        })
+                        live_activities.append(
+                            {
+                                "agent": activity["agent_id"],
+                                "phase": activity["activity"],
+                                "status": "live",
+                                "timestamp": activity["timestamp"],
+                                "collaboration": "Real-time collaboration",
+                                "quality": None,
+                                "artifacts": [],
+                            }
+                        )
                 except:
                     pass
-                
+
                 # Display enhanced activities
                 for activity in live_activities[:8]:  # Show top 8
-                    with st.expander(f"🤖 {activity['agent']} - {activity['phase']} ({activity['status']})"):
+                    with st.expander(
+                        f"🤖 {activity['agent']} - {activity['phase']} ({activity['status']})"
+                    ):
                         col_a, col_b, col_c = st.columns(3)
-                        
+
                         with col_a:
                             st.write(f"**Agent**: {activity['agent']}")
                             st.write(f"**Status**: {activity['status']}")
-                            if activity['timestamp']:
-                                timestamp_str = activity['timestamp'][:19] if isinstance(activity['timestamp'], str) else str(activity['timestamp'])[:19]
+                            if activity["timestamp"]:
+                                timestamp_str = (
+                                    activity["timestamp"][:19]
+                                    if isinstance(activity["timestamp"], str)
+                                    else str(activity["timestamp"])[:19]
+                                )
                                 st.write(f"**Time**: {timestamp_str}")
-                        
+
                         with col_b:
                             st.write(f"**Phase**: {activity['phase']}")
                             st.write(f"**Collaboration**: {activity['collaboration']}")
-                            
-                            if activity['quality']:
-                                st.write(f"**Quality Score**: {activity['quality']:.2f}")
-                        
+
+                            if activity["quality"]:
+                                st.write(
+                                    f"**Quality Score**: {activity['quality']:.2f}"
+                                )
+
                         with col_c:
-                            if activity['artifacts']:
+                            if activity["artifacts"]:
                                 st.write("**Artifacts Created**:")
-                                for artifact in activity['artifacts'][:3]:
+                                for artifact in activity["artifacts"][:3]:
                                     st.caption(f"• {artifact}")
-                            
+
                             # Real-time progress simulation for live activities
-                            if activity['status'] == 'live':
+                            if activity["status"] == "live":
                                 import random
+
                                 progress_val = random.randint(20, 95)
                                 st.progress(progress_val / 100)
                                 st.caption(f"Real-time Progress: {progress_val}%")
-            
+
             else:
                 st.warning("No project progress data available")
-                
+
         except Exception as e:
             st.error(f"Error loading real project data: {e}")
             st.info("Falling back to basic monitoring")
             render_enhanced_demo_monitoring()
-    
+
     else:
         st.warning("Live orchestrator not available")
         render_enhanced_demo_monitoring()
@@ -2432,24 +2850,25 @@ def render_real_monitoring(correlation_id):
     """Legacy real project monitoring - keeping for compatibility"""
     render_enhanced_real_monitoring(correlation_id)
 
+
 def render_routing_dashboard():
     """Model routing and performance dashboard"""
-    
+
     st.header("📊 Routing & Performance Dashboard")
-    
+
     col1, col2 = st.columns([1, 1])
-    
+
     with col1:
         st.subheader("🎯 Model Routing Demo")
-        
+
         # Task complexity input
         st.markdown("### Task Complexity Assessment")
-        
+
         technical_complexity = st.slider("Technical Complexity", 0.0, 1.0, 0.8)
-        novelty = st.slider("Novelty", 0.0, 1.0, 0.6) 
+        novelty = st.slider("Novelty", 0.0, 1.0, 0.6)
         safety_risk = st.slider("Safety Risk", 0.0, 1.0, 0.3)
-        
-        complexity = TaskComplexity(
+
+        TaskComplexity(
             technical_complexity=technical_complexity,
             novelty=novelty,
             safety_risk=safety_risk,
@@ -2457,106 +2876,145 @@ def render_routing_dashboard():
             interdependence=0.5,
             estimated_tokens=5000,
             requires_reasoning=True,
-            time_sensitive=False
+            time_sensitive=False,
         )
-        
+
         # Route task
         if st.button("Route Task to Optimal Model"):
             demo_task = st.session_state.demo_data["task"]
             selection = st.session_state.router.route_task(demo_task, "workflow_001")
-            
-            st.success(f"Selected Model: {selection.routing_decision.selected_model.value}")
+
+            st.success(
+                f"Selected Model: {selection.routing_decision.selected_model.value}"
+            )
             st.markdown(f"**Confidence**: {selection.routing_decision.confidence:.2f}")
-            st.markdown(f"**Quality Score**: {selection.routing_decision.quality_score:.2f}")
-            st.markdown(f"**Estimated Time**: {selection.routing_decision.estimated_completion_time:.1f} min")
-            
+            st.markdown(
+                f"**Quality Score**: {selection.routing_decision.quality_score:.2f}"
+            )
+            st.markdown(
+                f"**Estimated Time**: {selection.routing_decision.estimated_completion_time:.1f} min"
+            )
+
             st.markdown("### Routing Reasoning")
             st.markdown(selection.selection_reasoning)
-            
+
             # Show alternatives
             if selection.routing_decision.alternatives:
                 st.markdown("### Alternative Models")
                 for alt_model, alt_score in selection.routing_decision.alternatives:
                     st.markdown(f"- {alt_model.value}: {alt_score:.2f}")
-    
+
     with col2:
         st.subheader("📈 Performance Metrics")
-        
+
         # Router statistics
         router_stats = st.session_state.router.get_routing_stats()
         st.json(router_stats)
-        
+
         # Model capability comparison
         st.subheader("🥊 Model Comparison")
-        
+
         comparison_data = []
         for model_cap in MODEL_CAPABILITIES:
-            comparison_data.append({
-                "Model": model_cap.display_name,
-                "Reasoning": model_cap.capabilities.reasoning_long,
-                "Code Backend": model_cap.capabilities.code_backend,
-                "Code UI": model_cap.capabilities.code_ui,
-                "Cost Score": model_cap.capabilities.cost_score,
-                "Speed Score": model_cap.capabilities.latency_score
-            })
-        
+            comparison_data.append(
+                {
+                    "Model": model_cap.display_name,
+                    "Reasoning": model_cap.capabilities.reasoning_long,
+                    "Code Backend": model_cap.capabilities.code_backend,
+                    "Code UI": model_cap.capabilities.code_ui,
+                    "Cost Score": model_cap.capabilities.cost_score,
+                    "Speed Score": model_cap.capabilities.latency_score,
+                }
+            )
+
         st.dataframe(comparison_data)
-        
+
         # Load simulation
         st.subheader("⚡ Load Balancing")
-        for model_type in [ModelType.CLAUDE_SONNET, ModelType.GPT4O, ModelType.GEMINI_FLASH]:
+        for model_type in [
+            ModelType.CLAUDE_SONNET,
+            ModelType.GPT4O,
+            ModelType.GEMINI_FLASH,
+        ]:
             load = st.session_state.router.current_loads.get(model_type, 0.0)
             st.metric(f"{model_type.value} Load", f"{load:.1%}")
-        
+
         if st.button("Simulate Load"):
             import random
-            for model_type in [ModelType.CLAUDE_SONNET, ModelType.GPT4O, ModelType.GEMINI_FLASH]:
+
+            for model_type in [
+                ModelType.CLAUDE_SONNET,
+                ModelType.GPT4O,
+                ModelType.GEMINI_FLASH,
+            ]:
                 st.session_state.router.update_model_load(model_type, random.random())
             st.rerun()
 
+
 def render_workflow_monitor():
     """Live workflow monitoring interface"""
-    
+
     st.header("⚡ Live Workflow Monitor")
-    
+
     # Check if we have real execution data to display
     has_real_data = (
-        st.session_state.get('execution_started', False) or 
-        (st.session_state.get('agent_outputs') and 
-         any(output.get('is_real', False) for output in st.session_state.agent_outputs)) or
-        (st.session_state.get('project_status') and 
-         any(status.get('is_real', False) if isinstance(status, dict) else False for status in st.session_state.project_status))
+        st.session_state.get("execution_started", False)
+        or (
+            st.session_state.get("agent_outputs")
+            and any(
+                output.get("is_real", False)
+                for output in st.session_state.agent_outputs
+            )
+        )
+        or (
+            st.session_state.get("project_status")
+            and any(
+                status.get("is_real", False) if isinstance(status, dict) else False
+                for status in st.session_state.project_status
+            )
+        )
     )
-    
+
     if has_real_data:
         # Show real execution monitoring
-        st.success("🔴 REAL AI Execution Active - Showing authentic data from live API calls")
+        st.success(
+            "🔴 REAL AI Execution Active - Showing authentic data from live API calls"
+        )
         render_real_execution_monitor()
     else:
         # Show simulation data for demo purposes
         st.info("📊 Demo Mode - Start a real AI project to see live execution data")
         render_simulation_monitor()
 
+
 def render_real_execution_monitor():
     """Monitor real AI execution with authentic data"""
-    
+
     # Real execution metrics
     col1, col2, col3, col4 = st.columns(4)
-    
+
     # Count real artifacts from database
     real_artifacts_count = 0
-    if 'agent_outputs' in st.session_state:
-        real_artifacts_count = len([o for o in st.session_state.agent_outputs if o.get('is_real', False)])
-    
+    if "agent_outputs" in st.session_state:
+        real_artifacts_count = len(
+            [o for o in st.session_state.agent_outputs if o.get("is_real", False)]
+        )
+
     # Count real status updates
     real_events_count = 0
-    if 'project_status' in st.session_state:
-        real_events_count = len([s for s in st.session_state.project_status if isinstance(s, dict) and s.get('is_real', False)])
-    
+    if "project_status" in st.session_state:
+        real_events_count = len(
+            [
+                s
+                for s in st.session_state.project_status
+                if isinstance(s, dict) and s.get("is_real", False)
+            ]
+        )
+
     # Execution phase
-    execution_phase = st.session_state.get('execution_phase', 'idle')
-    is_active = execution_phase not in ['completed', 'failed', 'idle']
-    
+    execution_phase = st.session_state.get("execution_phase", "idle")
+    is_active = execution_phase not in ["completed", "failed", "idle"]
+
     with col1:
         st.metric("🔴 Live Sessions", "1" if is_active else "0")
     with col2:
@@ -2564,19 +3022,19 @@ def render_real_execution_monitor():
     with col3:
         st.metric("⚡ Live Events", real_events_count)
     with col4:
-        phase_display = execution_phase.replace('_', ' ').title()
+        phase_display = execution_phase.replace("_", " ").title()
         st.metric("🎯 Status", phase_display)
-    
+
     # Real-time agent activity
     st.subheader("🤖 Real Agent Activity")
-    
-    if 'agent_outputs' in st.session_state and st.session_state.agent_outputs:
+
+    if "agent_outputs" in st.session_state and st.session_state.agent_outputs:
         # Display real agent outputs with actual timestamps
         for output in st.session_state.agent_outputs:
-            if output.get('is_real', False):
-                timestamp = output.get('formatted_time', output.get('timestamp', 'N/A'))
-                agent_name = output.get('agent', 'Unknown Agent')
-                
+            if output.get("is_real", False):
+                timestamp = output.get("formatted_time", output.get("timestamp", "N/A"))
+                agent_name = output.get("agent", "Unknown Agent")
+
                 with st.container():
                     col1, col2, col3 = st.columns([1, 2, 1])
                     with col1:
@@ -2586,99 +3044,102 @@ def render_real_execution_monitor():
                     with col3:
                         st.markdown("✅ Complete")
                     st.markdown("---")
-    
+
     # Real-time status updates
-    if 'project_status' in st.session_state and st.session_state.project_status:
+    if "project_status" in st.session_state and st.session_state.project_status:
         st.subheader("📊 Real-Time Status Updates")
         for status in reversed(st.session_state.project_status[-10:]):
-            if isinstance(status, dict) and status.get('is_real', False):
-                time_str = status.get('time', 'N/A')
-                message = status.get('message', 'N/A')
+            if isinstance(status, dict) and status.get("is_real", False):
+                time_str = status.get("time", "N/A")
+                message = status.get("message", "N/A")
                 st.markdown(f"⏰ **{time_str}** - {message}")
             elif not isinstance(status, dict):
                 # Legacy format for real status
                 current_time = datetime.now().strftime("%H:%M:%S")
                 st.markdown(f"⏰ **{current_time}** - {str(status)}")
 
+
 def render_simulation_monitor():
     """Show simulation data for demo purposes"""
-    
+
     orchestrator = st.session_state.orchestrator
-    
+
     # Simulation metrics
     col1, col2, col3, col4 = st.columns(4)
-    
+
     status = orchestrator.get_workflow_status()
-    
+
     with col1:
         st.metric("Demo Events", status["total_events"])
     with col2:
         st.metric("Demo Tasks", status["active_tasks"])
     with col3:
-        st.metric("Demo Completed", status["completed_tasks"]) 
+        st.metric("Demo Completed", status["completed_tasks"])
     with col4:
         st.metric("Demo Artifacts", status["artifacts_produced"])
-    
+
     # Event stream
     st.subheader("📜 Event Stream")
-    
+
     if orchestrator.events:
         # Create event timeline
         for event in reversed(orchestrator.events[-10:]):  # Show last 10 events
             with st.container():
                 col1, col2, col3 = st.columns([1, 2, 4])
-                
+
                 with col1:
                     st.caption(event.timestamp.strftime("%H:%M:%S"))
-                
+
                 with col2:
                     event_emoji = {
                         EventType.WORKFLOW_STARTED: "🚀 Started",
-                        EventType.TASK_CREATED: "📋 Task Created", 
+                        EventType.TASK_CREATED: "📋 Task Created",
                         EventType.TASK_ASSIGNED: "👤 Assigned",
                         EventType.TASK_STARTED: "▶️ Started",
                         EventType.TASK_COMPLETED: "✅ Completed",
                         EventType.ARTIFACT_PRODUCED: "📄 Artifact",
-                        EventType.AGENT_COMMUNICATION: "💬 Communication"
+                        EventType.AGENT_COMMUNICATION: "💬 Communication",
                     }.get(event.event_type, "📝 Event")
-                    
+
                     st.markdown(f"**{event_emoji}**")
-                
+
                 with col3:
                     if event.task_id:
                         st.markdown(f"Task: {event.task_id}")
                     if event.agent_id:
                         st.markdown(f"Agent: {event.agent_id}")
-                    
+
                     # Show event data summary
                     if event.data:
                         data_summary = f"Data: {list(event.data.keys())[:3]}"
                         st.caption(data_summary)
-                
+
                 st.markdown("---")
     else:
         st.info("No events in workflow. Start a workflow to see live monitoring.")
-    
+
     # Auto-refresh toggle
     auto_refresh = st.checkbox("Auto-refresh (5 seconds)")
     if auto_refresh:
         st.rerun()
+
 
 def get_artifact_description(artifact_type: ArtifactType) -> str:
     """Get description for artifact type"""
     descriptions = {
         ArtifactType.SPEC_DOC: "Requirements and specifications document",
         ArtifactType.DESIGN_DOC: "Architecture and design decisions",
-        ArtifactType.CODE_PATCH: "Code changes with unified diff format", 
+        ArtifactType.CODE_PATCH: "Code changes with unified diff format",
         ArtifactType.TEST_PLAN: "Testing strategies and test cases",
         ArtifactType.EVAL_REPORT: "Quality assessment and metrics",
-        ArtifactType.RUNBOOK: "Operational procedures and documentation"
+        ArtifactType.RUNBOOK: "Operational procedures and documentation",
     }
     return descriptions.get(artifact_type, "Unknown artifact type")
 
+
 def create_artifact_template(artifact_type: ArtifactType) -> Dict[str, Any]:
     """Create template for artifact type"""
-    
+
     base_template = {
         "artifact_id": f"template_{artifact_type.value}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
         "artifact_type": artifact_type.value,
@@ -2687,51 +3148,66 @@ def create_artifact_template(artifact_type: ArtifactType) -> Dict[str, Any]:
         "created_at": datetime.now().isoformat(),
         "confidence": 0.8,
         "dependencies": [],
-        "tags": ["template", "generated"]
+        "tags": ["template", "generated"],
     }
-    
+
     if artifact_type == ArtifactType.SPEC_DOC:
-        base_template.update({
-            "title": "Template Specification",
-            "objective": "Template objective",
-            "requirements": [
-                {"id": "REQ_001", "description": "Template requirement", "priority": "medium"}
-            ],
-            "acceptance_criteria": ["Template acceptance criteria"],
-            "assumptions": ["Template assumptions"],
-            "constraints": ["Template constraints"]
-        })
-    
+        base_template.update(
+            {
+                "title": "Template Specification",
+                "objective": "Template objective",
+                "requirements": [
+                    {
+                        "id": "REQ_001",
+                        "description": "Template requirement",
+                        "priority": "medium",
+                    }
+                ],
+                "acceptance_criteria": ["Template acceptance criteria"],
+                "assumptions": ["Template assumptions"],
+                "constraints": ["Template constraints"],
+            }
+        )
+
     elif artifact_type == ArtifactType.CODE_PATCH:
-        base_template.update({
-            "title": "Template Code Patch", 
-            "description": "Template code changes",
-            "files_changed": [
-                {"path": "example.py", "action": "modified", "lines_added": 10, "lines_removed": 5}
-            ],
-            "diff_unified": "--- a/example.py\n+++ b/example.py\n@@ -1,3 +1,4 @@\n # Example file\n+# Added comment\n def main():\n     pass",
-            "language": "python",
-            "test_instructions": ["Run template tests"]
-        })
-    
+        base_template.update(
+            {
+                "title": "Template Code Patch",
+                "description": "Template code changes",
+                "files_changed": [
+                    {
+                        "path": "example.py",
+                        "action": "modified",
+                        "lines_added": 10,
+                        "lines_removed": 5,
+                    }
+                ],
+                "diff_unified": "--- a/example.py\n+++ b/example.py\n@@ -1,3 +1,4 @@\n # Example file\n+# Added comment\n def main():\n     pass",
+                "language": "python",
+                "test_instructions": ["Run template tests"],
+            }
+        )
+
     return base_template
+
 
 def check_api_connection() -> bool:
     """Check if OpenAI API key is available"""
     try:
         # Check if OpenAI API key is available
-        api_key = os.environ.get('OPENAI_API_KEY')
+        api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
             return False
-        
+
         # Basic validation - should start with 'sk-' and be reasonable length
-        if api_key.startswith('sk-') and len(api_key) > 20:
+        if api_key.startswith("sk-") and len(api_key) > 20:
             return True
-        
+
         return False
     except Exception as e:
         logger.error(f"API connection check failed: {e}")
         return False
+
 
 def render_typed_artifacts_page():
     """Render the Typed Artifact System demonstration page"""
@@ -2742,57 +3218,67 @@ def render_typed_artifacts_page():
     This system provides structured handoffs, conflict resolution, and quality tracking 
     for AI agent collaboration through typed artifacts.
     """)
-    
+
     # Import the integration module
     try:
         from integration_typed_artifacts import TypedArtifactOrchestrator
-        
+
         # Initialize orchestrator
-        if 'typed_orchestrator' not in st.session_state:
+        if "typed_orchestrator" not in st.session_state:
             st.session_state.typed_orchestrator = TypedArtifactOrchestrator()
-        
+
         orchestrator = st.session_state.typed_orchestrator
-        
+
         # Get current metrics
         metrics = orchestrator.get_system_metrics()
-        
+
         # Display key metrics
         col1, col2, col3, col4 = st.columns(4)
-        
+
         with col1:
-            st.metric("Total Artifacts", metrics['artifacts']['total_artifacts'])
-        
+            st.metric("Total Artifacts", metrics["artifacts"]["total_artifacts"])
+
         with col2:
             st.metric("Avg Quality", f"{metrics['artifacts']['avg_quality']:.2f}")
-        
+
         with col3:
-            st.metric("Handoff Success", f"{metrics['handoffs'].get('success_rate', 1.0):.1%}")
-        
+            st.metric(
+                "Handoff Success", f"{metrics['handoffs'].get('success_rate', 1.0):.1%}"
+            )
+
         with col4:
             st.metric("System Health", f"{metrics['system_health']['score']:.2f}")
-        
+
         # System health indicator
-        health = metrics['system_health']
+        health = metrics["system_health"]
         health_color = {
-            'excellent': '🟢',
-            'good': '🟡', 
-            'fair': '🟠',
-            'poor': '🔴'
-        }.get(health['level'], '⚪')
-        
-        st.markdown(f"**System Health:** {health_color} {health['level'].title()} ({health['score']:.2f})")
-        
-        if health['issues']:
-            st.warning("**Issues Detected:**\n" + "\n".join(f"• {issue}" for issue in health['issues']))
-        
-        if health['recommendations']:
-            st.info("**Recommendations:**\n" + "\n".join(f"• {rec}" for rec in health['recommendations']))
-        
+            "excellent": "🟢",
+            "good": "🟡",
+            "fair": "🟠",
+            "poor": "🔴",
+        }.get(health["level"], "⚪")
+
+        st.markdown(
+            f"**System Health:** {health_color} {health['level'].title()} ({health['score']:.2f})"
+        )
+
+        if health["issues"]:
+            st.warning(
+                "**Issues Detected:**\n"
+                + "\n".join(f"• {issue}" for issue in health["issues"])
+            )
+
+        if health["recommendations"]:
+            st.info(
+                "**Recommendations:**\n"
+                + "\n".join(f"• {rec}" for rec in health["recommendations"])
+            )
+
         # Demo section
         st.subheader("🚀 Live Demonstration")
-        
+
         col1, col2 = st.columns(2)
-        
+
         with col1:
             if st.button("Create Sample SpecDoc", type="primary"):
                 # Create a sample SpecDoc
@@ -2804,81 +3290,97 @@ def render_typed_artifacts_page():
                         {
                             "id": "REQ-001",
                             "description": "User authentication system with secure login",
-                            "priority": "high"
+                            "priority": "high",
                         }
                     ],
                     "acceptance_criteria": ["Users can register and login securely"],
-                    "business_value": "Increase online sales by 30%"
+                    "business_value": "Increase online sales by 30%",
                 }
-                
+
                 result = orchestrator.create_artifact_from_agent_output(
                     agent_id="project_manager",
                     agent_output=str(spec_data),
                     artifact_type="SpecDoc",
-                    context={"demo": True}
+                    context={"demo": True},
                 )
-                
-                if result['success']:
+
+                if result["success"]:
                     st.success(f"Created SpecDoc: {result['artifact_id']}")
-                    st.json({
-                        "artifact_id": result['artifact_id'],
-                        "confidence": result['confidence'],
-                        "quality_score": result['quality_score']
-                    })
+                    st.json(
+                        {
+                            "artifact_id": result["artifact_id"],
+                            "confidence": result["confidence"],
+                            "quality_score": result["quality_score"],
+                        }
+                    )
                 else:
                     st.error(f"Failed to create artifact: {result['details']}")
-        
+
         with col2:
             if st.button("Run Conflict Detection"):
-                artifact_ids = list(st.session_state.typed_artifacts.get('artifacts', {}).keys())
-                
+                artifact_ids = list(
+                    st.session_state.typed_artifacts.get("artifacts", {}).keys()
+                )
+
                 if len(artifact_ids) >= 2:
-                    result = orchestrator.detect_and_resolve_conflicts(artifact_ids[-2:])
-                    
+                    result = orchestrator.detect_and_resolve_conflicts(
+                        artifact_ids[-2:]
+                    )
+
                     st.info(f"Checked {len(artifact_ids)} artifacts for conflicts")
-                    if result['conflicts_found'] > 0:
+                    if result["conflicts_found"] > 0:
                         st.warning(f"Found {result['conflicts_found']} conflicts")
-                        for conflict in result['conflicts']:
-                            st.write(f"• {conflict['conflict_type']}: {conflict['description']}")
+                        for conflict in result["conflicts"]:
+                            st.write(
+                                f"• {conflict['conflict_type']}: {conflict['description']}"
+                            )
                     else:
                         st.success("No conflicts detected")
                 else:
                     st.info("Need at least 2 artifacts to detect conflicts")
-        
+
         # Artifacts breakdown
-        if metrics['artifacts']['total_artifacts'] > 0:
+        if metrics["artifacts"]["total_artifacts"] > 0:
             st.subheader("📊 Artifact Analytics")
-            
+
             col1, col2 = st.columns(2)
-            
+
             with col1:
                 st.write("**By Type:**")
-                for artifact_type, count in metrics['artifacts']['by_type'].items():
+                for artifact_type, count in metrics["artifacts"]["by_type"].items():
                     st.write(f"• {artifact_type}: {count}")
-            
+
             with col2:
                 st.write("**By Agent:**")
-                for agent, count in metrics['artifacts']['by_agent'].items():
+                for agent, count in metrics["artifacts"]["by_agent"].items():
                     st.write(f"• {agent}: {count}")
-        
+
         # Recent activity
         st.subheader("🔄 Recent Activity")
-        
-        if 'typed_artifacts' in st.session_state:
-            recent_artifacts = list(st.session_state.typed_artifacts['artifacts'].values())[-5:]
+
+        if "typed_artifacts" in st.session_state:
+            recent_artifacts = list(
+                st.session_state.typed_artifacts["artifacts"].values()
+            )[-5:]
             if recent_artifacts:
                 for artifact_data in recent_artifacts:
-                    artifact = artifact_data['artifact']
-                    with st.expander(f"{artifact['artifact_type']}: {artifact.get('title', 'Untitled')}"):
+                    artifact = artifact_data["artifact"]
+                    with st.expander(
+                        f"{artifact['artifact_type']}: {artifact.get('title', 'Untitled')}"
+                    ):
                         st.write(f"**ID:** {artifact['artifact_id']}")
                         st.write(f"**Created by:** {artifact['created_by']}")
-                        st.write(f"**Confidence:** {artifact_data['confidence_metrics']['overall_confidence']:.2f}")
-                        st.write(f"**Quality:** {artifact_data['validation_result']['quality_score']:.2f}")
+                        st.write(
+                            f"**Confidence:** {artifact_data['confidence_metrics']['overall_confidence']:.2f}"
+                        )
+                        st.write(
+                            f"**Quality:** {artifact_data['validation_result']['quality_score']:.2f}"
+                        )
             else:
                 st.info("No artifacts created yet")
         else:
             st.info("No artifacts created yet")
-        
+
     except ImportError as e:
         st.error(f"Could not load Typed Artifact System: {e}")
         st.info("The typed artifact system components may not be properly installed.")
@@ -2889,22 +3391,24 @@ def render_typed_artifacts_page():
 
 def render_event_streaming_dashboard():
     """Real-time event streaming dashboard with Redis Streams"""
-    
+
     st.header("🌊 Real-Time Event Streaming Dashboard")
     st.markdown("**Production-grade event-sourced orchestration with Redis Streams**")
-    
+
     col1, col2 = st.columns([1, 1])
-    
+
     with col1:
         st.subheader("📡 Event Stream Control")
-        
+
         if st.session_state.api_connected:
             st.success("FastAPI Backend Connected")
-            
+
             # Start workflow controls
             st.markdown("### Start New Workflow")
-            workflow_name = st.text_input("Workflow Name", value="E-commerce API Development")
-            
+            workflow_name = st.text_input(
+                "Workflow Name", value="E-commerce API Development"
+            )
+
             if st.button("🚀 Start Real-Time Workflow"):
                 try:
                     # Create task data
@@ -2913,64 +3417,76 @@ def render_event_streaming_dashboard():
                             "task_id": "spec_generation",
                             "title": "Generate API Specification",
                             "goal": "Create comprehensive API spec",
-                            "description": "Generate detailed API specification with endpoints and schemas"
+                            "description": "Generate detailed API specification with endpoints and schemas",
                         },
                         {
-                            "task_id": "design_architecture", 
+                            "task_id": "design_architecture",
                             "title": "Design System Architecture",
                             "goal": "Create system design",
-                            "description": "Design scalable architecture with microservices"
-                        }
+                            "description": "Design scalable architecture with microservices",
+                        },
                     ]
-                    
+
                     # Start workflow via API
-                    response = requests.post(f"{API_BASE}/api/workflows/start", 
-                                           json={"tasks": tasks, "workflow_name": workflow_name})
-                    
+                    response = requests.post(
+                        f"{API_BASE}/api/workflows/start",
+                        json={"tasks": tasks, "workflow_name": workflow_name},
+                    )
+
                     if response.status_code == 200:
                         data = response.json()
-                        st.success(f"Workflow started! Correlation ID: {data['correlation_id']}")
-                        st.session_state.current_correlation_id = data['correlation_id']
+                        st.success(
+                            f"Workflow started! Correlation ID: {data['correlation_id']}"
+                        )
+                        st.session_state.current_correlation_id = data["correlation_id"]
                     else:
                         st.error(f"Failed to start workflow: {response.text}")
-                
+
                 except Exception as e:
                     st.error(f"Error starting workflow: {e}")
-            
+
             # Artifact creation
             st.markdown("### Create Artifact")
-            artifact_type = st.selectbox("Artifact Type", [at.value for at in ArtifactType])
-            agent_id = st.selectbox("Creating Agent", ["claude_agent", "gpt4_agent", "gemini_agent"])
-            
+            artifact_type = st.selectbox(
+                "Artifact Type", [at.value for at in ArtifactType]
+            )
+            agent_id = st.selectbox(
+                "Creating Agent", ["claude_agent", "gpt4_agent", "gemini_agent"]
+            )
+
             if st.button("📄 Create Real-Time Artifact"):
                 try:
-                    correlation_id = st.session_state.get('current_correlation_id', 'demo_correlation')
-                    
+                    correlation_id = st.session_state.get(
+                        "current_correlation_id", "demo_correlation"
+                    )
+
                     # Create artifact via API
                     artifact_content = {
                         "title": f"Real-time {artifact_type}",
                         "confidence": 0.9,
-                        "content": f"Generated {artifact_type} with real-time event streaming"
+                        "content": f"Generated {artifact_type} with real-time event streaming",
                     }
-                    
-                    response = requests.post(f"{API_BASE}/api/artifacts/create",
-                                           json={
-                                               "artifact_type": artifact_type,
-                                               "content": artifact_content,
-                                               "agent_id": agent_id,
-                                               "correlation_id": correlation_id
-                                           })
-                    
+
+                    response = requests.post(
+                        f"{API_BASE}/api/artifacts/create",
+                        json={
+                            "artifact_type": artifact_type,
+                            "content": artifact_content,
+                            "agent_id": agent_id,
+                            "correlation_id": correlation_id,
+                        },
+                    )
+
                     if response.status_code == 200:
                         data = response.json()
                         st.success(f"Artifact created: {data['artifact_id']}")
                         st.json(data)
                     else:
                         st.error(f"Failed to create artifact: {response.text}")
-                
+
                 except Exception as e:
                     st.error(f"Error creating artifact: {e}")
-        
+
         else:
             st.error("FastAPI Backend Not Available")
             st.markdown("""
@@ -2979,10 +3495,10 @@ def render_event_streaming_dashboard():
             2. Optionally start Redis for full event streaming
             3. Refresh this page
             """)
-    
+
     with col2:
         st.subheader("📊 Real-Time Statistics")
-        
+
         if st.button("🔄 Refresh Stats"):
             if st.session_state.api_connected:
                 try:
@@ -2999,25 +3515,29 @@ def render_event_streaming_dashboard():
                 mock_stats = {
                     "workflow_id": "mock_workflow",
                     "mock_mode": True,
-                    "message": "Start FastAPI server for real-time stats"
+                    "message": "Start FastAPI server for real-time stats",
                 }
                 st.json(mock_stats)
-        
+
         # Event stream display
         st.subheader("🌊 Live Event Stream")
-        
-        if st.session_state.get('current_correlation_id'):
+
+        if st.session_state.get("current_correlation_id"):
             correlation_id = st.session_state.current_correlation_id
-            
+
             if st.button("📜 Get Workflow Events"):
                 try:
-                    response = requests.get(f"{API_BASE}/api/workflows/{correlation_id}/events")
+                    response = requests.get(
+                        f"{API_BASE}/api/workflows/{correlation_id}/events"
+                    )
                     if response.status_code == 200:
                         data = response.json()
                         st.markdown(f"**Events for {correlation_id}:**")
-                        
-                        for event in data.get('events', []):
-                            with st.expander(f"{event['event_type']} - {event['timestamp'][:19]}"):
+
+                        for event in data.get("events", []):
+                            with st.expander(
+                                f"{event['event_type']} - {event['timestamp'][:19]}"
+                            ):
                                 st.json(event)
                     else:
                         st.error("Failed to get events")
@@ -3025,156 +3545,191 @@ def render_event_streaming_dashboard():
                     st.error(f"Events error: {e}")
         else:
             st.info("Start a workflow to see live events")
-    
+
     # Event replay section
     st.subheader("🔄 Event Replay & Time Travel")
-    
+
     col1, col2 = st.columns([1, 1])
-    
+
     with col1:
         st.markdown("### Event Replay Controls")
-        replay_correlation = st.text_input("Correlation ID for Replay", 
-                                         value=st.session_state.get('current_correlation_id', ''))
-        
+        replay_correlation = st.text_input(
+            "Correlation ID for Replay",
+            value=st.session_state.get("current_correlation_id", ""),
+        )
+
         if st.button("🎬 Replay Events"):
             if replay_correlation and st.session_state.api_connected:
                 try:
-                    response = requests.get(f"{API_BASE}/api/workflows/{replay_correlation}/events")
+                    response = requests.get(
+                        f"{API_BASE}/api/workflows/{replay_correlation}/events"
+                    )
                     if response.status_code == 200:
                         data = response.json()
                         st.success(f"Found {data['count']} events for replay")
-                        
+
                         # Display events chronologically
                         st.markdown("### Event Timeline")
-                        for i, event in enumerate(data.get('events', [])):
-                            st.markdown(f"**{i+1}.** {event['event_type']} at {event['timestamp'][:19]}")
-                            if event.get('agent_id'):
+                        for i, event in enumerate(data.get("events", [])):
+                            st.markdown(
+                                f"**{i + 1}.** {event['event_type']} at {event['timestamp'][:19]}"
+                            )
+                            if event.get("agent_id"):
                                 st.markdown(f"   👤 Agent: {event['agent_id']}")
-                            if event.get('payload'):
+                            if event.get("payload"):
                                 with st.expander("View Event Data"):
-                                    st.json(event['payload'])
+                                    st.json(event["payload"])
                 except Exception as e:
                     st.error(f"Replay error: {e}")
-    
+
     with col2:
         st.markdown("### Real-Time Collaboration Feed")
-        
+
         if st.session_state.real_time_orchestrator:
             st.info("Event streaming system ready")
-            
+
             # Simulate some real-time events for demo
             if st.button("🎭 Simulate Agent Activity"):
                 # Add mock events to session state
                 mock_events = [
-                    {"type": "agent_started", "agent": "claude_agent", "task": "spec_generation"},
-                    {"type": "artifact_created", "agent": "claude_agent", "artifact": "spec_doc_001"},
-                    {"type": "review_requested", "artifact": "spec_doc_001", "reviewer": "gpt4_agent"},
-                    {"type": "agent_started", "agent": "gpt4_agent", "task": "design_architecture"}
+                    {
+                        "type": "agent_started",
+                        "agent": "claude_agent",
+                        "task": "spec_generation",
+                    },
+                    {
+                        "type": "artifact_created",
+                        "agent": "claude_agent",
+                        "artifact": "spec_doc_001",
+                    },
+                    {
+                        "type": "review_requested",
+                        "artifact": "spec_doc_001",
+                        "reviewer": "gpt4_agent",
+                    },
+                    {
+                        "type": "agent_started",
+                        "agent": "gpt4_agent",
+                        "task": "design_architecture",
+                    },
                 ]
-                
+
                 st.session_state.event_stream.extend(mock_events)
-                
+
                 for event in mock_events:
-                    st.markdown(f"🔄 **{event['type']}** - {event.get('agent', 'system')}")
+                    st.markdown(
+                        f"🔄 **{event['type']}** - {event.get('agent', 'system')}"
+                    )
         else:
             st.warning("Event streaming not initialized")
 
+
 def render_live_ai_project_launcher():
     """Live AI project launcher with real agent coordination"""
-    
+
     st.header("🤖 Live AI Agent Collaboration")
-    st.markdown("**Start a real project where Claude, GPT-4, and Gemini agents collaborate**")
-    
+    st.markdown(
+        "**Start a real project where Claude, GPT-4, and Gemini agents collaborate**"
+    )
+
     # Check API key availability
     api_keys = {
-        'Claude': bool(os.environ.get('ANTHROPIC_API_KEY')),
-        'GPT-4': bool(os.environ.get('OPENAI_API_KEY')),
-        'Gemini': bool(os.environ.get('GEMINI_API_KEY'))
+        "Claude": bool(os.environ.get("ANTHROPIC_API_KEY")),
+        "GPT-4": bool(os.environ.get("OPENAI_API_KEY")),
+        "Gemini": bool(os.environ.get("GEMINI_API_KEY")),
     }
-    
+
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
-        status = "🟢 Ready" if api_keys['Claude'] else "🔴 Missing Key"
+        status = "🟢 Ready" if api_keys["Claude"] else "🔴 Missing Key"
         st.markdown(f"**Claude**: {status}")
-        
+
     with col2:
-        status = "🟢 Ready" if api_keys['GPT-4'] else "🔴 Missing Key"
+        status = "🟢 Ready" if api_keys["GPT-4"] else "🔴 Missing Key"
         st.markdown(f"**GPT-4**: {status}")
-        
+
     with col3:
-        status = "🟢 Ready" if api_keys['Gemini'] else "🔴 Missing Key"
+        status = "🟢 Ready" if api_keys["Gemini"] else "🔴 Missing Key"
         st.markdown(f"**Gemini**: {status}")
-    
+
     available_agents = sum(api_keys.values())
-    
+
     if available_agents == 0:
         st.error("No AI agents available. Please configure API keys.")
         return
     elif available_agents < 3:
-        st.warning(f"Only {available_agents}/3 agents available. Project will use available agents.")
+        st.warning(
+            f"Only {available_agents}/3 agents available. Project will use available agents."
+        )
     else:
         st.success("All AI agents ready for collaboration!")
-    
+
     # Project configuration
     st.subheader("🎯 Project Configuration")
-    
+
     col1, col2 = st.columns([2, 1])
-    
+
     with col1:
         project_description = st.text_area(
             "Project Description",
             value="Build a RESTful API for a task management system with user authentication, task CRUD operations, and real-time notifications.",
             height=100,
-            help="Describe what you want the AI agents to build together"
+            help="Describe what you want the AI agents to build together",
         )
-        
+
     with col2:
         project_type = st.selectbox(
             "Project Type",
-            options=["web_application", "api", "ui_application", "data_pipeline", "mobile_app"],
-            help="Type of project affects the workflow phases"
+            options=[
+                "web_application",
+                "api",
+                "ui_application",
+                "data_pipeline",
+                "mobile_app",
+            ],
+            help="Type of project affects the workflow phases",
         )
-        
-        complexity_level = st.selectbox(
+
+        st.selectbox(
             "Complexity Level",
             options=["Simple", "Medium", "Complex", "Advanced"],
-            index=1
+            index=1,
         )
-    
+
     # Workflow preview
     st.subheader("🔄 Planned Workflow")
-    
+
     workflow_preview = {
         "web_application": [
             "📋 Requirements Analysis (Claude)",
-            "🏗️ System Architecture (Claude)", 
+            "🏗️ System Architecture (Claude)",
             "💻 Core Implementation (GPT-4)",
             "🎨 UI Development (GPT-4)",
             "🧪 Testing & QA (Gemini)",
-            "📚 Documentation (Claude)"
+            "📚 Documentation (Claude)",
         ],
         "api": [
             "📋 API Specification (Claude)",
             "🏗️ System Architecture (Claude)",
-            "💻 Core Implementation (GPT-4)", 
+            "💻 Core Implementation (GPT-4)",
             "🧪 Testing & QA (Gemini)",
-            "📚 API Documentation (Claude)"
+            "📚 API Documentation (Claude)",
         ],
         "ui_application": [
             "📋 UI Requirements (Claude)",
             "🎨 Design System (GPT-4)",
             "💻 Component Implementation (GPT-4)",
             "🧪 UI Testing (Gemini)",
-            "📚 User Documentation (Claude)"
-        ]
+            "📚 User Documentation (Claude)",
+        ],
     }
-    
+
     phases = workflow_preview.get(project_type, workflow_preview["web_application"])
-    
+
     for i, phase in enumerate(phases, 1):
         st.markdown(f"**{i}.** {phase}")
-    
+
     # Quality cascade explanation
     with st.expander("🔄 Quality Cascade Process"):
         st.markdown("""
@@ -3191,124 +3746,156 @@ def render_live_ai_project_launcher():
         - Conflict resolution when agents disagree
         - Cost and performance tracking
         """)
-    
+
     # Launch controls
     st.subheader("🚀 Launch Project")
-    
+
     col1, col2 = st.columns([2, 1])
-    
+
     with col1:
-        if st.button("▶️ Start Live AI Project", type="primary", disabled=available_agents == 0):
+        if st.button(
+            "▶️ Start Live AI Project", type="primary", disabled=available_agents == 0
+        ):
             if project_description.strip():
                 try:
                     # Clear any previous status and initialize session state
-                    st.session_state.project_status = [{
-                        'time': datetime.now().strftime("%H:%M:%S"),
-                        'message': "🚀 Starting project execution..."
-                    }]
+                    st.session_state.project_status = [
+                        {
+                            "time": datetime.now().strftime("%H:%M:%S"),
+                            "message": "🚀 Starting project execution...",
+                        }
+                    ]
                     st.session_state.execution_started = True
                     st.session_state.agent_outputs = []
-                    
-                    # Force immediate UI update  
+
+                    # Force immediate UI update
                     st.rerun()
-                    
+
                     # Execute synchronously (not async to avoid blocking)
-                    result = execute_project_sync({
-                        'description': project_description,
-                        'type': project_type.lower(),
-                        'complexity': "Medium"
-                    })
-                    
+                    result = execute_project_sync(
+                        {
+                            "description": project_description,
+                            "type": project_type.lower(),
+                            "complexity": "Medium",
+                        }
+                    )
+
                     if result.get("status") == "completed":
-                        st.session_state.active_live_project = result.get("correlation_id", "demo_project")
-                        st.success(f"✅ Live project started! Correlation ID: {result.get('correlation_id', 'demo_project')}")
+                        st.session_state.active_live_project = result.get(
+                            "correlation_id", "demo_project"
+                        )
+                        st.success(
+                            f"✅ Live project started! Correlation ID: {result.get('correlation_id', 'demo_project')}"
+                        )
                         st.rerun()
                     else:
-                        st.error(f"❌ Execution failed: {result.get('error', 'Unknown error')}")
+                        st.error(
+                            f"❌ Execution failed: {result.get('error', 'Unknown error')}"
+                        )
                         st.session_state.execution_started = False
-                        
+
                 except Exception as e:
                     st.error(f"Execution error: {str(e)}")
                     st.session_state.execution_started = False
             else:
                 st.error("Please provide a project description")
-    
+
     with col2:
         if st.button("📊 View Active Projects"):
             st.rerun()
 
     # Show real-time status updates and agent outputs
-    if st.session_state.get('execution_started', False):
+    if st.session_state.get("execution_started", False):
         st.markdown("---")
         st.subheader("🔄 Live Agent Activity")
-        
+
         # Show REAL timeline events (not simulation)
-        if 'live_timeline' in st.session_state and st.session_state.live_timeline:
+        if "live_timeline" in st.session_state and st.session_state.live_timeline:
             st.markdown("#### 🔄 Real-Time Agent Timeline")
             for event in st.session_state.live_timeline:
-                if event.get('is_real', False):  # Only show real events
+                if event.get("is_real", False):  # Only show real events
                     st.write(f"⏰ {event['time']} - {event['message']}")
-        
+
         # Show status updates (real only)
-        elif 'project_status' in st.session_state and st.session_state.project_status:
+        elif "project_status" in st.session_state and st.session_state.project_status:
             st.markdown("#### 📊 Real Progress Updates")
             for status in st.session_state.project_status[-10:]:  # Show last 10 updates
                 # Only show real status updates, not simulation
-                if isinstance(status, dict) and status.get('is_real', False):
-                    time_str = status.get('time', 'N/A')
-                    message = status.get('message', 'N/A')
+                if isinstance(status, dict) and status.get("is_real", False):
+                    time_str = status.get("time", "N/A")
+                    message = status.get("message", "N/A")
                     st.write(f"⏰ {time_str} - {message}")
                 elif not isinstance(status, dict):
                     # Legacy format
                     current_time = datetime.now().strftime("%H:%M:%S")
                     st.write(f"⏰ {current_time} - {str(status)}")
-        
+
         # Show REAL AI artifacts and agent outputs (not simulation)
-        if 'real_artifacts' in st.session_state and st.session_state.real_artifacts:
+        if "real_artifacts" in st.session_state and st.session_state.real_artifacts:
             st.subheader("📄 Real AI-Generated Artifacts")
             for artifact in st.session_state.real_artifacts:
-                if artifact.get('is_real', False):
-                    with st.expander(f"📋 {artifact['title']} ({artifact['word_count']} words) | Real API", expanded=True):
-                        st.markdown(artifact['content'])
-                        st.success(f"Generated at {artifact['formatted_time']} via real API call")
-        
-        # Show real agent outputs if available  
-        elif 'agent_outputs' in st.session_state and st.session_state.agent_outputs:
+                if artifact.get("is_real", False):
+                    with st.expander(
+                        f"📋 {artifact['title']} ({artifact['word_count']} words) | Real API",
+                        expanded=True,
+                    ):
+                        st.markdown(artifact["content"])
+                        st.success(
+                            f"Generated at {artifact['formatted_time']} via real API call"
+                        )
+
+        # Show real agent outputs if available
+        elif "agent_outputs" in st.session_state and st.session_state.agent_outputs:
             st.markdown("#### 🤖 Real Agent Results")
             for output in st.session_state.agent_outputs:
                 # Only show real agent outputs, not simulation
-                if output.get('is_real', False):
-                    with st.expander(f"📄 {output.get('agent', 'Unknown')} Output | Real API", expanded=True):
-                        st.markdown(output.get('content', 'No content available'))
-                        if output.get('word_count'):
-                            st.info(f"Word count: {output['word_count']} | Generated via real API call")
-    
+                if output.get("is_real", False):
+                    with st.expander(
+                        f"📄 {output.get('agent', 'Unknown')} Output | Real API",
+                        expanded=True,
+                    ):
+                        st.markdown(output.get("content", "No content available"))
+                        if output.get("word_count"):
+                            st.info(
+                                f"Word count: {output['word_count']} | Generated via real API call"
+                            )
+
     # Show active projects
-    if hasattr(st.session_state, 'live_orchestrator') and st.session_state.live_orchestrator:
+    if (
+        hasattr(st.session_state, "live_orchestrator")
+        and st.session_state.live_orchestrator
+    ):
         active_projects = st.session_state.live_orchestrator.get_all_live_projects()
-        
+
         if active_projects:
             st.subheader("📈 Active Live Projects")
-            
+
             for project in active_projects:
-                with st.expander(f"Project: {project['correlation_id']} ({project['status']})"):
+                with st.expander(
+                    f"Project: {project['correlation_id']} ({project['status']})"
+                ):
                     col1, col2 = st.columns([2, 1])
-                    
+
                     with col1:
                         st.markdown(f"**Description**: {project['description']}")
-                        st.markdown(f"**Current Phase**: {project['current_phase_name']}")
-                        st.progress(project['progress_percentage'] / 100)
+                        st.markdown(
+                            f"**Current Phase**: {project['current_phase_name']}"
+                        )
+                        st.progress(project["progress_percentage"] / 100)
                         st.caption(f"Progress: {project['progress_percentage']:.1f}%")
-                        
+
                     with col2:
-                        st.metric("Artifacts", project['artifacts_created'])
-                        st.metric("Phases", f"{project['current_phase']}/{project['total_phases']}")
-                        
-                        if project['agent_assignments']:
+                        st.metric("Artifacts", project["artifacts_created"])
+                        st.metric(
+                            "Phases",
+                            f"{project['current_phase']}/{project['total_phases']}",
+                        )
+
+                        if project["agent_assignments"]:
                             st.markdown("**Agent Assignments:**")
-                            for phase, agent in project['agent_assignments'].items():
+                            for phase, agent in project["agent_assignments"].items():
                                 st.caption(f"• {phase}: {agent}")
-        
+
         # Orchestrator metrics
         if st.button("📊 View Orchestrator Metrics"):
             try:
@@ -3321,128 +3908,153 @@ def render_live_ai_project_launcher():
 def render_intelligent_router():
     """Render the Intelligent Router with Learning interface"""
     st.header("🤖 Intelligent Model Router with Learning")
-    st.markdown("Advanced router using Thompson Sampling bandit learning and cost governance")
-    
+    st.markdown(
+        "Advanced router using Thompson Sampling bandit learning and cost governance"
+    )
+
     if not st.session_state.intelligent_router:
-        st.warning("Intelligent Router not available. Please check system configuration.")
+        st.warning(
+            "Intelligent Router not available. Please check system configuration."
+        )
         return
-    
+
     router = st.session_state.intelligent_router
-    
+
     # Router Status and Controls
     col1, col2, col3 = st.columns([1, 1, 1])
-    
+
     with col1:
         st.subheader("🎯 Router Status")
         st.metric("Models Available", len(router.capability_vectors))
         st.metric("Total Routing Requests", router.bandit.total_interactions)
-        
+
     with col2:
         st.subheader("💰 Cost Management")
         try:
             usage_summary = router.cost_governor.get_usage_summary("demo_project")
-            if 'current_usage' in usage_summary:
-                usage = usage_summary['current_usage']
-                budget = usage_summary['budget_limits']
-                utilization = usage_summary['utilization']
-                
-                st.metric("Token Usage", f"{usage['tokens_used']:,} / {budget['max_tokens']:,}")
+            if "current_usage" in usage_summary:
+                usage = usage_summary["current_usage"]
+                budget = usage_summary["budget_limits"]
+                utilization = usage_summary["utilization"]
+
+                st.metric(
+                    "Token Usage",
+                    f"{usage['tokens_used']:,} / {budget['max_tokens']:,}",
+                )
                 st.metric("Cost Utilization", f"{utilization['cost_percent']:.1f}%")
-                st.metric("Requests Made", usage['requests_made'])
+                st.metric("Requests Made", usage["requests_made"])
             else:
                 st.info("No usage data available yet")
         except Exception as e:
             st.error(f"Error loading cost data: {e}")
-    
+
     with col3:
         st.subheader("📊 Performance Metrics")
         try:
             bandit_stats = router.bandit.get_arm_statistics()
             if bandit_stats:
-                best_performing = max(bandit_stats.items(), key=lambda x: x[1]['estimated_mean'])
+                best_performing = max(
+                    bandit_stats.items(), key=lambda x: x[1]["estimated_mean"]
+                )
                 st.metric("Best Model", best_performing[0])
-                st.metric("Best Performance", f"{best_performing[1]['estimated_mean']:.3f}")
-                st.metric("Confidence", f"±{(best_performing[1]['confidence_interval'][1] - best_performing[1]['confidence_interval'][0])/2:.3f}")
+                st.metric(
+                    "Best Performance", f"{best_performing[1]['estimated_mean']:.3f}"
+                )
+                st.metric(
+                    "Confidence",
+                    f"±{(best_performing[1]['confidence_interval'][1] - best_performing[1]['confidence_interval'][0]) / 2:.3f}",
+                )
             else:
                 st.info("No performance data available yet")
         except Exception as e:
             st.error(f"Error loading performance data: {e}")
-    
+
     # Interactive Router Demo
     st.subheader("🎮 Interactive Router Demo")
-    
+
     with st.expander("Create Demo Task", expanded=True):
         col1, col2 = st.columns([2, 1])
-        
+
         with col1:
             task_description = st.text_area(
                 "Task Description",
                 value="Design a comprehensive microservices architecture for an e-commerce platform",
-                height=100
+                height=100,
             )
-        
+
         with col2:
             task_type = st.selectbox("Task Type", options=[t.value for t in TaskType])
             complexity_level = st.slider("Complexity Level", 0.0, 1.0, 0.7, 0.1)
-            project_complexity = st.selectbox("Project Complexity", 
-                                            options=[c.value for c in ProjectComplexity])
+            project_complexity = st.selectbox(
+                "Project Complexity", options=[c.value for c in ProjectComplexity]
+            )
             time_sensitive = st.checkbox("Time Sensitive")
-        
+
         if st.button("🚀 Route Task", type="primary"):
             try:
                 # Create task
                 task = {
-                    'description': task_description,
-                    'context': {
-                        'task_type': TaskType(task_type),
-                        'project_complexity': project_complexity,
-                        'estimated_tokens': int(1000 + complexity_level * 3000),
-                        'time_sensitive': time_sensitive,
-                        'cost_sensitive': False,
-                        'quality_priority': 0.8,
-                        'complexity_level': complexity_level
-                    }
+                    "description": task_description,
+                    "context": {
+                        "task_type": TaskType(task_type),
+                        "project_complexity": project_complexity,
+                        "estimated_tokens": int(1000 + complexity_level * 3000),
+                        "time_sensitive": time_sensitive,
+                        "cost_sensitive": False,
+                        "quality_priority": 0.8,
+                        "complexity_level": complexity_level,
+                    },
                 }
-                
+
                 # Route the task
-                routing_decision = router.route_task(task, task['context'])
-                
+                routing_decision = router.route_task(task, task["context"])
+
                 # Display results
-                st.success(f"✅ Task routed to: **{routing_decision['selected_model'].value}**")
+                st.success(
+                    f"✅ Task routed to: **{routing_decision['selected_model'].value}**"
+                )
                 st.metric("Routing Score", f"{routing_decision['routing_score']:.3f}")
-                
+
                 # Show decision breakdown
-                decision_factors = routing_decision.get('decision_factors', {})
+                decision_factors = routing_decision.get("decision_factors", {})
                 if decision_factors:
                     st.subheader("📋 Decision Breakdown")
                     factors_df = {
-                        'Factor': ['Capability', 'Bandit Score', 'Quality', 'Cost', 'Latency', 'Exploration'],
-                        'Score': [
-                            decision_factors.get('capability_score', 0),
-                            decision_factors.get('bandit_score', 0),
-                            decision_factors.get('quality_component', 0),
-                            decision_factors.get('cost_component', 0),
-                            decision_factors.get('latency_component', 0),
-                            decision_factors.get('exploration_bonus', 0)
-                        ]
+                        "Factor": [
+                            "Capability",
+                            "Bandit Score",
+                            "Quality",
+                            "Cost",
+                            "Latency",
+                            "Exploration",
+                        ],
+                        "Score": [
+                            decision_factors.get("capability_score", 0),
+                            decision_factors.get("bandit_score", 0),
+                            decision_factors.get("quality_component", 0),
+                            decision_factors.get("cost_component", 0),
+                            decision_factors.get("latency_component", 0),
+                            decision_factors.get("exploration_bonus", 0),
+                        ],
                     }
                     st.bar_chart(factors_df)
-                
+
                 # Show alternatives
-                alternatives = routing_decision.get('alternatives', [])
+                alternatives = routing_decision.get("alternatives", [])
                 if alternatives:
                     st.subheader("🔄 Alternative Models")
                     for i, (alt_model, alt_score) in enumerate(alternatives[:3], 1):
                         st.write(f"{i}. {alt_model.value}: {alt_score:.3f}")
-                
+
                 # Simulate execution (for demo purposes)
                 if st.button("🎭 Simulate Task Execution"):
                     # Simple simulation
                     import random
+
                     success = random.random() > 0.2  # 80% success rate
                     quality_score = random.uniform(0.6, 1.0)
                     execution_time = random.uniform(15, 120)
-                    
+
                     # Create outcome
                     complexity_obj = TaskComplexity(
                         technical_complexity=complexity_level,
@@ -3450,30 +4062,30 @@ def render_intelligent_router():
                         safety_risk=0.1,
                         context_requirement=0.4,
                         interdependence=0.2,
-                        estimated_tokens=task['context']['estimated_tokens'],
+                        estimated_tokens=task["context"]["estimated_tokens"],
                         requires_reasoning=task_type == TaskType.REASONING_LONG.value,
                         requires_creativity=task_type == TaskType.CODE_UI.value,
-                        time_sensitive=time_sensitive
+                        time_sensitive=time_sensitive,
                     )
-                    
+
                     outcome = TaskOutcome(
                         task_id=f"demo_{int(datetime.now().timestamp())}",
-                        model_used=routing_decision['selected_model'],
+                        model_used=routing_decision["selected_model"],
                         task_type=TaskType(task_type),
                         complexity=complexity_obj,
                         success=success,
                         quality_score=quality_score,
                         execution_time=execution_time,
-                        token_usage=task['context']['estimated_tokens'],
-                        cost=task['context']['estimated_tokens'] * 0.002 / 1000,
-                        context=task['context'],
+                        token_usage=task["context"]["estimated_tokens"],
+                        cost=task["context"]["estimated_tokens"] * 0.002 / 1000,
+                        context=task["context"],
                         error_type=None if success else "demo_error",
-                        timestamp=datetime.now()
+                        timestamp=datetime.now(),
                     )
-                    
+
                     # Update router learning
                     router.update_from_outcome(outcome.task_id, outcome)
-                    
+
                     # Show results
                     result_col1, result_col2 = st.columns([1, 1])
                     with result_col1:
@@ -3482,19 +4094,22 @@ def render_intelligent_router():
                     with result_col2:
                         st.metric("Execution Time", f"{execution_time:.1f}s")
                         st.metric("Cost", f"${outcome.cost:.4f}")
-                    
+
                     st.success("Router learning updated with task outcome!")
-                
+
             except Exception as e:
                 st.error(f"Error routing task: {e}")
                 import traceback
+
                 st.code(traceback.format_exc())
-    
+
     # Performance Analysis
     st.subheader("📈 Performance Analysis")
-    
-    analysis_tab1, analysis_tab2, analysis_tab3 = st.tabs(["Model Performance", "Bandit Learning", "Cost Analysis"])
-    
+
+    analysis_tab1, analysis_tab2, analysis_tab3 = st.tabs(
+        ["Model Performance", "Bandit Learning", "Cost Analysis"]
+    )
+
     with analysis_tab1:
         st.markdown("### Model Performance Summary")
         try:
@@ -3506,40 +4121,51 @@ def render_intelligent_router():
                             st.markdown(f"**{task_type}:**")
                             col1, col2, col3, col4 = st.columns(4)
                             with col1:
-                                st.metric("Success Rate", f"{metrics['success_rate']:.3f}")
+                                st.metric(
+                                    "Success Rate", f"{metrics['success_rate']:.3f}"
+                                )
                             with col2:
-                                st.metric("Avg Quality", f"{metrics['avg_quality']:.3f}")
+                                st.metric(
+                                    "Avg Quality", f"{metrics['avg_quality']:.3f}"
+                                )
                             with col3:
                                 st.metric("Avg Cost", f"${metrics['avg_cost']:.4f}")
                             with col4:
-                                st.metric("Sample Count", metrics['sample_count'])
+                                st.metric("Sample Count", metrics["sample_count"])
             else:
-                st.info("No performance data available. Run some tasks to see analytics.")
+                st.info(
+                    "No performance data available. Run some tasks to see analytics."
+                )
         except Exception as e:
             st.error(f"Error loading performance data: {e}")
-    
+
     with analysis_tab2:
         st.markdown("### Thompson Sampling Bandit Statistics")
         try:
             bandit_stats = router.bandit.get_arm_statistics()
             if bandit_stats:
                 # Create visualization data
-                models = list(bandit_stats.keys())
-                means = [stats['estimated_mean'] for stats in bandit_stats.values()]
-                pulls = [stats['total_pulls'] for stats in bandit_stats.values()]
-                
+                list(bandit_stats.keys())
+                [stats["estimated_mean"] for stats in bandit_stats.values()]
+                [stats["total_pulls"] for stats in bandit_stats.values()]
+
                 # Display statistics
                 for model, stats in bandit_stats.items():
                     with st.expander(f"🎰 {model}"):
                         col1, col2, col3 = st.columns(3)
                         with col1:
-                            st.metric("Estimated Mean", f"{stats['estimated_mean']:.3f}")
+                            st.metric(
+                                "Estimated Mean", f"{stats['estimated_mean']:.3f}"
+                            )
                         with col2:
-                            ci_lower, ci_upper = stats['confidence_interval']
-                            st.metric("Confidence Interval", f"[{ci_lower:.3f}, {ci_upper:.3f}]")
+                            ci_lower, ci_upper = stats["confidence_interval"]
+                            st.metric(
+                                "Confidence Interval",
+                                f"[{ci_lower:.3f}, {ci_upper:.3f}]",
+                            )
                         with col3:
-                            st.metric("Total Pulls", stats['total_pulls'])
-                        
+                            st.metric("Total Pulls", stats["total_pulls"])
+
                         st.metric("Alpha (Successes)", f"{stats['alpha']:.2f}")
                         st.metric("Beta (Failures)", f"{stats['beta']:.2f}")
                         st.caption(f"Last updated: {stats['last_updated']}")
@@ -3547,7 +4173,7 @@ def render_intelligent_router():
                 st.info("No bandit learning data available yet.")
         except Exception as e:
             st.error(f"Error loading bandit statistics: {e}")
-    
+
     with analysis_tab3:
         st.markdown("### Cost Analysis")
         try:
@@ -3565,69 +4191,82 @@ def render_intelligent_router():
                         st.metric("Max Requests", budget.max_requests)
                     with col3:
                         st.metric("Time Window", f"{budget.time_window_hours}h")
-            
+
             # Current usage
             st.markdown("#### Current Usage")
             usage_summary = router.cost_governor.get_usage_summary("demo_project")
-            if 'error' not in usage_summary and 'current_usage' in usage_summary:
-                usage = usage_summary['current_usage']
-                budget = usage_summary['budget_limits']
-                utilization = usage_summary['utilization']
-                
+            if "error" not in usage_summary and "current_usage" in usage_summary:
+                usage = usage_summary["current_usage"]
+                budget = usage_summary["budget_limits"]
+                utilization = usage_summary["utilization"]
+
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.metric("Tokens Used", f"{usage['tokens_used']:,} / {budget['max_tokens']:,}")
-                    st.progress(utilization['tokens_percent'] / 100)
-                    st.metric("Requests Made", f"{usage['requests_made']} / {budget['max_requests']}")
-                    st.progress(utilization['requests_percent'] / 100)
-                
+                    st.metric(
+                        "Tokens Used",
+                        f"{usage['tokens_used']:,} / {budget['max_tokens']:,}",
+                    )
+                    st.progress(utilization["tokens_percent"] / 100)
+                    st.metric(
+                        "Requests Made",
+                        f"{usage['requests_made']} / {budget['max_requests']}",
+                    )
+                    st.progress(utilization["requests_percent"] / 100)
+
                 with col2:
-                    st.metric("Cost Incurred", f"${usage['cost_incurred']:.2f} / ${budget['max_cost_usd']:.2f}")
-                    st.progress(utilization['cost_percent'] / 100)
-                    st.metric("Active Agents", usage['agents_active'])
+                    st.metric(
+                        "Cost Incurred",
+                        f"${usage['cost_incurred']:.2f} / ${budget['max_cost_usd']:.2f}",
+                    )
+                    st.progress(utilization["cost_percent"] / 100)
+                    st.metric("Active Agents", usage["agents_active"])
             else:
                 st.info("No usage data available yet.")
         except Exception as e:
             st.error(f"Error loading cost analysis: {e}")
-    
+
     # Insights and Recommendations
     st.subheader("🔍 AI Insights and Recommendations")
-    
+
     try:
         insights = router.performance_tracker.generate_insights()
-        
-        if 'model_recommendations' in insights and insights['model_recommendations']:
+
+        if "model_recommendations" in insights and insights["model_recommendations"]:
             st.markdown("#### 🎯 Recommended Models by Task Type")
-            recommendations = insights['model_recommendations']
+            recommendations = insights["model_recommendations"]
             for task_type, model in recommendations.items():
                 st.write(f"**{task_type}**: {model}")
-        
-        if 'optimization_opportunities' in insights:
-            opportunities = insights['optimization_opportunities'][:5]  # Top 5
+
+        if "optimization_opportunities" in insights:
+            opportunities = insights["optimization_opportunities"][:5]  # Top 5
             if opportunities:
                 st.markdown("#### ⚡ Top Optimization Opportunities")
                 for i, opp in enumerate(opportunities, 1):
-                    st.write(f"{i}. **{opp['type']}**: {opp['model']} for {opp['task_type']}")
+                    st.write(
+                        f"{i}. **{opp['type']}**: {opp['model']} for {opp['task_type']}"
+                    )
                     st.caption(f"   → {opp['suggestion']}")
-        
-        if 'summary' in insights and insights['summary']:
+
+        if "summary" in insights and insights["summary"]:
             st.markdown("#### 📋 Performance Summary")
-            summary = insights['summary']
+            summary = insights["summary"]
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric("Tasks Analyzed", summary.get('total_tasks_analyzed', 0))
+                st.metric("Tasks Analyzed", summary.get("total_tasks_analyzed", 0))
             with col2:
-                st.metric("Success Rate", f"{summary.get('overall_success_rate', 0):.3f}")
+                st.metric(
+                    "Success Rate", f"{summary.get('overall_success_rate', 0):.3f}"
+                )
             with col3:
                 st.metric("Total Cost", f"${summary.get('total_cost', 0):.2f}")
-    
+
     except Exception as e:
         st.error(f"Error generating insights: {e}")
-        
+
     # Export/Import Options
     st.subheader("🔄 Data Management")
     col1, col2 = st.columns(2)
-    
+
     with col1:
         if st.button("📊 Export Learning Data"):
             try:
@@ -3636,11 +4275,11 @@ def render_intelligent_router():
                     label="💾 Download Learning Data",
                     data=json.dumps(learning_data, indent=2),
                     file_name=f"router_learning_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                    mime="application/json"
+                    mime="application/json",
                 )
             except Exception as e:
                 st.error(f"Error exporting data: {e}")
-    
+
     with col2:
         if st.button("🧹 Reset Router Learning"):
             # Reset confirmation - using manual confirmation
@@ -3650,10 +4289,10 @@ def render_intelligent_router():
                     # Reset bandit arms
                     for arm_id in router.bandit.arms.keys():
                         router.bandit.reset_arm(arm_id)
-                    
+
                     # Reset cost usage
                     router.cost_governor.reset_usage("demo_project")
-                    
+
                     st.success("Router learning data has been reset!")
                     st.rerun()
                 except Exception as e:
@@ -3663,72 +4302,78 @@ def render_intelligent_router():
 def render_database_dashboard():
     """Database status and management dashboard"""
     st.header("🗄️ Database Infrastructure Dashboard")
-    
+
     if db is None:
         st.error("Database manager not available")
         return
-    
+
     # Database status overview
     st.subheader("📊 Database Status")
-    
+
     try:
         db_stats = db.get_database_stats()
-        
+
         col1, col2, col3, col4 = st.columns(4)
-        
+
         with col1:
-            st.metric("Total Artifacts", db_stats.get('artifacts_count', 0))
+            st.metric("Total Artifacts", db_stats.get("artifacts_count", 0))
         with col2:
-            st.metric("Timeline Events", db_stats.get('timeline_events_count', 0))
+            st.metric("Timeline Events", db_stats.get("timeline_events_count", 0))
         with col3:
-            st.metric("Project Sessions", db_stats.get('project_sessions_count', 0))
+            st.metric("Project Sessions", db_stats.get("project_sessions_count", 0))
         with col4:
-            st.metric("Performance Records", db_stats.get('agent_performance_count', 0))
-        
+            st.metric("Performance Records", db_stats.get("agent_performance_count", 0))
+
         # Recent artifacts activity
         st.subheader("📈 Recent Activity")
-        recent_activity = db_stats.get('recent_artifacts', [])
-        
+        recent_activity = db_stats.get("recent_artifacts", [])
+
         if recent_activity:
             for activity in recent_activity:
-                st.markdown(f"**{activity['date']}**: {activity['count']} artifacts created")
+                st.markdown(
+                    f"**{activity['date']}**: {activity['count']} artifacts created"
+                )
         else:
             st.info("No recent artifact activity")
-        
+
         # Agent performance metrics
         st.subheader("🤖 Agent Performance")
         performance_data = db.get_agent_performance()
-        
+
         if performance_data:
             performance_df = pd.DataFrame(performance_data)
             st.dataframe(performance_df)
         else:
             st.info("No agent performance data available")
-        
+
         # Current session info
         st.subheader("🆔 Current Session")
         session_id = get_or_create_session_id()
         session_info = db.get_project_session(session_id)
-        
+
         if session_info:
             col1, col2 = st.columns(2)
             with col1:
-                st.json({
-                    "Session ID": session_info['session_id'][:8] + "...",
-                    "Status": session_info['status'],
-                    "Created": session_info['created_at']
-                })
+                st.json(
+                    {
+                        "Session ID": session_info["session_id"][:8] + "...",
+                        "Status": session_info["status"],
+                        "Created": session_info["created_at"],
+                    }
+                )
             with col2:
-                st.json({
-                    "Project Type": session_info['project_type'],
-                    "Complexity": session_info['complexity'],
-                    "Total Artifacts": session_info['total_artifacts']
-                })
-        
+                st.json(
+                    {
+                        "Project Type": session_info["project_type"],
+                        "Complexity": session_info["complexity"],
+                        "Total Artifacts": session_info["total_artifacts"],
+                    }
+                )
+
         # Test database functionality
         st.subheader("🧪 Test Database Operations")
         col1, col2 = st.columns(2)
-        
+
         with col1:
             if st.button("➕ Test Create Artifact"):
                 try:
@@ -3739,13 +4384,13 @@ def render_database_dashboard():
                         title="Test Artifact",
                         content="This is a test artifact to verify database functionality.",
                         agent_name="Test Agent",
-                        quality_score=0.8
+                        quality_score=0.8,
                     )
                     st.success(f"Test artifact created with ID: {artifact_id}")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Test failed: {e}")
-        
+
         with col2:
             if st.button("⏰ Test Timeline Event"):
                 try:
@@ -3755,17 +4400,17 @@ def render_database_dashboard():
                         timestamp=datetime.now().strftime("%H:%M:%S"),
                         message="Test timeline event",
                         agent_name="Test Agent",
-                        event_type="test"
+                        event_type="test",
                     )
                     st.success(f"Test timeline event created with ID: {event_id}")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Test failed: {e}")
-        
+
         # Database actions
         st.subheader("🔧 Database Actions")
         col1, col2 = st.columns(2)
-        
+
         with col1:
             if st.button("🗑️ Cleanup Old Data"):
                 try:
@@ -3774,11 +4419,11 @@ def render_database_dashboard():
                     st.rerun()
                 except Exception as e:
                     st.error(f"Cleanup failed: {e}")
-        
+
         with col2:
             if st.button("📊 Refresh Stats"):
                 st.rerun()
-                
+
     except Exception as e:
         st.error(f"Database dashboard error: {e}")
         logger.error(f"Database dashboard error: {e}")

@@ -1,106 +1,125 @@
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any
 import json
 from .base_agent import BaseAgent
 from core.model_orchestrator import AgentType
 
+
 class CodeGeneratorAgent(BaseAgent):
     """Code Generator Agent - Specialized in backend development and algorithm implementation"""
-    
+
     def __init__(self):
         super().__init__(
             name="Code Generator",
             role="Backend Developer",
             specialization="Backend development, algorithms, APIs, database design, and server-side logic",
-            agent_type=AgentType.CODE_GENERATOR
+            agent_type=AgentType.CODE_GENERATOR,
         )
         self.code_templates = {
             "python_api": {
                 "framework": "FastAPI",
-                "files": ["main.py", "models.py", "routes.py", "database.py"]
+                "files": ["main.py", "models.py", "routes.py", "database.py"],
             },
             "javascript_api": {
                 "framework": "Express.js",
-                "files": ["app.js", "routes.js", "models.js", "config.js"]
+                "files": ["app.js", "routes.js", "models.js", "config.js"],
             },
             "python_script": {
                 "framework": "Python",
-                "files": ["main.py", "utils.py", "config.py"]
-            }
+                "files": ["main.py", "utils.py", "config.py"],
+            },
         }
-    
-    def process_request(self, request: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+
+    def process_request(
+        self, request: str, context: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """Process code generation requests"""
         context = context or {}
         messages = [
             {"role": "system", "content": self.get_system_prompt()},
-            {"role": "user", "content": f"Code generation request: {request}\n\nProject context: {json.dumps(context, indent=2)}"}
+            {
+                "role": "user",
+                "content": f"Code generation request: {request}\n\nProject context: {json.dumps(context, indent=2)}",
+            },
         ]
-        
+
         response_content = self.call_llm_sync(messages)
-        
+
         # Generate actual code files based on request
         generated_files = self.generate_code_files(request, context)
-        
+
         # Determine handoffs
         handoff_to = None
-        if any(keyword in request.lower() for keyword in ["test", "testing", "validate"]):
+        if any(
+            keyword in request.lower() for keyword in ["test", "testing", "validate"]
+        ):
             handoff_to = "test_writer"
-        elif any(keyword in request.lower() for keyword in ["frontend", "ui", "interface"]):
+        elif any(
+            keyword in request.lower() for keyword in ["frontend", "ui", "interface"]
+        ):
             handoff_to = "ui_designer"
         elif any(keyword in request.lower() for keyword in ["debug", "fix", "error"]):
             handoff_to = "debugger"
-        
+
         self.add_to_history(request, response_content)
-        
+
         return {
             "content": response_content,
             "handoff_to": handoff_to,
             "agent": self.name,
-            "files": generated_files
+            "files": generated_files,
         }
-    
-    def process_handoff(self, handoff_content: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+
+    def process_handoff(
+        self, handoff_content: str, context: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """Process handoff from another agent"""
         context = context or {}
         messages = [
             {"role": "system", "content": self.get_system_prompt()},
-            {"role": "user", "content": f"Handoff from another agent: {handoff_content}\n\nImplementation context: {json.dumps(context, indent=2)}"}
+            {
+                "role": "user",
+                "content": f"Handoff from another agent: {handoff_content}\n\nImplementation context: {json.dumps(context, indent=2)}",
+            },
         ]
-        
+
         response_content = self.call_llm_sync(messages, temperature=0.5)
-        
+
         # Generate code based on handoff
         generated_files = self.generate_code_from_handoff(handoff_content, context)
-        
+
         self.add_to_history(f"Handoff: {handoff_content}", response_content)
-        
+
         return {
             "content": f"**Code Generator Implementation:**\n\n{response_content}",
             "agent": self.name,
-            "files": generated_files
+            "files": generated_files,
         }
-    
-    def generate_code_files(self, request: str, context: Dict[str, Any]) -> Dict[str, str]:
+
+    def generate_code_files(
+        self, request: str, context: Dict[str, Any]
+    ) -> Dict[str, str]:
         """Generate code files based on request"""
         files = {}
-        
+
         # Detect project type and generate appropriate code
         if any(keyword in request.lower() for keyword in ["api", "fastapi", "backend"]):
             files.update(self.generate_fastapi_code(request))
-        elif any(keyword in request.lower() for keyword in ["script", "python", "automation"]):
+        elif any(
+            keyword in request.lower() for keyword in ["script", "python", "automation"]
+        ):
             files.update(self.generate_python_script(request))
         elif any(keyword in request.lower() for keyword in ["database", "db", "model"]):
             files.update(self.generate_database_code(request))
         else:
             files.update(self.generate_generic_code(request))
-        
+
         return files
-    
+
     def generate_fastapi_code(self, request: str) -> Dict[str, str]:
         """Generate FastAPI application code"""
         files = {}
-        
-        files["main.py"] = '''from fastapi import FastAPI, HTTPException
+
+        files["main.py"] = """from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -171,9 +190,9 @@ async def delete_item(item_id: int):
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
-'''
-        
-        files["models.py"] = '''from pydantic import BaseModel, Field
+"""
+
+        files["models.py"] = """from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -214,8 +233,8 @@ class ItemResponse(BaseModel):
     total: int
     page: int
     size: int
-'''
-        
+"""
+
         files["database.py"] = '''import sqlite3
 from typing import List, Optional
 from contextlib import contextmanager
@@ -313,13 +332,13 @@ class DatabaseManager:
 # Global database instance
 db = DatabaseManager()
 '''
-        
+
         return files
-    
+
     def generate_python_script(self, request: str) -> Dict[str, str]:
         """Generate Python script code"""
         files = {}
-        
+
         files["main.py"] = '''#!/usr/bin/env python3
 """
 Generated Python Script
@@ -401,7 +420,7 @@ if __name__ == "__main__":
     processor = ScriptProcessor()
     processor.run()
 '''
-        
+
         files["utils.py"] = '''"""
 Utility functions for the script
 """
@@ -496,13 +515,13 @@ def sanitize_filename(filename: str) -> str:
     sanitized = sanitized.strip(' .')
     return sanitized
 '''
-        
+
         return files
-    
+
     def generate_database_code(self, request: str) -> Dict[str, str]:
         """Generate database-related code"""
         files = {}
-        
+
         files["database_manager.py"] = '''import sqlite3
 import json
 from typing import List, Dict, Any, Optional
@@ -713,13 +732,13 @@ class DatabaseManager:
             print(f"Backup failed: {e}")
             return False
 '''
-        
+
         return files
-    
+
     def generate_generic_code(self, request: str) -> Dict[str, str]:
         """Generate generic code based on request"""
         files = {}
-        
+
         files["application.py"] = '''"""
 Generated Application Code
 """
@@ -886,13 +905,15 @@ if __name__ == "__main__":
     # Graceful shutdown
     app.shutdown()
 '''
-        
+
         return files
-    
-    def generate_code_from_handoff(self, handoff_content: str, context: Dict[str, Any]) -> Dict[str, str]:
+
+    def generate_code_from_handoff(
+        self, handoff_content: str, context: Dict[str, Any]
+    ) -> Dict[str, str]:
         """Generate code based on handoff from another agent"""
         files = {}
-        
+
         # Parse handoff content to determine what to generate
         if "api" in handoff_content.lower():
             files.update(self.generate_fastapi_code(handoff_content))
@@ -900,13 +921,15 @@ if __name__ == "__main__":
             files.update(self.generate_database_code(handoff_content))
         else:
             files.update(self.generate_generic_code(handoff_content))
-        
+
         return files
-    
+
     def get_system_prompt(self) -> str:
         """Get specialized system prompt for code generator"""
         base_prompt = super().get_system_prompt()
-        return base_prompt + """
+        return (
+            base_prompt
+            + """
         
         As the Code Generator agent, you:
         - Write clean, efficient, and well-documented code
@@ -929,3 +952,4 @@ if __name__ == "__main__":
         - test_writer: For testing the generated code
         - debugger: If issues are detected in the code
         """
+        )

@@ -1,0 +1,223 @@
+{
+  "entrypoints": [
+    {
+      "type": "streamlit_app",
+      "file": "/home/user/codecompanion/app.py",
+      "function": "main",
+      "description": "Main Streamlit web application with comprehensive multi-agent orchestration UI and embedded API server"
+    },
+    {
+      "type": "fastapi_server",
+      "file": "/home/user/codecompanion/server.py",
+      "port": 5050,
+      "description": "Production FastAPI server entrypoint using uvicorn"
+    },
+    {
+      "type": "cli_package",
+      "file": "/home/user/codecompanion/codecompanion/cli.py",
+      "function": "main",
+      "package_entrypoint": "codecompanion",
+      "description": "CodeCompanion CLI for running agent pipelines with multi-provider support (--check, --chat, --auto, --run)"
+    },
+    {
+      "type": "fastapi_api",
+      "file": "/home/user/codecompanion/api.py",
+      "endpoints": ["/", "/health", "/keys", "/run_real"],
+      "authentication": "token",
+      "description": "Token-protected REST API with Bearer token or X-API-Key authentication"
+    },
+    {
+      "type": "cli_client",
+      "file": "/home/user/codecompanion/cli.py",
+      "description": "Simple Typer-based CLI client for API interaction"
+    },
+    {
+      "type": "cli_tool",
+      "file": "/home/user/codecompanion/codecompanion/cc.py",
+      "function": "main",
+      "description": "Direct API client with artifact saving capabilities"
+    }
+  ],
+  "stubs": [
+    {
+      "file": "/home/user/codecompanion/agents/live_agent_workers.py",
+      "lines": [266, 270, 274, 278, 282],
+      "type": "abstract_methods",
+      "severity": "low",
+      "note": "These are intentional abstract methods in LiveAgentWorker base class. They ARE implemented in subclasses (ClaudeWorker, GPT4Worker, GeminiWorker). This is correct OOP design.",
+      "methods": [
+        "_can_handle_task_type",
+        "_calculate_task_confidence",
+        "_estimate_task_cost",
+        "_estimate_completion_time",
+        "_execute_ai_task"
+      ]
+    },
+    {
+      "file": "/home/user/codecompanion/core/event_streaming.py",
+      "lines": [161],
+      "type": "unimplemented_method",
+      "severity": "medium",
+      "note": "Missing implementation in event streaming module"
+    },
+    {
+      "file": "/home/user/codecompanion/demo_live_collaboration.py",
+      "lines": [63, 78, 106, 133, 148, 162, 206, 282, 356],
+      "type": "demo_delay",
+      "severity": "low",
+      "note": "asyncio.sleep() calls for visual demonstration delays. Should be made configurable."
+    },
+    {
+      "file": "/home/user/codecompanion/demo_live_agents.py",
+      "lines": [102],
+      "type": "demo_delay",
+      "severity": "low",
+      "note": "Demo polling delay"
+    },
+    {
+      "file": "/home/user/codecompanion/demo_intelligent_router.py",
+      "lines": [189],
+      "type": "demo_delay",
+      "severity": "low",
+      "note": "Demo processing simulation delay"
+    },
+    {
+      "file": "/home/user/codecompanion/core/parallel_execution.py",
+      "lines": [242, 393],
+      "type": "monitoring_poll",
+      "severity": "low",
+      "note": "Monitoring polling intervals. Consider making configurable."
+    },
+    {
+      "file": "/home/user/codecompanion/core/live_orchestrator.py",
+      "lines": [378, 435],
+      "type": "orchestration_poll",
+      "severity": "low",
+      "note": "Orchestrator polling intervals. Consider event-driven alternatives."
+    },
+    {
+      "file": "/home/user/codecompanion/services/httpwrap.py",
+      "lines": [38],
+      "type": "retry_backoff",
+      "severity": "none",
+      "note": "Legitimate exponential backoff for HTTP retries. Keep as-is."
+    },
+    {
+      "file": "/home/user/codecompanion/test_production_bus.py",
+      "lines": [47, 54, 104, 111],
+      "type": "test_coordination",
+      "severity": "none",
+      "note": "Legitimate test timing coordination. Keep as-is."
+    },
+    {
+      "file": "/home/user/codecompanion/tests/test_bus.py",
+      "lines": [68, 75, 160, 171, 174],
+      "type": "test_coordination",
+      "severity": "none",
+      "note": "Legitimate test coordination delays. Keep as-is."
+    },
+    {
+      "file": "/home/user/codecompanion/app.py",
+      "lines": [233, 240, 247, 254, 261, 2049, 2106, 2448],
+      "type": "ui_delay",
+      "severity": "none",
+      "note": "Legitimate UI delays for visual effect and auto-refresh. Keep as-is."
+    },
+    {
+      "file": "/home/user/codecompanion/components/collaboration_dashboard.py",
+      "lines": [299],
+      "type": "ui_refresh",
+      "severity": "none",
+      "note": "Auto-refresh delay for UI. Keep as-is."
+    },
+    {
+      "file": "/home/user/codecompanion/server_launcher.py",
+      "lines": [37, 66],
+      "type": "port_check_delay",
+      "severity": "none",
+      "note": "time.sleep() for port availability checking. Legitimate use."
+    }
+  ],
+  "dead": [
+    {
+      "type": "backup_files",
+      "files": [
+        "/home/user/codecompanion/api.py.bak",
+        "/home/user/codecompanion/api_server.py.bak",
+        "/home/user/codecompanion/start_api_server.py.bak"
+      ],
+      "recommendation": "Remove backup files"
+    },
+    {
+      "type": "patch_files",
+      "files": [
+        "/home/user/codecompanion/patch_1.diff",
+        "/home/user/codecompanion/patch_2.diff",
+        "/home/user/codecompanion/patch_3.diff",
+        "/home/user/codecompanion/patch_4.diff",
+        "/home/user/codecompanion/patch_5.diff"
+      ],
+      "recommendation": "Archive patch files if successfully applied"
+    },
+    {
+      "type": "test_directory",
+      "path": "/home/user/codecompanion/test-fresh/",
+      "recommendation": "Review and remove if no longer needed"
+    },
+    {
+      "type": "mock_script",
+      "file": "/home/user/codecompanion/mock_claude",
+      "recommendation": "Verify if needed for testing, otherwise remove"
+    }
+  ],
+  "quality_issues": [
+    {
+      "type": "high_coupling",
+      "file": "/home/user/codecompanion/app.py",
+      "description": "Main application imports from 35+ modules, creating high coupling",
+      "severity": "medium",
+      "recommendation": "Consider facade pattern or dependency injection to reduce coupling"
+    }
+  ],
+  "summary": {
+    "total_files": 121,
+    "entrypoints_found": 6,
+    "stub_categories": {
+      "abstract_methods": 5,
+      "unimplemented": 1,
+      "demo_delays": 10,
+      "monitoring_polls": 2,
+      "orchestration_polls": 2,
+      "legitimate_delays": 13
+    },
+    "dead_code_items": 10,
+    "architecture_patterns": [
+      "Event Sourcing",
+      "CQRS",
+      "Multi-Agent System",
+      "Pub/Sub Event Bus",
+      "Schema-Driven Communication",
+      "Multi-Objective Optimization"
+    ],
+    "overall_quality": "excellent",
+    "production_readiness": "ready_with_minor_cleanup",
+    "risk_level": "low"
+  },
+  "recommendations": {
+    "immediate": [
+      "Remove backup files (.bak)",
+      "Implement missing event streaming method (event_streaming.py:161)",
+      "Make demo delays configurable via environment variable"
+    ],
+    "short_term": [
+      "Make monitoring/orchestration poll intervals configurable",
+      "Reduce app.py coupling with facade pattern",
+      "Add rate limiting to API endpoints"
+    ],
+    "long_term": [
+      "Add distributed tracing",
+      "Implement circuit breakers for external APIs",
+      "Add horizontal scaling support"
+    ]
+  }
+}

@@ -1,413 +1,619 @@
 {
-  "project_name": "CodeCompanion",
-  "version": "0.1.0",
-  "description": "Multi-Agent AI System with Event-Sourced Orchestration",
-  "analysis_timestamp": "2025-08-13",
-  "entry_points": {
-    "primary": [
-      {
-        "type": "fastapi_server",
-        "file": "/home/runner/workspace/server.py",
-        "function": "main",
-        "description": "Production FastAPI server on port 5050"
-      },
-      {
-        "type": "streamlit_app",
-        "file": "/home/runner/workspace/app.py",
-        "description": "Main Streamlit web application with embedded API"
-      },
-      {
-        "type": "cli",
-        "file": "/home/runner/workspace/cli.py",
-        "function": "run",
-        "description": "CLI client for API interaction"
-      },
-      {
-        "type": "codecompanion_cli",
-        "file": "/home/runner/workspace/codecompanion/cli.py",
-        "function": "main",
-        "description": "Standalone codecompanion CLI tool"
-      },
-      {
-        "type": "cc_command",
-        "file": "/home/runner/workspace/codecompanion/cc.py",
-        "function": "main",
-        "description": "Direct API client with artifact saving"
-      }
+  "project": {
+    "name": "codecompanion",
+    "version": "0.1.0",
+    "description": "Universal AI Agent System - Multi-LLM orchestration platform with event-sourced architecture",
+    "analysis_date": "2025-11-04",
+    "total_python_files": 121,
+    "estimated_lines_of_code": 15000,
+    "languages": ["Python"],
+    "frameworks": ["FastAPI", "Streamlit", "Pydantic"],
+    "architecture_style": "Event-Driven Microservices with Multi-Agent Orchestration"
+  },
+  "architecture": {
+    "patterns": [
+      "Event Sourcing",
+      "Command Query Responsibility Segregation (CQRS)",
+      "Multi-Agent System",
+      "Pub/Sub Event Bus (Redis Streams)",
+      "Repository Pattern",
+      "Strategy Pattern (Model Routing)",
+      "Factory Pattern (Agent Creation)",
+      "Observer Pattern (Event Streaming)"
     ],
-    "demo_scripts": [
-      "demo_intelligent_router.py",
-      "demo_live_agents.py", 
-      "demo_live_collaboration.py",
-      "demo_streamlit_vector.py",
-      "demo_system_integration.py",
-      "demo_typed_artifacts.py",
-      "demo_vector_store.py"
-    ],
-    "test_runners": [
-      "test_runner.py",
-      "test_api_endpoints.py",
-      "test_production_bus.py"
+    "key_principles": [
+      "Immutable event streams",
+      "Structured agent I/O contracts",
+      "Multi-objective optimization for routing",
+      "Real-time event distribution",
+      "Typed artifact schemas"
     ]
   },
-  "core_modules": {
-    "orchestration": {
-      "core/orchestrator.py": {
-        "purpose": "Event-sourced multi-agent workflow orchestration",
-        "classes": [
-          "EventSourcedOrchestrator",
-          "WorkflowEvent",
-          "EventType"
-        ],
-        "key_functions": [
-          "start_workflow",
-          "handle_event",
-          "get_workflow_state"
-        ]
-      },
-      "core/live_orchestrator.py": {
-        "purpose": "Live orchestration with real AI integration",
-        "classes": [
-          "LiveOrchestrator"
-        ],
-        "dependencies": [
-          "agents.live_agent_workers",
-          "core.intelligent_router"
-        ]
-      },
-      "core/parallel_execution.py": {
-        "purpose": "Parallel agent execution coordination",
-        "classes": [
-          "ParallelExecutionEngine",
-          "AgentExecutionNode"
-        ]
+  "modules": {
+    "core": {
+      "path": "/home/user/codecompanion/core",
+      "purpose": "Core orchestration, routing, and coordination components",
+      "files": {
+        "orchestrator.py": {
+          "classes": ["EventSourcedOrchestrator", "OrchestratorState", "WorkflowEvent"],
+          "purpose": "Event-sourced workflow orchestration with immutable event stream",
+          "key_methods": ["emit_event", "start_workflow", "create_task", "assign_task", "complete_task", "replay_events"],
+          "dependencies": ["schemas.ledgers", "schemas.artifacts", "schemas.routing"]
+        },
+        "router.py": {
+          "classes": ["DataDrivenRouter", "RoutingContext", "ModelSelection"],
+          "purpose": "Intelligent model routing with multi-objective optimization (quality, cost, latency)",
+          "key_methods": ["route_task", "analyze_task_complexity", "apply_load_balancing", "check_recent_failures"],
+          "dependencies": ["schemas.routing", "schemas.ledgers"]
+        },
+        "event_streaming.py": {
+          "classes": ["RealTimeEventOrchestrator", "StreamEvent", "EventType", "EventStreamType", "StreamConsumer"],
+          "purpose": "Real-time event streaming and distribution",
+          "dependencies": ["bus.py"],
+          "issues": ["Contains NotImplementedError in event streaming methods"]
+        },
+        "artifacts.py": {
+          "classes": ["ArtifactValidator", "ArtifactHandler"],
+          "purpose": "Artifact validation and lifecycle management with schema validation"
+        },
+        "model_router.py": {
+          "classes": ["IntelligentRouter"],
+          "purpose": "Advanced model selection with capability matching and learning"
+        },
+        "parallel_execution.py": {
+          "purpose": "Parallel agent execution coordination with resource management",
+          "asyncio_sleeps": [242, 393]
+        },
+        "learning_engine.py": {
+          "purpose": "Adaptive learning from agent performance metrics"
+        },
+        "bandit_learning.py": {
+          "purpose": "Multi-armed bandit for model selection optimization"
+        },
+        "live_orchestrator.py": {
+          "purpose": "Live orchestration with real AI agent integration",
+          "asyncio_sleeps": [378, 435]
+        },
+        "intelligent_router.py": {
+          "purpose": "Task routing with contextual awareness"
+        },
+        "workflow_orchestrator.py": {
+          "purpose": "High-level workflow orchestration"
+        },
+        "orchestrator_v2.py": {
+          "purpose": "V2 orchestrator implementation"
+        },
+        "real_execution_engine.py": {
+          "purpose": "Real-world task execution engine"
+        },
+        "isolated_real_execution.py": {
+          "purpose": "Isolated execution environment"
+        },
+        "quality_cascade.py": {
+          "purpose": "Quality validation cascade"
+        },
+        "consensus_validator.py": {
+          "purpose": "Multi-agent consensus validation"
+        },
+        "conflict_resolver.py": {
+          "purpose": "Agent conflict resolution"
+        },
+        "cost_governor.py": {
+          "purpose": "Cost monitoring and governance"
+        },
+        "handoff_protocol.py": {
+          "purpose": "Agent handoff protocol implementation"
+        },
+        "memory.py": {
+          "purpose": "Memory and context management"
+        },
+        "artifact_handler.py": {
+          "purpose": "Extended artifact handling"
+        },
+        "progress_tracker.py": {
+          "purpose": "Workflow progress tracking"
+        },
+        "communication.py": {
+          "purpose": "Inter-agent communication"
+        },
+        "api_health_checker.py": {
+          "purpose": "API health monitoring"
+        },
+        "direct_ui_updater.py": {
+          "purpose": "Direct UI update interface"
+        },
+        "ai_clients.py": {
+          "purpose": "AI API client wrappers"
+        },
+        "model_orchestrator.py": {
+          "purpose": "Model orchestration coordinator"
+        }
       }
     },
     "agents": {
-      "agents/base_agent.py": {
-        "purpose": "Base agent architecture with I/O contracts",
-        "classes": [
-          "BaseAgent",
-          "AgentCapability",
-          "AgentType",
-          "AgentInput",
-          "AgentOutput"
-        ]
-      },
-      "agents/claude_agent.py": {
-        "purpose": "Claude AI agent implementation",
-        "dependencies": ["core.ai_clients"]
-      },
-      "agents/gpt4_agent.py": {
-        "purpose": "GPT-4 agent implementation"
-      },
-      "agents/gemini_agent.py": {
-        "purpose": "Gemini agent implementation"
-      },
-      "agents/live_agent_workers.py": {
-        "purpose": "Live agent worker orchestration"
+      "path": "/home/user/codecompanion/agents",
+      "purpose": "AI agent implementations and coordination",
+      "files": {
+        "base_agent.py": {
+          "classes": ["BaseAgent", "AgentCapability", "AgentInput", "AgentOutput", "AgentType", "ProcessingResult"],
+          "purpose": "Abstract base class for all agents with structured I/O contracts",
+          "key_methods": ["process_request", "can_handle_task", "estimate_processing_time", "_validate_input", "_process_request"],
+          "dependencies": ["schemas.artifacts", "schemas.routing"]
+        },
+        "live_agent_workers.py": {
+          "classes": ["LiveAgentWorker", "ClaudeWorker", "GPT4Worker", "GeminiWorker", "LiveAgentOrchestrator", "LiveAgentMetrics"],
+          "purpose": "Real AI API integration for Claude, GPT-4, and Gemini",
+          "issues": ["Contains 5 NotImplementedError stubs in lines 266, 270, 274, 278, 282"],
+          "key_methods": ["_execute_ai_task", "_can_handle_task_type", "_calculate_task_confidence", "_estimate_task_cost"],
+          "dependencies": ["anthropic", "openai", "google.genai", "core.event_streaming"]
+        },
+        "claude_agent.py": {
+          "purpose": "Claude-specific agent implementation with diagnostic reasoning"
+        },
+        "gpt4_agent.py": {
+          "purpose": "GPT-4-specific agent for code generation"
+        },
+        "gemini_agent.py": {
+          "purpose": "Gemini-specific agent for optimization tasks"
+        },
+        "code_generator.py": {
+          "purpose": "Code generation agent with multi-language support"
+        },
+        "test_writer.py": {
+          "purpose": "Test generation agent with pytest/unittest support"
+        },
+        "debugger.py": {
+          "purpose": "Debugging and analysis agent"
+        },
+        "project_manager.py": {
+          "purpose": "Project planning and management agent"
+        },
+        "ui_designer.py": {
+          "purpose": "UI/UX design agent"
+        }
       }
     },
-    "routing": {
-      "core/router.py": {
-        "purpose": "Data-driven model routing",
-        "classes": [
-          "DataDrivenRouter",
-          "RoutingContext"
-        ]
-      },
-      "core/intelligent_router.py": {
-        "purpose": "Intelligent task routing with learning",
-        "classes": [
-          "IntelligentTaskRouter"
-        ]
-      },
-      "core/model_router.py": {
-        "purpose": "Model selection and routing"
+    "schemas": {
+      "path": "/home/user/codecompanion/schemas",
+      "purpose": "Pydantic data models and validation schemas",
+      "files": {
+        "artifacts.py": {
+          "classes": ["ArtifactBase", "ArtifactType", "SpecDoc", "DesignDoc", "CodePatch", "TestPlan", "EvalReport", "Runbook"],
+          "purpose": "Typed artifact schemas with validation and metadata"
+        },
+        "ledgers.py": {
+          "classes": ["TaskLedger", "ProgressLedger", "WorkItem", "TaskStatus", "Priority"],
+          "purpose": "Task and progress tracking schemas with status management"
+        },
+        "routing.py": {
+          "classes": ["ModelType", "TaskType", "TaskComplexity", "RoutingDecision", "ModelCapability", "MODEL_CAPABILITIES"],
+          "purpose": "Model routing and capability schemas with optimization"
+        },
+        "outcomes.py": {
+          "classes": ["TaskOutcome", "WorkflowOutcome"],
+          "purpose": "Outcome and result schemas"
+        },
+        "artifact_schemas.py": {
+          "purpose": "Extended artifact schema definitions"
+        }
       }
     },
-    "event_system": {
-      "core/event_streaming.py": {
-        "purpose": "Real-time event streaming with Redis",
-        "classes": [
-          "RealTimeEventOrchestrator",
-          "StreamEvent"
-        ]
-      },
-      "bus.py": {
-        "purpose": "Production event bus with Redis Streams",
-        "description": "Redis-based or mock event bus depending on configuration"
+    "codecompanion": {
+      "path": "/home/user/codecompanion/codecompanion",
+      "purpose": "CLI package and standalone agent runner",
+      "files": {
+        "cli.py": {
+          "functions": ["main"],
+          "purpose": "Main CLI entrypoint with argparse",
+          "commands": ["--check", "--chat", "--auto", "--run AGENT", "--provider"]
+        },
+        "runner.py": {
+          "functions": ["run_pipeline", "run_single_agent"],
+          "agents": ["Installer", "EnvDoctor", "Analyzer", "DepAuditor", "BugTriage", "Fixer", "TestRunner", "WebDoctor", "PRPreparer"],
+          "purpose": "Agent workflow orchestration with 9 specialized agents and optimal provider assignments"
+        },
+        "bootstrap.py": {
+          "functions": ["ensure_bootstrap"],
+          "purpose": "Setup .cc directory and agent stub files"
+        },
+        "project_detector.py": {
+          "purpose": "Auto-detect project type (Python Web, Data Science, Node, etc.)"
+        },
+        "llm.py": {
+          "functions": ["complete"],
+          "purpose": "LLM API wrapper with OpenRouter integration"
+        },
+        "engine.py": {
+          "functions": ["run_cmd", "load_repo_map"],
+          "purpose": "Command execution and repository analysis utilities"
+        },
+        "repl.py": {
+          "functions": ["chat_repl"],
+          "purpose": "Interactive chat REPL interface"
+        },
+        "cc.py": {
+          "purpose": "Direct API client with artifact saving"
+        }
       }
     },
-    "artifacts": {
-      "core/artifacts.py": {
-        "purpose": "Artifact validation and handling",
-        "classes": [
-          "ArtifactValidator",
-          "ArtifactHandler"
-        ]
-      },
-      "schemas/artifacts.py": {
-        "purpose": "Artifact type definitions and schemas",
-        "classes": [
-          "SpecDoc",
-          "DesignDoc", 
-          "CodePatch",
-          "TestPlan",
-          "EvalReport"
-        ]
+    "services": {
+      "path": "/home/user/codecompanion/services",
+      "purpose": "External service integrations",
+      "files": {
+        "real_models.py": {
+          "functions": ["call_claude", "call_gpt4", "call_gemini", "real_e2e"],
+          "purpose": "Real AI model API integration with fallback handling"
+        },
+        "httpwrap.py": {
+          "functions": ["retry_request"],
+          "purpose": "HTTP request wrapper with exponential backoff retry logic",
+          "asyncio_sleeps": [38]
+        }
       }
     },
-    "api": {
-      "api.py": {
-        "purpose": "Token-protected FastAPI API server",
-        "endpoints": [
-          "GET /",
-          "GET /health",
-          "GET /keys",
-          "POST /run_real"
-        ],
+    "storage": {
+      "path": "/home/user/codecompanion/storage",
+      "purpose": "Data persistence and database management",
+      "files": {
+        "database_manager.py": {
+          "classes": ["DatabaseManager"],
+          "purpose": "SQLite database operations and schema management"
+        },
+        "performance_store.py": {
+          "purpose": "Performance metrics storage with time-series support"
+        },
+        "runs.py": {
+          "purpose": "Workflow run history and tracking"
+        }
+      }
+    },
+    "memory": {
+      "path": "/home/user/codecompanion/memory",
+      "purpose": "Vector store and memory systems",
+      "files": {
+        "vector_store.py": {
+          "purpose": "Vector embeddings storage and similarity search"
+        },
+        "integration.py": {
+          "purpose": "Memory system integration with agents"
+        }
+      }
+    },
+    "monitoring": {
+      "path": "/home/user/codecompanion/monitoring",
+      "purpose": "Quality and performance monitoring",
+      "files": {
+        "quality_dashboard.py": {
+          "purpose": "Streamlit quality monitoring dashboard"
+        },
+        "performance_tracker.py": {
+          "purpose": "Real-time performance metrics tracking"
+        }
+      }
+    },
+    "components": {
+      "path": "/home/user/codecompanion/components",
+      "purpose": "Reusable Streamlit UI components",
+      "files": {
+        "collaboration_dashboard.py": {
+          "purpose": "Agent collaboration visualization UI"
+        },
+        "stability_monitor.py": {
+          "purpose": "System stability monitoring UI"
+        },
+        "api_key_manager.py": {
+          "purpose": "API key management and validation UI"
+        }
+      }
+    },
+    "ui": {
+      "path": "/home/user/codecompanion/ui",
+      "purpose": "Streamlit UI components",
+      "files": {
+        "live_monitoring.py": {
+          "purpose": "Live workflow monitoring interface"
+        },
+        "live_status_panel.py": {
+          "purpose": "Real-time status display panel"
+        }
+      }
+    },
+    "workers": {
+      "path": "/home/user/codecompanion/workers",
+      "purpose": "Background worker processes",
+      "files": {
+        "log_consumer.py": {
+          "purpose": "Async log consumption worker"
+        }
+      }
+    },
+    "utils": {
+      "path": "/home/user/codecompanion/utils",
+      "purpose": "Common utilities",
+      "files": {
+        "helpers.py": {
+          "purpose": "Common utility functions"
+        },
+        "file_manager.py": {
+          "purpose": "File operation utilities"
+        },
+        "session_manager.py": {
+          "purpose": "Session management"
+        },
+        "error_handler.py": {
+          "purpose": "Error handling utilities"
+        }
+      }
+    },
+    "database": {
+      "path": "/home/user/codecompanion/database",
+      "purpose": "Database setup and management",
+      "files": {
+        "setup.py": {
+          "purpose": "Database initialization and schema setup"
+        }
+      }
+    }
+  },
+  "entrypoints": {
+    "main_applications": [
+      {
+        "file": "/home/user/codecompanion/app.py",
+        "function": "main",
+        "type": "streamlit",
+        "purpose": "Main Streamlit web application - comprehensive multi-agent orchestration UI with embedded API",
+        "port": "Streamlit default (8501)"
+      },
+      {
+        "file": "/home/user/codecompanion/server.py",
+        "type": "uvicorn",
+        "purpose": "FastAPI production server entrypoint",
+        "port": 5050
+      },
+      {
+        "file": "/home/user/codecompanion/codecompanion/cli.py",
+        "function": "main",
+        "type": "cli",
+        "package_entrypoint": "codecompanion",
+        "purpose": "CodeCompanion CLI for running agent pipelines with multi-provider support"
+      },
+      {
+        "file": "/home/user/codecompanion/api.py",
+        "type": "fastapi",
+        "purpose": "Token-protected REST API with endpoints: GET /, GET /health, GET /keys, POST /run_real",
         "authentication": "Bearer token or X-API-Key"
       },
-      "services/real_models.py": {
-        "purpose": "Real AI model API clients",
-        "functions": [
-          "call_claude",
-          "call_gpt4", 
-          "call_gemini",
-          "real_e2e"
-        ]
+      {
+        "file": "/home/user/codecompanion/cli.py",
+        "type": "typer",
+        "purpose": "Simple CLI client for API interaction (Typer-based)"
+      },
+      {
+        "file": "/home/user/codecompanion/codecompanion/cc.py",
+        "function": "main",
+        "type": "cli",
+        "purpose": "Direct API client with artifact saving"
+      }
+    ],
+    "demo_scripts": [
+      {
+        "file": "demo_live_collaboration.py",
+        "purpose": "Demonstrates live agent collaboration with event streaming",
+        "asyncio_sleeps": [63, 78, 106, 133, 148, 162, 206, 282, 356]
+      },
+      {
+        "file": "demo_live_agents.py",
+        "purpose": "Live AI agent demonstration",
+        "asyncio_sleeps": [102]
+      },
+      {
+        "file": "demo_intelligent_router.py",
+        "purpose": "Intelligent routing demonstration",
+        "asyncio_sleeps": [189]
+      },
+      {
+        "file": "demo_typed_artifacts.py",
+        "purpose": "Typed artifact system demonstration"
+      },
+      {
+        "file": "demo_vector_store.py",
+        "purpose": "Vector store capabilities demonstration"
+      },
+      {
+        "file": "demo_streamlit_vector.py",
+        "purpose": "Streamlit vector store UI demonstration"
+      },
+      {
+        "file": "demo_system_integration.py",
+        "purpose": "End-to-end system integration demonstration"
+      }
+    ],
+    "test_scripts": [
+      {
+        "file": "test_runner.py",
+        "purpose": "Test suite runner"
+      },
+      {
+        "file": "test_production_bus.py",
+        "purpose": "Production event bus tests",
+        "asyncio_sleeps": [47, 54, 104, 111]
+      },
+      {
+        "file": "test_strict_bus.py",
+        "purpose": "Strict bus configuration tests"
+      },
+      {
+        "file": "test_strict_config.py",
+        "purpose": "Strict configuration validation tests"
+      },
+      {
+        "file": "test_api_endpoints.py",
+        "purpose": "API endpoint tests"
+      },
+      {
+        "file": "test_vector_fallback.py",
+        "purpose": "Vector store fallback tests"
+      },
+      {
+        "file": "tests/test_bus.py",
+        "purpose": "Event bus unit tests",
+        "asyncio_sleeps": [68, 75, 160, 171, 174]
+      },
+      {
+        "file": "tests/test_artifact_schema.py",
+        "purpose": "Artifact schema validation tests"
+      }
+    ],
+    "utility_scripts": [
+      {
+        "file": "install-codecompanion.py",
+        "purpose": "Installation script"
+      },
+      {
+        "file": "check_db.py",
+        "purpose": "Database verification utility"
+      },
+      {
+        "file": "startup_logs.py",
+        "purpose": "Startup logging and configuration display"
+      },
+      {
+        "file": "startup_logs_strict.py",
+        "purpose": "Strict startup configuration validation"
+      },
+      {
+        "file": "server_launcher.py",
+        "purpose": "Server launcher with port checking",
+        "time_sleeps": [37, 66]
+      }
+    ]
+  },
+  "asyncio_sleep_analysis": {
+    "total_instances": 25,
+    "categories": {
+      "demo_delays": {
+        "count": 10,
+        "files": ["demo_live_collaboration.py", "demo_live_agents.py", "demo_intelligent_router.py"],
+        "purpose": "Visual demonstration delays",
+        "recommendation": "Make configurable or remove for production"
+      },
+      "test_coordination": {
+        "count": 9,
+        "files": ["test_production_bus.py", "tests/test_bus.py"],
+        "purpose": "Test timing coordination for async operations",
+        "recommendation": "Legitimate test delays, keep as is"
+      },
+      "monitoring_polls": {
+        "count": 2,
+        "files": ["core/parallel_execution.py"],
+        "purpose": "Monitoring polling intervals",
+        "recommendation": "Consider making configurable"
+      },
+      "orchestration_polls": {
+        "count": 2,
+        "files": ["core/live_orchestrator.py"],
+        "purpose": "Orchestrator polling intervals",
+        "recommendation": "Consider event-driven alternatives"
+      },
+      "retry_backoff": {
+        "count": 1,
+        "files": ["services/httpwrap.py"],
+        "purpose": "Exponential backoff for HTTP retries",
+        "recommendation": "Legitimate retry logic, keep as is"
+      },
+      "ui_refresh": {
+        "count": 1,
+        "files": ["app.py", "components/collaboration_dashboard.py"],
+        "purpose": "UI auto-refresh delays",
+        "recommendation": "Keep for UI responsiveness"
       }
     }
   },
-  "schemas": {
-    "schemas/artifacts.py": {
-      "classes": [
-        "ArtifactBase",
-        "SpecDoc", 
-        "DesignDoc",
-        "CodePatch",
-        "TestPlan",
-        "EvalReport",
-        "Runbook"
-      ]
-    },
-    "schemas/ledgers.py": {
-      "classes": [
-        "TaskLedger",
-        "ProgressLedger", 
-        "WorkItem",
-        "TaskStatus"
-      ]
-    },
-    "schemas/routing.py": {
-      "classes": [
-        "ModelType",
-        "TaskType", 
-        "TaskComplexity",
-        "RoutingDecision"
-      ]
-    },
-    "schemas/outcomes.py": {
-      "classes": [
-        "TaskOutcome"
-      ]
-    }
+  "not_implemented_errors": {
+    "total": 5,
+    "locations": [
+      {
+        "file": "/home/user/codecompanion/agents/live_agent_workers.py",
+        "lines": [266, 270, 274, 278, 282],
+        "methods": [
+          "_can_handle_task_type",
+          "_calculate_task_confidence",
+          "_estimate_task_cost",
+          "_estimate_completion_time",
+          "_execute_ai_task"
+        ],
+        "class": "LiveAgentWorker",
+        "severity": "high",
+        "recommendation": "These are abstract methods that must be implemented by subclasses (ClaudeWorker, GPT4Worker, GeminiWorker). They ARE implemented in the subclasses, so this is correct OOP design."
+      },
+      {
+        "file": "/home/user/codecompanion/core/event_streaming.py",
+        "line": 161,
+        "severity": "medium",
+        "recommendation": "Implement missing event streaming method"
+      }
+    ]
   },
-  "storage": {
-    "storage/database_manager.py": {
-      "purpose": "Database operations and management",
-      "classes": [
-        "DatabaseManager"
-      ]
-    },
-    "storage/performance_store.py": {
-      "purpose": "Performance metrics storage"
-    },
-    "memory/vector_store.py": {
-      "purpose": "Vector-based memory storage"
-    }
+  "dead_code_candidates": {
+    "backup_files": [
+      "/home/user/codecompanion/api.py.bak",
+      "/home/user/codecompanion/api_server.py.bak",
+      "/home/user/codecompanion/start_api_server.py.bak"
+    ],
+    "patch_files": [
+      "/home/user/codecompanion/patch_1.diff",
+      "/home/user/codecompanion/patch_2.diff",
+      "/home/user/codecompanion/patch_3.diff",
+      "/home/user/codecompanion/patch_4.diff",
+      "/home/user/codecompanion/patch_5.diff"
+    ],
+    "test_directories": [
+      "/home/user/codecompanion/test-fresh/"
+    ],
+    "mock_scripts": [
+      "/home/user/codecompanion/mock_claude"
+    ],
+    "recommendation": "Archive or remove backup files and applied patches. Review test-fresh directory to determine if it's still needed."
   },
-  "configuration": {
-    "settings.py": {
-      "purpose": "System configuration management",
-      "description": "Environment-based configuration with validation"
-    },
-    "startup_logs.py": {
-      "purpose": "System startup logging and validation"
-    },
-    "startup_logs_strict.py": {
-      "purpose": "Strict configuration startup logging"
-    }
-  },
-  "utilities": {
-    "utils/helpers.py": {
-      "purpose": "Common utility functions"
-    },
-    "utils/file_manager.py": {
-      "purpose": "File operation utilities"
-    },
-    "utils/session_manager.py": {
-      "purpose": "Session management utilities"
-    }
-  },
-  "monitoring": {
-    "monitoring/performance_tracker.py": {
-      "purpose": "Performance tracking and metrics"
-    },
-    "monitoring/quality_dashboard.py": {
-      "purpose": "Quality monitoring dashboard"
-    }
-  },
-  "asyncio_sleep_stubs": [
-    {
-      "file": "/home/runner/workspace/demo_live_collaboration.py",
-      "lines": [61, 73, 95, 116, 128, 139, 177, 246, 302],
-      "type": "demo_delays",
-      "description": "Demonstration script delays for visual effect"
-    },
-    {
-      "file": "/home/runner/workspace/demo_intelligent_router.py", 
-      "lines": [178],
-      "type": "demo_delays",
-      "description": "Router demonstration delay"
-    },
-    {
-      "file": "/home/runner/workspace/core/parallel_execution.py",
-      "lines": [242, 393],
-      "type": "monitoring_polls",
-      "description": "Legitimate monitoring polling intervals"
-    },
-    {
-      "file": "/home/runner/workspace/core/live_orchestrator.py",
-      "lines": [378, 435],
-      "type": "orchestration_polls", 
-      "description": "Orchestrator polling intervals"
-    },
-    {
-      "file": "/home/runner/workspace/core/event_streaming.py",
-      "lines": [135, 139, 368, 372],
-      "type": "event_processing",
-      "description": "Event stream processing delays"
-    },
-    {
-      "file": "/home/runner/workspace/demo_live_agents.py",
-      "lines": [98],
-      "type": "demo_delays"
-    },
-    {
-      "file": "/home/runner/workspace/test_production_bus.py",
-      "lines": [44, 51, 100, 107],
-      "type": "test_delays",
-      "description": "Test coordination delays"
-    },
-    {
-      "file": "/home/runner/workspace/tests/test_bus.py",
-      "lines": [68, 75, 165, 176, 179],
-      "type": "test_delays",
-      "description": "Test timing coordination"
-    }
-  ],
-  "potential_dead_code": [
-    {
-      "file": "/home/runner/workspace/api.py.bak",
-      "type": "backup_file",
-      "recommendation": "Remove if no longer needed"
-    },
-    {
-      "file": "/home/runner/workspace/api_server.py.bak", 
-      "type": "backup_file",
-      "recommendation": "Remove if no longer needed"
-    },
-    {
-      "file": "/home/runner/workspace/start_api_server.py.bak",
-      "type": "backup_file", 
-      "recommendation": "Remove if no longer needed"
-    },
-    {
-      "file": "/home/runner/workspace/mock_claude",
-      "type": "mock_executable",
-      "recommendation": "Verify if still needed for testing"
-    },
-    {
-      "directory": "/home/runner/workspace/test-fresh/",
-      "type": "test_directory",
-      "recommendation": "Archive or remove if testing is complete"
-    },
-    {
-      "directory": "/home/runner/workspace/test-install/",
-      "type": "test_directory", 
-      "recommendation": "Remove if installation testing is complete"
-    },
-    {
-      "files": [
-        "/home/runner/workspace/patch_1.diff",
-        "/home/runner/workspace/patch_2.diff", 
-        "/home/runner/workspace/patch_3.diff",
-        "/home/runner/workspace/patch_4.diff",
-        "/home/runner/workspace/patch_5.diff"
-      ],
-      "type": "patch_files",
-      "recommendation": "Archive patches if applied successfully"
-    }
-  ],
   "database_files": [
     "bandit_learning.db",
-    "cost_governance.db", 
+    "cost_governance.db",
     "learning_engine.db",
     "performance_store.db",
     "performance_tracking.db",
     "project_memory.db",
-    "router_learning.db",
-    "data/codecompanion.db",
-    "storage/data/codecompanion.db"
+    "router_learning.db"
   ],
-  "package_structure": {
-    "codecompanion": {
-      "purpose": "Standalone CLI package",
-      "entry_point": "codecompanion.cli:main",
-      "modules": [
-        "bootstrap.py",
-        "cli.py", 
-        "cc.py",
-        "engine.py",
-        "llm.py",
-        "repl.py",
-        "runner.py"
-      ]
+  "dependencies": {
+    "runtime": {
+      "rich": ">=13.7",
+      "httpx": ">=0.27",
+      "fastapi": "latest",
+      "uvicorn": "latest",
+      "streamlit": "latest",
+      "typer": "latest",
+      "pydantic": "latest",
+      "redis": "asyncio support",
+      "anthropic": "Claude API",
+      "openai": "GPT-4 API",
+      "google-genai": "Gemini API"
     },
-    "cc_cli": {
-      "purpose": "Alternative CLI interface",
-      "modules": [
-        "main.py"
-      ]
+    "development": {
+      "pytest": ">=7.0",
+      "ruff": ">=0.1",
+      "pyright": ">=1.1"
     }
   },
-  "dependencies": {
-    "production": [
-      "rich>=13.7",
-      "httpx>=0.27",
-      "fastapi",
-      "uvicorn",
-      "streamlit", 
-      "typer",
-      "pydantic",
-      "redis"
+  "import_analysis": {
+    "total_import_statements": 760,
+    "high_coupling_files": [
+      {
+        "file": "app.py",
+        "imports": 35,
+        "concern": "Main application has high coupling to all modules"
+      }
     ],
-    "development": [
-      "pytest>=7.0",
-      "ruff>=0.1",
-      "pyright>=1.1"
-    ]
-  },
-  "architecture_patterns": [
-    "Event Sourcing",
-    "Multi-Agent Orchestration",
-    "Schema-Driven Communication",
-    "Microservices (FastAPI + Streamlit)",
-    "Plugin Architecture (Agents)",
-    "Observer Pattern (Event Streaming)",
-    "Factory Pattern (Agent Creation)",
-    "Strategy Pattern (Model Routing)"
-  ]
+    "circular_dependencies": "None detected",
+    "orphaned_modules": []
+  }
 }

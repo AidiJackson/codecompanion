@@ -1,107 +1,240 @@
 {
+  "audit_date": "2025-11-04",
+  "python_version": ">=3.9",
+  "summary": {
+    "total_removed": 3,
+    "total_added": 13,
+    "total_moved_to_dev": 3,
+    "redundancies_resolved": 1
+  },
   "removed": [
-    "altair",
-    "numpy", 
-    "pandas",
-    "scipy",
-    "scikit-learn",
-    "matplotlib",
-    "plotly",
-    "seaborn",
-    "streamlit",
-    "jupyter",
-    "google-generativeai",
-    "openai",
-    "requests",
-    "aiohttp",
-    "gevent",
-    "redis",
-    "gitpython",
-    "joblib",
-    "pillow",
-    "pyarrow",
-    "duckdb",
-    "watchdog",
-    "websocket-client",
-    "websockets",
-    "tornado",
-    "typer",
-    "click",
-    "blinker",
-    "cachetools",
-    "greenlet",
-    "grpcio",
-    "hiredis",
-    "protobuf",
-    "proto-plus",
-    "google-auth",
-    "google-api-core",
-    "googleapis-common-protos",
-    "uritemplate",
-    "pyasn1",
-    "pyasn1-modules",
-    "rsa",
-    "six",
-    "async-timeout",
-    "attrs",
-    "cffi",
-    "charset-normalizer",
-    "colorama",
-    "jsonschema",
-    "jsonschema-specifications",
-    "markupsafe",
-    "pyparsing",
-    "python-dateutil",
-    "pytz",
-    "referencing",
-    "rpds-py",
-    "setuptools",
-    "shellingham",
-    "smmap",
-    "tenacity",
-    "threadpoolctl",
-    "toml",
-    "tqdm",
-    "tzdata"
+    {
+      "package": "rich",
+      "version": ">=13.7",
+      "reason": "Completely unused - no imports found in entire codebase",
+      "impact": "None - safe to remove",
+      "size_reduction": "~2.5MB"
+    },
+    {
+      "package": "requests",
+      "version": "(transitive)",
+      "reason": "Redundant with httpx - httpx provides same functionality with async support",
+      "impact": "Low - httpx can replace all requests usage",
+      "migration": "Replace requests.get/post with httpx.get/post (API compatible)",
+      "affected_files": [
+        "/home/user/codecompanion/app.py",
+        "/home/user/codecompanion/cli.py",
+        "/home/user/codecompanion/test_api_endpoints.py",
+        "/home/user/codecompanion/agents/test_writer.py"
+      ]
+    },
+    {
+      "package": "pytest, ruff, pyright",
+      "version": "various",
+      "reason": "Development tools - moved to requirements-dev.txt and [project.optional-dependencies]",
+      "impact": "None for production - still available for development",
+      "location": "Now in requirements-dev.txt"
+    }
   ],
   "added": [
-    "pydantic-settings"
-  ],
-  "reasons": [
     {
-      "package": "streamlit + data science stack (numpy, pandas, scipy, etc.)",
-      "reason": "Only used in dashboard component - moved to optional dependency",
-      "impact": "Reduces install size by ~300MB, eliminates 40+ transitive dependencies"
+      "package": "fastapi",
+      "version": ">=0.115.0",
+      "reason": "Missing from requirements but heavily used in api.py and multiple agent files",
+      "usage": "Core web API framework",
+      "criticality": "HIGH"
     },
     {
-      "package": "google-generativeai, openai",
-      "reason": "Multiple AI clients installed but typically only one needed",
-      "impact": "Reduces API client bloat, kept anthropic as primary client"
+      "package": "uvicorn",
+      "version": ">=0.30.0",
+      "reason": "Missing from requirements but required to run FastAPI server",
+      "usage": "ASGI server for running web application",
+      "criticality": "HIGH"
     },
     {
-      "package": "requests, aiohttp", 
-      "reason": "Multiple HTTP clients providing same functionality as httpx",
-      "impact": "Eliminates redundant HTTP implementations"
-    },
-    {
-      "package": "redis, gevent, tornado",
-      "reason": "Heavy server/async dependencies not used in core functionality", 
-      "impact": "Reduces complexity and potential security surface"
-    },
-    {
-      "package": "Development tools in main requirements",
-      "reason": "pytest, ruff moved to requirements-dev.txt for cleaner production builds",
-      "impact": "Separates dev dependencies from runtime requirements"
-    },
-    {
-      "package": "Transitive dependency bloat",
-      "reason": "Many packages pulled in unused transitive dependencies",
-      "impact": "Eliminated ~50+ packages that provide no value to core functionality"
+      "package": "pydantic",
+      "version": ">=2.0.0",
+      "reason": "Missing from requirements but heavily used for data validation across entire codebase",
+      "usage": "Data validation in schemas, models, and API",
+      "criticality": "HIGH"
     },
     {
       "package": "pydantic-settings",
-      "reason": "Added for proper configuration management used in settings.py",
-      "impact": "Explicitly declares configuration dependency instead of relying on transitive"
+      "version": ">=2.0.0",
+      "reason": "Missing but used in settings.py for configuration management",
+      "usage": "Application settings and environment variable management",
+      "criticality": "HIGH"
+    },
+    {
+      "package": "typer",
+      "version": ">=0.12.0",
+      "reason": "Missing but used in cli.py and cc_cli/main.py",
+      "usage": "CLI framework for command-line interface",
+      "criticality": "HIGH"
+    },
+    {
+      "package": "anthropic",
+      "version": ">=0.40.0",
+      "reason": "Missing but required for Claude API access (core AI functionality)",
+      "usage": "Claude AI model integration",
+      "criticality": "HIGH"
+    },
+    {
+      "package": "openai",
+      "version": ">=1.0.0",
+      "reason": "Missing but required for GPT models and embeddings",
+      "usage": "OpenAI API for GPT models and vector embeddings",
+      "criticality": "HIGH"
+    },
+    {
+      "package": "google-generativeai",
+      "version": ">=0.8.0",
+      "reason": "Missing but used for Gemini model integration",
+      "usage": "Google Gemini AI model integration",
+      "criticality": "HIGH"
+    },
+    {
+      "package": "streamlit",
+      "version": ">=1.50.0",
+      "reason": "Missing but app.py is a Streamlit application (heavily used throughout UI)",
+      "usage": "Primary web UI framework",
+      "criticality": "CRITICAL"
+    },
+    {
+      "package": "pandas",
+      "version": ">=2.0.0",
+      "reason": "Missing but used in app.py and monitoring/quality_dashboard.py",
+      "usage": "Data manipulation and display in dashboards",
+      "criticality": "HIGH"
+    },
+    {
+      "package": "numpy",
+      "version": ">=1.24.0",
+      "reason": "Missing but used in memory/vector_store.py and storage/performance_store.py",
+      "usage": "Numerical operations for vector similarity",
+      "criticality": "MEDIUM"
+    },
+    {
+      "package": "plotly",
+      "version": ">=5.18.0",
+      "reason": "Missing but heavily used in monitoring/quality_dashboard.py and ui/live_monitoring.py",
+      "usage": "Interactive visualizations and charts",
+      "criticality": "HIGH"
+    },
+    {
+      "package": "scikit-learn",
+      "version": ">=1.3.0",
+      "reason": "Optional dependency for TF-IDF fallback in vector_store.py",
+      "usage": "Machine learning utilities (TF-IDF vectorization)",
+      "criticality": "MEDIUM (optional fallback)"
+    }
+  ],
+  "version_updates": [
+    {
+      "package": "httpx",
+      "old": ">=0.27",
+      "new": ">=0.28.0",
+      "reason": "Update to latest stable version with bug fixes and security patches",
+      "breaking_changes": "None expected"
+    }
+  ],
+  "new_files": [
+    {
+      "file": "/home/user/codecompanion/requirements-dev.txt",
+      "purpose": "Separate development dependencies from production",
+      "benefits": "Smaller production installs, clearer dependency purpose"
+    },
+    {
+      "file": "/home/user/codecompanion/constraints.txt",
+      "purpose": "Pin exact versions of all dependencies including transitive ones",
+      "benefits": "Reproducible builds, prevent version drift, easier debugging"
+    }
+  ],
+  "security_notes": [
+    {
+      "package": "httpx",
+      "note": "Latest version (0.28.1) includes security fixes for HTTP/2 handling"
+    },
+    {
+      "package": "streamlit",
+      "note": "Version 1.51.0 includes security patches for file upload handling"
+    },
+    {
+      "general": "All AI SDK packages (anthropic, openai, google-generativeai) should be kept updated for security"
+    }
+  ],
+  "migration_steps": [
+    {
+      "step": 1,
+      "action": "Backup current environment",
+      "command": "pip freeze > requirements.backup.txt"
+    },
+    {
+      "step": 2,
+      "action": "Update configuration files",
+      "command": "Apply artifacts.patch changes"
+    },
+    {
+      "step": 3,
+      "action": "Remove unused packages",
+      "command": "pip uninstall rich requests"
+    },
+    {
+      "step": 4,
+      "action": "Install optimized dependencies",
+      "command": "pip install -c constraints.txt -r requirements.txt"
+    },
+    {
+      "step": 5,
+      "action": "Migrate requests to httpx",
+      "details": "Replace requests.get() with httpx.get() in 4 files",
+      "files_to_update": [
+        "app.py",
+        "cli.py", 
+        "test_api_endpoints.py",
+        "agents/test_writer.py"
+      ]
+    },
+    {
+      "step": 6,
+      "action": "Test application",
+      "command": "streamlit run app.py"
+    }
+  ],
+  "size_impact": {
+    "estimated_reduction": "~3MB",
+    "estimated_addition": "~250MB (due to ML libraries)",
+    "net_change": "+247MB",
+    "note": "Size increase is expected and necessary - previous requirements.txt was incomplete"
+  },
+  "reproducibility": {
+    "constraints_file": "/home/user/codecompanion/constraints.txt",
+    "pinned_packages": 70,
+    "includes_transitive": true,
+    "validation_command": "pip install -c constraints.txt -r requirements.txt"
+  },
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "action": "Replace requests with httpx in code",
+      "benefit": "Eliminate redundancy, enable async operations"
+    },
+    {
+      "priority": "HIGH", 
+      "action": "Use constraints.txt in CI/CD",
+      "benefit": "Ensure reproducible builds across environments"
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Consider optional feature flags for heavy dependencies",
+      "benefit": "Allow minimal installs when ML features not needed",
+      "example": "pip install codecompanion[vector,viz,dev]"
+    },
+    {
+      "priority": "LOW",
+      "action": "Add dependency security scanning",
+      "benefit": "Catch vulnerabilities early",
+      "tool": "pip-audit or safety"
     }
   ]
 }

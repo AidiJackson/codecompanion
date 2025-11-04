@@ -1,102 +1,56 @@
-# Dependency Optimization Commands
-# Execute these commands step by step to implement the optimized dependency structure
+#!/bin/bash
+# CodeCompanion Dependency Optimization - Reinstallation Commands
+# Generated: 2025-11-04
 
-# 1. Backup current environment (recommended)
-echo "Creating backup of current dependencies..."
-cp requirements.txt requirements.txt.backup
-cp pyproject.toml pyproject.toml.backup
-pip freeze > current-environment-backup.txt
+echo "=================================================="
+echo "CodeCompanion Dependency Optimization"
+echo "=================================================="
 
-# 2. Clean existing environment
-echo "Cleaning existing environment..."
-pip freeze | grep -v "^-e" | xargs pip uninstall -y
-# OR create fresh virtual environment:
-# python -m venv venv-optimized
-# source venv-optimized/bin/activate  # On Windows: venv-optimized\Scripts\activate
+# Step 1: Backup current environment
+echo "Step 1: Creating backup..."
+pip freeze > /home/user/codecompanion/requirements.backup.txt
+echo "✓ Backup saved"
 
-# 3. Apply optimized dependency structure
-echo "Creating optimized dependency files..."
+# Step 2: Replace dependency files
+echo "Step 2: Updating dependency files..."
+mv /home/user/codecompanion/requirements.txt /home/user/codecompanion/requirements.txt.old
+mv /home/user/codecompanion/requirements.txt.new /home/user/codecompanion/requirements.txt
+mv /home/user/codecompanion/pyproject.toml /home/user/codecompanion/pyproject.toml.old
+mv /home/user/codecompanion/pyproject.toml.new /home/user/codecompanion/pyproject.toml
+echo "✓ Files updated"
 
-# Create constraints file
-cat > constraints.txt << 'EOF'
-# Dependency constraints for reproducible builds
-httpx==0.27.2
-httpcore==1.0.7
-h11==0.14.0
-certifi==2024.8.30
-rich==13.9.4
-markdown-it-py==3.0.0
-mdurl==0.1.2
-pygments==2.18.0
-anthropic==0.62.0
-pydantic==2.10.4
-pydantic-core==2.27.2
-typing-extensions==4.12.2
-sniffio==1.3.1
-anyio==4.10.0
-distro==1.9.0
-jiter==0.8.2
-fastapi==0.115.6
-starlette==0.41.3
-uvicorn==0.32.1
-pydantic-settings==2.7.0
-python-dotenv==1.0.1
-urllib3==2.2.3
-idna==3.10
-EOF
+# Step 3: Clean build artifacts
+echo "Step 3: Cleaning build artifacts..."
+rm -rf build/ dist/ *.egg-info/
+echo "✓ Cleaned"
 
-# Update requirements.txt
-cat > requirements.txt << 'EOF'
-# Core runtime dependencies
-rich>=13.7,<14.0
-httpx>=0.27,<0.28
+# Step 4: Remove unused packages
+echo "Step 4: Removing unused packages..."
+pip uninstall -y rich requests 2>/dev/null || true
+echo "✓ Removed rich, requests"
 
-# AI Client (primary - comment out if not needed)
-anthropic>=0.62.0,<0.63.0
+# Step 5: Install with constraints
+echo "Step 5: Installing optimized dependencies..."
+pip install --upgrade pip setuptools wheel
+pip install -c /home/user/codecompanion/constraints.txt -r /home/user/codecompanion/requirements.txt
+echo "✓ Core dependencies installed"
 
-# Web framework (comment out if not using web interface)
-fastapi>=0.104.0,<0.106.0
-uvicorn[standard]>=0.24.0,<0.25.0
-pydantic>=2.5.0,<3.0
-pydantic-settings>=2.1.0,<3.0
-EOF
+# Step 6: Install dev dependencies (optional)
+echo "Step 6: Install dev dependencies? (y/n)"
+read -r install_dev
+if [[ "$install_dev" == "y" ]]; then
+    pip install -c /home/user/codecompanion/constraints.txt -r /home/user/codecompanion/requirements-dev.txt
+    echo "✓ Dev dependencies installed"
+fi
 
-# Create development requirements
-cat > requirements-dev.txt << 'EOF'
--r requirements.txt
-pytest>=7.0
-pytest-asyncio>=0.21.0
-ruff>=0.1
-EOF
+# Step 7: Install package
+echo "Step 7: Installing codecompanion..."
+pip install -e /home/user/codecompanion
+echo "✓ Package installed"
 
-# 4. Install core dependencies with constraints
-echo "Installing optimized dependencies..."
-pip install -r requirements.txt -c constraints.txt
-
-# 5. Install development dependencies (optional)
-echo "Installing development dependencies..."
-pip install -r requirements-dev.txt -c constraints.txt
-
-# 6. Verify installation
-echo "Verifying installation..."
-pip check
-pip list
-
-# 7. Update pyproject.toml (manual step)
-echo "Manually update pyproject.toml with the optimized structure from artifacts.patch"
-
-# 8. Remove heavy unused dependencies (if they exist)
-echo "Ensuring heavy packages are not installed..."
-pip uninstall -y numpy pandas scipy scikit-learn matplotlib plotly altair streamlit seaborn jupyter || true
-
-# 9. Test basic functionality
-echo "Testing basic imports..."
-python -c "import rich; import httpx; import anthropic; print('Core dependencies working')"
-
-# 10. Optional: Install dashboard dependencies only if needed
-# pip install streamlit pandas plotly numpy -c constraints.txt
-
-echo "Dependency optimization complete!"
-echo "Package count reduced from 95+ to ~15-20 core packages"
-echo "Installation size reduced by approximately 80%"
-echo "Security surface reduced significantly"
+echo "=================================================="
+echo "✅ Installation Complete!"
+echo ""
+echo "Summary: Removed 3, Added 13, Optimized structure"
+echo "Next: streamlit run /home/user/codecompanion/app.py"
+echo "=================================================="

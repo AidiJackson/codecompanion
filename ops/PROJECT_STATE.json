@@ -1,0 +1,28 @@
+{
+  "project_name": null,
+  "project_description": null,
+  "active_phase": null,
+
+  "plan_version": 1,
+  "architecture_version": 1,
+
+  "recent_checkpoints": [],
+  "open_questions": [],
+
+  "todo": [],
+  "last_updated": null,
+
+  "settings": {
+    "workflow": {
+      "prefer_claude_web_for_scaffolding": true,
+      "prefer_claude_shell_for_small_fixes": true,
+      "require_checkpoint_before_major_changes": true
+    },
+    "models": {
+      "planner_gpt": true,
+      "planner_claude": true,
+      "planner_gemini": true,
+      "architect_model": "claude"
+    }
+  }
+}

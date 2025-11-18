@@ -5,15 +5,19 @@ Provides a web-based live status board with auto-refresh capabilities.
 This is a read-only dashboard that uses /api/info endpoint.
 No mutations or configuration changes are made through this interface.
 """
+import os
+import sys
+from pathlib import Path
+from typing import Optional
+
+# Suppress Streamlit warnings before any imports that might trigger it
+os.environ['STREAMLIT_LOGGER_LEVEL'] = 'error'
+
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pathlib import Path
-from typing import Optional
-import os
 
 # Import info gathering functions
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from codecompanion.info_core import gather_all_info
 

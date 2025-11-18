@@ -2,6 +2,13 @@ import os
 import sys
 import json
 import argparse
+import logging
+
+# Suppress Streamlit and other verbose logging early
+logging.getLogger('streamlit').setLevel(logging.ERROR)
+logging.getLogger('streamlit.logger').setLevel(logging.ERROR)
+os.environ['STREAMLIT_LOGGER_LEVEL'] = 'error'
+
 from .bootstrap import ensure_bootstrap
 from . import __version__
 from .repl import chat_repl

@@ -1,4 +1,5 @@
 import os
+import sys
 import argparse
 import json
 from .bootstrap import ensure_bootstrap
@@ -37,7 +38,8 @@ def main():
 
     # run command with subcommands
     run_parser = subparsers.add_parser("run", help="Run a specific agent")
-    run_parser.add_argument("agent", help="Agent to run (e.g., 'architect')")
+    run_parser.add_argument("agent", help="Agent to run (e.g., 'architect', 'specialist')")
+    run_parser.add_argument("--type", help="Specialist type (backend, frontend, docs, test)")
 
     # state command
     state_parser = subparsers.add_parser("state", help="Show current workflow state")
@@ -64,6 +66,13 @@ def main():
         if args.agent == "architect":
             from .commands.run_architect import run_architect_command
             return run_architect_command(args)
+        elif args.agent == "specialist":
+            if not hasattr(args, 'type') or args.type is None:
+                print("Error: --type is required for specialist agent", file=sys.stderr)
+                print("Valid types: backend, frontend, docs, test", file=sys.stderr)
+                return 1
+            from .commands.run_specialist import run_specialist_command
+            return run_specialist_command(args)
         else:
             print(f"Unknown agent: {args.agent}")
             return 1

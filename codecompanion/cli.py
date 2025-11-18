@@ -4,6 +4,7 @@ from .bootstrap import ensure_bootstrap
 from . import __version__
 from .repl import chat_repl
 from .runner import run_pipeline, run_single_agent
+from .commands.show_info import show_info_command
 
 
 def main():
@@ -27,11 +28,26 @@ def main():
         default=os.getenv("CC_PROVIDER", "claude"),
         help="LLM provider (claude, gpt4, gemini)",
     )
+    parser.add_argument(
+        "--info",
+        action="store_true",
+        help="Show advanced status panel for this CodeCompanion project",
+    )
+    parser.add_argument(
+        "--raw",
+        action="store_true",
+        help="Output info as JSON (use with --info)",
+    )
     args = parser.parse_args()
 
     if args.version:
         print(__version__)
         return 0
+
+    if args.info:
+        # Info command can work without bootstrap, but we'll ensure it anyway
+        ensure_bootstrap()
+        return show_info_command(args)
 
     info = ensure_bootstrap()
     if args.check:

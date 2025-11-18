@@ -4,6 +4,8 @@ from .bootstrap import ensure_bootstrap
 from . import __version__
 from .repl import chat_repl
 from .runner import run_pipeline, run_single_agent
+from .commands.init_project import init_project
+from .commands.show_state import show_state
 
 
 def main():
@@ -17,6 +19,9 @@ def main():
         action="store_true",
         help="Check environment and bootstrap presence, then exit",
     )
+    parser.add_argument("--init", action="store_true", help="Initialize project settings")
+    parser.add_argument("--state", action="store_true", help="Show project state and settings")
+    parser.add_argument("--json", action="store_true", help="Output state as JSON (use with --state)")
     parser.add_argument("--chat", action="store_true", help="Start chat REPL")
     parser.add_argument(
         "--auto", action="store_true", help="Run full 10-agent pipeline"
@@ -32,6 +37,12 @@ def main():
     if args.version:
         print(__version__)
         return 0
+
+    if args.init:
+        return init_project()
+
+    if args.state:
+        return show_state(json_output=args.json)
 
     info = ensure_bootstrap()
     if args.check:

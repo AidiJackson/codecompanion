@@ -1,6 +1,7 @@
 from importlib.resources import files
 import os
 import shutil
+import json
 
 DEFAULT_PKG = "codecompanion.defaults"
 
@@ -40,6 +41,22 @@ def ensure_bootstrap(project_root: str = ".") -> dict:
             src = files(DEFAULT_PKG).joinpath(fname)
             shutil.copy(src, dest)
             created.append(dest)
+
+    # Ensure settings.json exists with fail_path configuration
+    settings_file = os.path.join(cc_dir, "settings.json")
+    if not os.path.exists(settings_file):
+        default_settings = {
+            "version": "1.0.0",
+            "fail_path": {
+                "max_attempts": 2,
+                "backoff_seconds": 0.0,
+                "fallback_enabled": False,
+                "strict_validation": False,
+            },
+        }
+        with open(settings_file, "w", encoding="utf-8") as f:
+            json.dump(default_settings, f, indent=2, ensure_ascii=False)
+        created.append(settings_file)
 
     # Ensure .cc/agents stubs exist (do not overwrite if already present)
     agents_dir = os.path.join(cc_dir, "agents")

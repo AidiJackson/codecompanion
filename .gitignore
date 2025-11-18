@@ -7,3 +7,6 @@ build/
 .venv/
 snapshots/
 .cc/*.lock
+.cc/error_log.json
+.cc/settings.json
+.cc/*.json.tmp

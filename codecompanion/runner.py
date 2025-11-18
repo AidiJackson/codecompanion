@@ -1,5 +1,10 @@
+import json
+import os
 from .engine import run_cmd, load_repo_map
 from .llm import complete
+from .validators import validate_agent_output
+from .errors import create_error_record, append_error, get_error_summary, ERROR, WARNING
+from .recovery import RecoveryEngine, RetryConfig, load_config_from_settings
 
 # Agent workflow with optimal LLM provider assignments
 AGENT_WORKFLOW = [
@@ -15,7 +20,150 @@ AGENT_WORKFLOW = [
 ]
 
 
-def run_single_agent(name: str, provider: str = None):
+def _load_settings() -> dict:
+    """Load settings from .cc/settings.json if it exists."""
+    settings_path = os.path.join(".cc", "settings.json")
+    if os.path.exists(settings_path):
+        try:
+            with open(settings_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+    # Return defaults if file doesn't exist or is corrupted
+    return {
+        "version": "1.0.0",
+        "fail_path": {
+            "max_attempts": 2,
+            "backoff_seconds": 0.0,
+            "fallback_enabled": False,
+            "strict_validation": False,
+        },
+    }
+
+
+def _run_with_failpath(name: str, agent_fn, provider: str = None):
+    """
+    Execute agent with fail-path protection.
+
+    Args:
+        name: Agent name
+        agent_fn: Agent function to execute
+        provider: LLM provider (if applicable)
+
+    Returns:
+        tuple: (return_code, metadata)
+        - return_code: 0 = success, 1 = unrecovered failure, 2 = agent error
+        - metadata: dict with execution details
+    """
+    # Load settings and create retry config
+    settings = _load_settings()
+    retry_config = load_config_from_settings(settings)
+
+    # Execute the agent
+    try:
+        raw_output = agent_fn(provider)
+    except Exception as e:
+        # Unexpected exception during execution
+        error_rec = create_error_record(
+            agent=name,
+            stage="execution",
+            message=f"Agent execution raised exception: {str(e)}",
+            severity=ERROR,
+            recovered=False,
+            details={"exception": str(e), "type": type(e).__name__},
+        )
+        append_error(error_rec)
+        return 2, {
+            "agent": name,
+            "success": False,
+            "recovered": False,
+            "error": str(e),
+        }
+
+    # Validate the output
+    validation = validate_agent_output(name, raw_output)
+
+    if validation.ok:
+        # Success - no issues
+        return 0, {
+            "agent": name,
+            "success": True,
+            "recovered": False,
+            "output": raw_output,
+        }
+
+    # Validation failed - log error and attempt recovery
+    error_rec = create_error_record(
+        agent=name,
+        stage="validation",
+        message=f"Output validation failed: {'; '.join(validation.issues)}",
+        severity=ERROR,
+        recovered=False,
+        details={"issues": validation.issues, "metadata": validation.metadata},
+    )
+    append_error(error_rec)
+
+    # Attempt recovery
+    engine = RecoveryEngine(retry_config)
+    recovery = engine.attempt_recover(name, raw_output, validation.issues)
+
+    if recovery.ok:
+        # Recovery succeeded
+        recovery_rec = create_error_record(
+            agent=name,
+            stage="recovery",
+            message=f"Output recovered after {recovery.attempts} attempt(s)",
+            severity=WARNING,
+            recovered=True,
+            details={
+                "attempts": recovery.attempts,
+                "used_fallback": recovery.used_fallback,
+            },
+        )
+        append_error(recovery_rec)
+
+        return 0, {
+            "agent": name,
+            "success": True,
+            "recovered": True,
+            "output": recovery.final_payload,
+            "recovery_attempts": recovery.attempts,
+        }
+    else:
+        # Recovery failed
+        failure_rec = create_error_record(
+            agent=name,
+            stage="recovery",
+            message=f"Recovery failed: {recovery.error}",
+            severity=ERROR,
+            recovered=False,
+            details={
+                "attempts": recovery.attempts,
+                "recovery_error": recovery.error,
+            },
+        )
+        append_error(failure_rec)
+
+        return 1, {
+            "agent": name,
+            "success": False,
+            "recovered": False,
+            "error": recovery.error,
+        }
+
+
+def run_single_agent(name: str, provider: str = None, use_failpath: bool = True):
+    """
+    Run a single agent.
+
+    Args:
+        name: Agent name
+        provider: LLM provider override (optional)
+        use_failpath: Enable fail-path protection (default: True)
+
+    Returns:
+        int: Exit code (0 = success, 1 = unrecovered failure, 2 = error)
+    """
     # Find agent config
     agent_config = next((a for a in AGENT_WORKFLOW if a["name"] == name), None)
     if not agent_config:
@@ -25,20 +173,70 @@ def run_single_agent(name: str, provider: str = None):
     # Use specified provider or agent's default
     selected_provider = provider or agent_config["provider"]
     fn = _get(name)
-    return fn(selected_provider)
+
+    # Use fail-path wrapper if enabled
+    if use_failpath:
+        rc, metadata = _run_with_failpath(name, fn, selected_provider)
+
+        # Print user-friendly status
+        if rc == 0 and metadata.get("recovered"):
+            print(f"⚠️  {name} recovered successfully")
+        elif rc == 1:
+            print(f"❌ {name} failed validation and could not be recovered")
+        elif rc == 2:
+            print(f"❌ {name} encountered an error: {metadata.get('error', 'unknown')}")
+
+        return rc
+    else:
+        # Legacy mode - direct execution without fail-path
+        return fn(selected_provider)
 
 
 def run_pipeline(provider: str = None):
-    """Run full pipeline - provider param ignored, uses optimal assignments"""
+    """
+    Run full pipeline with fail-path protection.
+
+    Executes all agents in sequence. If any agent fails unrecovered,
+    the pipeline halts and returns the error code.
+
+    Returns:
+        int: Exit code (0 = all success, non-zero = failure)
+    """
+    succeeded = 0
+    recovered = 0
+    failed = 0
+
     for agent_config in AGENT_WORKFLOW:
         name = agent_config["name"]
         assigned_provider = agent_config["provider"]
         print(f"[agent] {name} (provider: {assigned_provider or 'none'})")
-        rc = run_single_agent(name, assigned_provider)
-        if rc != 0:
-            print(f"[error] {name} returned {rc}")
+
+        rc = run_single_agent(name, assigned_provider, use_failpath=True)
+
+        if rc == 0:
+            succeeded += 1
+        elif rc == 1:
+            # Unrecovered failure - halt pipeline
+            failed += 1
+            print(f"\n[error] Pipeline halted at agent: {name}")
+            print(f"Run `codecompanion --errors` for details.")
             return rc
-    print("[ok] pipeline complete")
+        elif rc == 2:
+            # Execution error - halt pipeline
+            failed += 1
+            print(f"\n[error] Pipeline halted due to execution error in: {name}")
+            print(f"Run `codecompanion --errors` for details.")
+            return rc
+
+    # Pipeline complete - print summary
+    print(f"\n[ok] pipeline complete ({succeeded}/{len(AGENT_WORKFLOW)} agents succeeded)")
+
+    # Show error summary if there were recoveries
+    summary = get_error_summary()
+    if summary["recovered"] > 0:
+        print(f"⚠️  {summary['recovered']} agent(s) recovered from errors")
+        print(f"Run `codecompanion --errors` to see details.")
+
     return 0
 
 

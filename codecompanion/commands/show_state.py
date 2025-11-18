@@ -90,7 +90,7 @@ def show_state_command(args: argparse.Namespace) -> int:
     """
     Show current project state.
 
-    Reads and displays the project state in a human-readable format.
+    Reads and displays the project state and settings in a human-readable format or JSON.
 
     Args:
         args: Command-line arguments
@@ -99,30 +99,57 @@ def show_state_command(args: argparse.Namespace) -> int:
         Exit code (0 for success, non-zero for failure)
     """
     state_file = ".codecompanion_state.json"
+    settings_file = ".codecompanion_settings.json"
 
-    # Check if state file exists
-    if not os.path.exists(state_file):
-        print(f"[state] Error: {state_file} not found")
-        print("[state] Run 'cc init' to initialize the project")
-        return 1
+    # Check if files exist
+    state_exists = os.path.exists(state_file)
+    settings_exists = os.path.exists(settings_file)
+
+    if not state_exists and not settings_exists:
+        print("No CodeCompanion project found in current directory.")
+        print("Run 'python -m codecompanion.cli init' to initialize a project.")
+        return 0
 
     try:
-        # Load state
-        with open(state_file, "r") as f:
-            state = json.load(f)
+        # Load state if exists
+        state = None
+        if state_exists:
+            with open(state_file, "r") as f:
+                state = json.load(f)
 
-        # Print state
+        # Load settings if exists
+        settings = None
+        if settings_exists:
+            with open(settings_file, "r") as f:
+                settings = json.load(f)
+
+        # Print combined output
         if args.raw:
-            # Raw JSON output
-            print(json.dumps(state, indent=2))
+            # Raw JSON output with both state and settings
+            combined = {
+                "state": state,
+                "settings": settings
+            }
+            print(json.dumps(combined, indent=2))
         else:
             # Pretty formatted output
-            pretty_print_state(state)
+            if state:
+                pretty_print_state(state)
+            else:
+                print("\n[state] No state file found")
+
+            if settings:
+                print("\nSETTINGS:")
+                print("=" * 60)
+                print(json.dumps(settings, indent=2))
+                print("=" * 60)
+            else:
+                print("\n[state] No settings file found")
 
         return 0
 
     except json.JSONDecodeError as e:
-        print(f"[state] Error: Failed to parse state file: {e}")
+        print(f"[state] Error: Failed to parse project files: {e}")
         return 1
     except Exception as e:
         print(f"[state] Error: {e}")

@@ -141,15 +141,18 @@ def handle_legacy_flags(args: argparse.Namespace) -> Optional[int]:
     return None
 
 
-def main() -> int:
+def main(argv=None) -> int:
     """
     Main entry point for the CLI.
+
+    Args:
+        argv: Command-line arguments (defaults to sys.argv)
 
     Returns:
         Exit code (0 for success, non-zero for failure)
     """
     parser = create_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # Handle legacy flags first (for backward compatibility)
     legacy_result = handle_legacy_flags(args)
@@ -167,3 +170,7 @@ def main() -> int:
     # No command specified, show help
     parser.print_help()
     return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

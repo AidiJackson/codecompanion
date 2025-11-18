@@ -30,11 +30,31 @@ def get_default_state() -> Dict[str, Any]:
     }
 
 
+def get_default_settings() -> Dict[str, Any]:
+    """
+    Get default project settings.
+
+    Returns:
+        Dictionary containing default project settings
+    """
+    return {
+        "provider": "claude",
+        "model": "claude-3-5-sonnet-20241022",
+        "max_tokens": 4096,
+        "temperature": 0.7,
+        "features": {
+            "auto_architect": False,
+            "auto_specialist": False,
+            "quality_gates": True,
+        },
+    }
+
+
 def init_command(args: argparse.Namespace) -> int:
     """
     Initialize a CodeCompanion project.
 
-    Creates a .codecompanion_state.json file with default configuration.
+    Creates .codecompanion_state.json and .codecompanion_settings.json files with default configuration.
 
     Args:
         args: Command-line arguments
@@ -43,36 +63,43 @@ def init_command(args: argparse.Namespace) -> int:
         Exit code (0 for success, non-zero for failure)
     """
     state_file = ".codecompanion_state.json"
+    settings_file = ".codecompanion_settings.json"
 
-    # Check if state file already exists
-    if os.path.exists(state_file):
-        print(f"[init] Warning: {state_file} already exists")
+    # Check if files already exist
+    files_exist = os.path.exists(state_file) or os.path.exists(settings_file)
+    if files_exist:
+        print(f"[init] Warning: Project files already exist")
         response = input("[init] Overwrite? [y/N]: ")
         if response.lower() not in ("y", "yes"):
             print("[init] Initialization cancelled")
             return 1
 
-    # Create default state
+    # Create default state and settings
     state = get_default_state()
+    settings = get_default_settings()
 
     try:
         # Write state file
         with open(state_file, "w") as f:
             json.dump(state, f, indent=2)
 
-        print(f"[init] Created {state_file}")
-        print("[init] Project initialized successfully")
-        print()
-        print("Next steps:")
-        print("  1. Run 'cc run architect' to analyze project architecture")
-        print("  2. Run 'cc run specialist --type <frontend|backend|test|docs>' to run specialists")
-        print("  3. Run 'cc quality' to check quality gates")
-        print("  4. Run 'cc state' to view project state")
+        # Write settings file
+        with open(settings_file, "w") as f:
+            json.dump(settings, f, indent=2)
+
+        # Get absolute paths for output
+        state_path = os.path.abspath(state_file)
+        settings_path = os.path.abspath(settings_file)
+
+        # Print required output
+        print("CodeCompanion project initialised.")
+        print(f"State file: {state_path}")
+        print(f"Settings file: {settings_path}")
 
         return 0
 
     except Exception as e:
-        print(f"[init] Error: Failed to create state file: {e}")
+        print(f"[init] Error: Failed to create project files: {e}")
         return 1
 
 

@@ -1,22 +1,62 @@
-# CodeCompanion - Universal AI Agent System
+# CodeCompanion - Standalone Dev OS
 
-🤖 **Bring AI-powered development agents to any Replit project with one command**
+🤖 **A standalone multi-agent Dev OS with live Control Tower dashboard for personal use**
 
-## ⚡ One-Line Install
+## 📦 Local Installation
 
-```bash
-curl -sSL https://raw.githubusercontent.com/your-repo/codecompanion/main/scripts/install.sh | bash
-```
-
-Or using Python:
+This is a personal development tool. Clone the repo and install in editable mode:
 
 ```bash
-python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/your-repo/codecompanion/main/scripts/setup.py').read())"
+git clone https://github.com/AidiJackson/codecompanion.git
+cd codecompanion
+pip install -e .
 ```
 
 ## 🚀 Quick Start
 
-After installation, you have access to 9 specialized AI agents:
+### Check Bootstrap & Environment
+
+Verify installation and bootstrap status:
+
+```bash
+codecompanion --check
+```
+
+### View System Status
+
+Show human-readable system status:
+
+```bash
+codecompanion --info
+```
+
+Show raw JSON status (same structure as `/api/info` endpoint):
+
+```bash
+codecompanion --info --raw
+```
+
+### Launch Control Tower Dashboard
+
+Start the live status dashboard:
+
+```bash
+codecompanion --dashboard
+```
+
+Then open your browser to:
+- **Dashboard**: http://127.0.0.1:8008/
+- **API Info**: http://127.0.0.1:8008/api/info
+
+The dashboard auto-refreshes every 3 seconds and shows:
+- ✅ Project & bootstrap status
+- 🤖 Agent workflow completion
+- 🔑 LLM provider configuration
+- 📊 Pipeline execution history
+- ⚠️ Error tracking & recovery
+- 💡 System recommendations
+
+### Run Agent Workflows
 
 ```bash
 # Verify installation
@@ -28,7 +68,7 @@ codecompanion --auto
 # Run specific agent
 codecompanion --run Analyzer
 
-# Use quick launcher
+# Use quick launcher (if available)
 ./cc auto           # Full pipeline
 ./cc run Fixer      # Single agent
 ./cc detect         # Show project info

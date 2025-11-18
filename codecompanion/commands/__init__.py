@@ -1,0 +1,3 @@
+"""
+CodeCompanion commands package.
+"""

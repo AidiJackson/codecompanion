@@ -7,3 +7,4 @@ build/
 .venv/
 snapshots/
 .cc/*.lock
+.codecompanion_settings.json

@@ -5,3 +5,8 @@ uvicorn>=0.23.0
 pytest>=7.0
 ruff>=0.1
 pyright>=1.1
+pandas
+pydantic-settings
+requests
+streamlit
+typer

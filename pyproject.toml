@@ -7,7 +7,7 @@ name = "codecompanion"
 version = "0.1.0"
 description = "CodeCompanion launcher for Replit shells with built-in agent bootstrap"
 requires-python = ">=3.9"
-dependencies = ["rich>=13.7", "httpx>=0.27"]
+dependencies = ["rich>=13.7", "httpx>=0.27", "fastapi>=0.104", "uvicorn>=0.24", "jinja2>=3.1"]
 
 [project.scripts]
 codecompanion = "codecompanion.cli:main"

@@ -4,6 +4,7 @@ from .bootstrap import ensure_bootstrap
 from . import __version__
 from .repl import chat_repl
 from .runner import run_pipeline, run_single_agent
+from .commands.show_info import show_info_command
 
 
 def main():
@@ -16,6 +17,27 @@ def main():
         "--check",
         action="store_true",
         help="Check environment and bootstrap presence, then exit",
+    )
+    parser.add_argument(
+        "--info",
+        action="store_true",
+        help="Show system information panel (Control Tower view)",
+    )
+    parser.add_argument(
+        "--raw",
+        action="store_true",
+        help="Output raw JSON (use with --info)",
+    )
+    parser.add_argument(
+        "--dashboard",
+        action="store_true",
+        help="Start the CodeCompanion web dashboard (FastAPI)",
+    )
+    parser.add_argument(
+        "--dashboard-port",
+        type=int,
+        default=8008,
+        help="Port for the dashboard server (default: 8008)",
     )
     parser.add_argument("--chat", action="store_true", help="Start chat REPL")
     parser.add_argument(
@@ -34,6 +56,27 @@ def main():
         return 0
 
     info = ensure_bootstrap()
+
+    if args.info:
+        show_info_command(raw=args.raw)
+        return 0
+
+    if args.dashboard:
+        # Import uvicorn only when needed to avoid dependency issues
+        try:
+            import uvicorn
+            from .dashboard import create_dashboard_app
+        except ImportError as e:
+            print(f"[error] Dashboard dependencies not installed: {e}")
+            print("[error] Install with: pip install fastapi uvicorn jinja2")
+            return 1
+
+        print(f"[codecompanion] Starting dashboard on http://127.0.0.1:{args.dashboard_port}")
+        print("[codecompanion] Press Ctrl+C to stop")
+        app = create_dashboard_app()
+        uvicorn.run(app, host="127.0.0.1", port=args.dashboard_port)
+        return 0
+
     if args.check:
         print("[codecompanion] OK. Bootstrap dir:", info["dir"])
         if info["created"]:

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>CodeCompanion Control Tower</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+      padding: 2rem;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 2rem;
+    }
+
+    header h1 {
+      color: #667eea;
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      color: #666;
+      font-size: 1.1rem;
+    }
+
+    .section {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 1.5rem;
+    }
+
+    .section h2 {
+      color: #667eea;
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #f0f0f0;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .info-item {
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+
+    .info-item strong {
+      display: block;
+      color: #667eea;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .info-item span {
+      color: #333;
+      font-size: 1rem;
+      word-break: break-all;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+
+    thead {
+      background: #667eea;
+      color: white;
+    }
+
+    th, td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    tbody tr:hover {
+      background: #f8f9fa;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .status-ok {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status-warning {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .status-error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .status-info {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+
+    .recommendation {
+      padding: 1rem;
+      margin: 0.5rem 0;
+      border-radius: 8px;
+      border-left: 4px solid;
+    }
+
+    .recommendation.warning {
+      background: #fff3cd;
+      border-color: #ffc107;
+    }
+
+    .recommendation.info {
+      background: #d1ecf1;
+      border-color: #17a2b8;
+    }
+
+    .recommendation.error {
+      background: #f8d7da;
+      border-color: #dc3545;
+    }
+
+    .recommendation-message {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .recommendation-action {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: #999;
+      font-style: italic;
+    }
+
+    .api-link {
+      float: right;
+      padding: 0.5rem 1rem;
+      background: #667eea;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+    }
+
+    .api-link:hover {
+      background: #5568d3;
+    }
+
+    .checkmark {
+      color: #28a745;
+      font-weight: bold;
+    }
+
+    .crossmark {
+      color: #dc3545;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🚀 CodeCompanion Control Tower</h1>
+      <p>Live snapshot of your multi-agent development OS</p>
+      <a href="/api/info" class="api-link">📊 View JSON API</a>
+    </header>
+
+    <main>
+      <!-- Bootstrap / Project Info -->
+      <section class="section">
+        <h2>Project / Bootstrap</h2>
+        <div class="info-grid">
+          <div class="info-item">
+            <strong>Project Root</strong>
+            <span>{{ data.bootstrap.project_root }}</span>
+          </div>
+          <div class="info-item">
+            <strong>CC Directory</strong>
+            <span>{{ data.bootstrap.cc_dir }}</span>
+          </div>
+          <div class="info-item">
+            <strong>Agents Directory</strong>
+            <span>{{ data.bootstrap.agents_dir }}</span>
+          </div>
+          <div class="info-item">
+            <strong>Status</strong>
+            <span class="status-badge status-ok">{{ data.bootstrap.status }}</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Agent Files -->
+      <section class="section">
+        <h2>Agent Files</h2>
+        {% if data.agent_files %}
+        <table>
+          <thead>
+            <tr>
+              <th>Agent File</th>
+              <th>Exists</th>
+              <th>Size</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for file in data.agent_files %}
+            <tr>
+              <td>{{ file.name }}</td>
+              <td>
+                {% if file.exists %}
+                  <span class="checkmark">✓</span>
+                {% else %}
+                  <span class="crossmark">✗</span>
+                {% endif %}
+              </td>
+              <td>{{ file.size_bytes }} bytes</td>
+              <td>
+                {% if file.is_stub %}
+                  <span class="status-badge status-warning">stub</span>
+                {% else %}
+                  <span class="status-badge status-ok">custom</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">No agent files found</div>
+        {% endif %}
+      </section>
+
+      <!-- Agent Workflow -->
+      <section class="section">
+        <h2>Agent Workflow</h2>
+        {% if data.agent_workflow %}
+        <table>
+          <thead>
+            <tr>
+              <th>Agent</th>
+              <th>Provider</th>
+              <th>Model</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for agent in data.agent_workflow %}
+            <tr>
+              <td>{{ agent.name }}</td>
+              <td>
+                {% if agent.provider == "none" %}
+                  <span class="status-badge status-info">{{ agent.provider }}</span>
+                {% else %}
+                  <span class="status-badge status-ok">{{ agent.provider }}</span>
+                {% endif %}
+              </td>
+              <td>{{ agent.model or "-" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">No agent workflow configured</div>
+        {% endif %}
+      </section>
+
+      <!-- Provider Configuration -->
+      <section class="section">
+        <h2>Provider Configuration</h2>
+        {% if data.providers %}
+        <table>
+          <thead>
+            <tr>
+              <th>Provider</th>
+              <th>API Key Environment Variable</th>
+              <th>Key Set</th>
+              <th>Model</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for provider in data.providers %}
+            <tr>
+              <td>{{ provider.name }}</td>
+              <td><code>{{ provider.api_key_env }}</code></td>
+              <td>
+                {% if provider.api_key_set %}
+                  <span class="checkmark">✓</span>
+                {% else %}
+                  <span class="crossmark">✗</span>
+                {% endif %}
+              </td>
+              <td>{{ provider.model }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">No providers configured</div>
+        {% endif %}
+      </section>
+
+      <!-- Pipeline Status -->
+      <section class="section">
+        <h2>Pipeline Status</h2>
+        <div class="info-grid">
+          <div class="info-item">
+            <strong>Last Run</strong>
+            <span>{{ data.pipeline_status.last_run or "Never" }}</span>
+          </div>
+          <div class="info-item">
+            <strong>Status</strong>
+            <span class="status-badge status-info">{{ data.pipeline_status.status }}</span>
+          </div>
+          <div class="info-item">
+            <strong>Agents Completed</strong>
+            <span>{{ data.pipeline_status.agents_completed }}</span>
+          </div>
+          <div class="info-item">
+            <strong>Agents Failed</strong>
+            <span>{{ data.pipeline_status.agents_failed }}</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Fail-Path & Self-Repair -->
+      <section class="section">
+        <h2>Fail-Path & Self-Repair</h2>
+        <div class="info-grid">
+          <div class="info-item">
+            <strong>Enabled</strong>
+            <span>
+              {% if data.fail_path.enabled %}
+                <span class="status-badge status-ok">Yes</span>
+              {% else %}
+                <span class="status-badge status-warning">No</span>
+              {% endif %}
+            </span>
+          </div>
+          <div class="info-item">
+            <strong>Failure Log</strong>
+            <span>{{ data.fail_path.failure_log or "None" }}</span>
+          </div>
+          <div class="info-item">
+            <strong>Self-Repair Attempts</strong>
+            <span>{{ data.fail_path.self_repair_attempts }}</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Errors -->
+      <section class="section">
+        <h2>Recent Errors</h2>
+        {% if data.errors %}
+        <div>
+          {% for error in data.errors %}
+          <div class="recommendation error">
+            <div class="recommendation-message">{{ error }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">✓ No recent errors</div>
+        {% endif %}
+      </section>
+
+      <!-- Recommendations -->
+      <section class="section">
+        <h2>Recommendations</h2>
+        {% if data.recommendations %}
+        <div>
+          {% for rec in data.recommendations %}
+          <div class="recommendation {{ rec.severity }}">
+            <div class="recommendation-message">{{ rec.message }}</div>
+            {% if rec.action %}
+            <div class="recommendation-action">→ {{ rec.action }}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">✓ No recommendations</div>
+        {% endif %}
+      </section>
+    </main>
+  </div>
+</body>
+</html>

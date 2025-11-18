@@ -1,0 +1,14 @@
+{
+  "generated": [],
+  "missing": [
+    ".cc/state.json",
+    ".cc/settings.json",
+    "cc_artifacts/backend_report.txt",
+    "cc_artifacts/frontend_report.txt",
+    "cc_artifacts/docs_report.txt",
+    "cc_artifacts/test_report.txt",
+    "cc_artifacts/quality_report.json",
+    "docs/ARCHITECTURE.md",
+    "ops/PHASES.md"
+  ]
+}

@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from .bootstrap import ensure_bootstrap, AGENT_FILES
 from .llm import PROVIDERS
+from .history import load_run_history, load_error_timeline
 
 
 def get_project_info(project_root: str = ".") -> dict:
@@ -81,22 +82,81 @@ def get_providers_info() -> list:
 
 
 def get_pipeline_status(project_root: str = ".") -> dict:
-    """Get pipeline execution status (placeholder for now)."""
-    # In a real implementation, this would check for pipeline run history
-    # For now, return placeholder data
+    """Get pipeline execution status from run history."""
+    bootstrap_info = ensure_bootstrap(project_root)
+    cc_dir = Path(bootstrap_info["dir"])
+    run_history_path = cc_dir / "run_history.json"
+
+    # Load run history
+    runs = load_run_history(run_history_path)
+
+    # Build pipeline status
+    total_runs = len(runs)
+    last_run_info = None
+    success_rate = None
+
+    if runs:
+        # Get last run details
+        last_run = runs[-1]
+        last_run_info = {
+            "timestamp": last_run.timestamp,
+            "status": last_run.status,
+            "summary": last_run.summary,
+            "agents_run": last_run.agents_run,
+        }
+
+        # Calculate success rate
+        successful_runs = sum(1 for r in runs if r.status == "success")
+        if total_runs > 0:
+            success_rate = f"{(successful_runs / total_runs * 100):.1f}%"
+
+    # Determine overall status
+    if not runs:
+        status = "idle"
+    elif runs[-1].status == "failure":
+        status = "failed"
+    elif runs[-1].status == "success":
+        status = "success"
+    else:
+        status = "partial"
+
     return {
-        "last_run": None,
-        "status": "idle",
-        "total_runs": 0,
-        "success_rate": None,
+        "last_run": last_run_info,
+        "status": status,
+        "total_runs": total_runs,
+        "success_rate": success_rate,
     }
 
 
-def get_errors_and_recovery(project_root: str = ".") -> list:
-    """Get error history and recovery status (placeholder for now)."""
-    # In a real implementation, this would read from error logs
-    # For now, return empty list
-    return []
+def get_errors_and_recovery(project_root: str = ".") -> dict:
+    """Get error history and recovery status from error timeline."""
+    bootstrap_info = ensure_bootstrap(project_root)
+    cc_dir = Path(bootstrap_info["dir"])
+    error_timeline_path = cc_dir / "error_timeline.json"
+
+    # Load error timeline
+    errors = load_error_timeline(error_timeline_path)
+
+    # Build error summary
+    total_errors = len(errors)
+    unrecovered_errors = sum(1 for e in errors if not e.recovered)
+
+    # Get recent errors (last 5)
+    recent = []
+    for error in errors[-5:]:
+        recent.append({
+            "timestamp": error.timestamp,
+            "agent": error.agent or "unknown",
+            "stage": error.stage or "unknown",
+            "message": error.message,
+            "recovered": error.recovered,
+        })
+
+    return {
+        "total_errors": total_errors,
+        "unrecovered_errors": unrecovered_errors,
+        "recent": recent,
+    }
 
 
 def get_recommendations(project_root: str = ".") -> list:

@@ -620,31 +620,76 @@
         }
 
         function renderPipeline(pipeline) {
-            document.getElementById("pipeline-last-run").textContent = pipeline.last_run || "Never";
+            // Handle last_run which can be null or an object
+            const lastRunEl = document.getElementById("pipeline-last-run");
+            if (pipeline.last_run && pipeline.last_run.timestamp) {
+                lastRunEl.textContent = pipeline.last_run.timestamp;
+            } else {
+                lastRunEl.textContent = "Never";
+            }
+
             document.getElementById("pipeline-total-runs").textContent = pipeline.total_runs || 0;
             document.getElementById("pipeline-success-rate").textContent = pipeline.success_rate || "N/A";
 
             const statusBadge = document.getElementById("pipeline-status");
-            statusBadge.textContent = (pipeline.status || "idle").charAt(0).toUpperCase() + (pipeline.status || "idle").slice(1);
-            statusBadge.className = "status-badge status-ok";
+            const status = pipeline.status || "idle";
+            statusBadge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+
+            // Update badge color based on status
+            if (status === "success") {
+                statusBadge.className = "status-badge status-ok";
+            } else if (status === "failed") {
+                statusBadge.className = "status-badge status-error";
+            } else if (status === "partial") {
+                statusBadge.className = "status-badge status-warn";
+            } else {
+                statusBadge.className = "status-badge status-ok";
+            }
         }
 
         function renderErrors(errors) {
-            const errorCount = errors ? errors.length : 0;
+            // Handle new errors structure (object with total_errors, unrecovered_errors, recent)
+            const totalErrors = errors.total_errors || 0;
+            const unrecovered = errors.unrecovered_errors || 0;
             const errorBadge = document.getElementById("error-count");
             const errorsContent = document.getElementById("errors-content");
 
-            errorBadge.textContent = errorCount;
+            errorBadge.textContent = totalErrors;
 
-            if (errorCount === 0) {
+            if (totalErrors === 0) {
                 errorBadge.className = "status-badge status-ok";
                 errorsContent.innerHTML = '<p style="color: #94a3b8;">No errors recorded.</p>';
-            } else if (errorCount < 5) {
-                errorBadge.className = "status-badge status-warn";
-                errorsContent.innerHTML = `<p style="color: #eab308;">${errorCount} error(s) recorded</p>`;
             } else {
-                errorBadge.className = "status-badge status-error";
-                errorsContent.innerHTML = `<p style="color: #ef4444;">${errorCount} error(s) recorded</p>`;
+                // Set badge color based on unrecovered errors
+                if (unrecovered === 0) {
+                    errorBadge.className = "status-badge status-ok";
+                } else if (unrecovered < 3) {
+                    errorBadge.className = "status-badge status-warn";
+                } else {
+                    errorBadge.className = "status-badge status-error";
+                }
+
+                // Build error content with recent errors
+                let content = `<div style="margin-bottom: 0.75rem;">`;
+                content += `<div class="info-row"><span class="info-label">Total Errors</span><span class="info-value">${totalErrors}</span></div>`;
+                content += `<div class="info-row"><span class="info-label">Unrecovered</span><span class="info-value">${unrecovered}</span></div>`;
+                content += `</div>`;
+
+                if (errors.recent && errors.recent.length > 0) {
+                    content += '<div style="font-size: 0.85rem; color: #cbd5e1;"><strong>Recent Errors:</strong></div>';
+                    content += '<div style="margin-top: 0.5rem;">';
+                    errors.recent.forEach(err => {
+                        const statusIcon = err.recovered ? '✓' : '✗';
+                        const statusColor = err.recovered ? '#22c55e' : '#ef4444';
+                        content += `<div style="padding: 0.5rem; background: rgba(15, 23, 42, 0.5); border-radius: 4px; margin-bottom: 0.5rem; border-left: 2px solid ${statusColor};">`;
+                        content += `<div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.25rem;">${err.timestamp} - ${err.agent} (${err.stage})</div>`;
+                        content += `<div style="font-size: 0.85rem;"><span style="color: ${statusColor};">[${statusIcon}]</span> ${err.message}</div>`;
+                        content += `</div>`;
+                    });
+                    content += '</div>';
+                }
+
+                errorsContent.innerHTML = content;
             }
         }
 

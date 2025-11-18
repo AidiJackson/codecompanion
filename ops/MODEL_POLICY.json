@@ -1,0 +1,15 @@
+{
+  "mode": "orchestrated",
+  "defaults": {
+    "planner_model_gpt": "openai/gpt-4.1-mini",
+    "planner_model_claude": "anthropic/claude-3.5-sonnet",
+    "planner_model_gemini": "google/gemini-1.5-pro",
+    "architect_model": "anthropic/claude-3.5-sonnet"
+  },
+  "routing_rules": {
+    "simple_refactor": "openai/gpt-4.1-mini",
+    "complex_architecture": "anthropic/claude-3.5-sonnet",
+    "security_review": "openai/gpt-4.1",
+    "fast_scan": "openai/gpt-4o-mini"
+  }
+}

@@ -44,6 +44,9 @@ def main():
     # state command
     state_parser = subparsers.add_parser("state", help="Show current workflow state")
 
+    # quality command
+    quality_parser = subparsers.add_parser("quality", help="Run quality gate checks")
+
     args = parser.parse_args()
 
     if args.version:
@@ -78,6 +81,9 @@ def main():
             return 1
     elif args.command == "state":
         return cmd_state()
+    elif args.command == "quality":
+        from .commands.run_quality import run_quality_command
+        return run_quality_command(args)
 
     # Handle legacy flags
     if args.chat:

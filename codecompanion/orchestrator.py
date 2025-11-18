@@ -8,6 +8,7 @@ from typing import Dict, Any
 
 from .architect import Architect
 from .specialist_loader import load_specialist
+from . import quality_gates
 
 
 class Orchestrator:
@@ -60,6 +61,8 @@ class Orchestrator:
                 "last_run": None,
                 "last_specialist": None,
                 "specialists_run": [],
+                "last_quality_run": None,
+                "quality_reports": [],
             }
 
     def _save_state(self, state: Dict[str, Any]) -> None:
@@ -203,6 +206,54 @@ class Orchestrator:
         return {
             "specialist_type": specialist_type,
             "output_file": str(output_file.relative_to(self.project_root)),
+            "timestamp": timestamp,
+        }
+
+    def run_quality(self) -> Dict[str, Any]:
+        """
+        Execute quality gate checks on the project.
+
+        This method:
+        1. Loads current state
+        2. Runs quality checks via quality_gates module
+        3. Updates state with quality run information
+        4. Saves updated state
+        5. Returns execution results
+
+        Returns:
+            Dictionary with:
+                - status: "success" or "failure"
+                - report_file: Path to generated report file
+                - timestamp: Execution timestamp
+        """
+        # Load current state
+        state = self._load_state()
+
+        # Ensure quality_reports exists in state (for backward compatibility)
+        if "quality_reports" not in state:
+            state["quality_reports"] = []
+
+        # Run quality gates
+        result = quality_gates.run_quality_gates(self.project_root)
+
+        # Update state
+        from datetime import datetime
+        timestamp = datetime.now().isoformat()
+        state["last_quality_run"] = timestamp
+
+        # Add to quality reports history
+        state["quality_reports"].append({
+            "file": result["file"],
+            "timestamp": timestamp,
+        })
+
+        # Save updated state
+        self._save_state(state)
+
+        # Return results
+        return {
+            "status": result["status"],
+            "report_file": result["file"],
             "timestamp": timestamp,
         }
 

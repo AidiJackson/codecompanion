@@ -24,5 +24,12 @@
       "timestamp": "2025-11-18T11:41:07.488372"
     }
   ],
-  "last_specialist": "test"
+  "last_specialist": "test",
+  "quality_reports": [
+    {
+      "file": "cc_artifacts/quality_report.json",
+      "timestamp": "2025-11-18T11:46:31.548574"
+    }
+  ],
+  "last_quality_run": "2025-11-18T11:46:31.548574"
 }

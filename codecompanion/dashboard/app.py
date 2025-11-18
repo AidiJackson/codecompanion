@@ -61,6 +61,63 @@ async def get_info():
     return JSONResponse(content=info_data)
 
 
+@app.post("/api/console")
+async def console_command(request: Request):
+    """
+    Handle console commands from the dashboard.
+
+    Expected JSON body:
+    {
+        "mode": "scaffold_project",
+        "command": "project-name"
+    }
+
+    Returns execution result.
+    """
+    try:
+        body = await request.json()
+        mode = body.get("mode", "")
+        command = body.get("command", "").strip()
+
+        if mode == "scaffold_project":
+            # Import scaffolder
+            from codecompanion.scaffolder import scaffold_project, scaffold_crossword_demo, ProjectSpec
+
+            if not command:
+                return JSONResponse(
+                    content={"status": "error", "message": "Project name is required"},
+                    status_code=400
+                )
+
+            # Special case: crossword-demo
+            if command.lower() in ["crossword-demo", "crossword-arcade"]:
+                result = scaffold_crossword_demo()
+            else:
+                # Generic project scaffolding
+                slug = command.lower().replace(" ", "-")
+                spec = ProjectSpec(
+                    name=command,
+                    slug=slug,
+                    summary=f"Scaffolded project: {command}",
+                    frontend="vite-react",
+                    backend="fastapi"
+                )
+                result = scaffold_project(spec)
+
+            return JSONResponse(content=result)
+        else:
+            return JSONResponse(
+                content={"status": "error", "message": f"Unknown mode: {mode}"},
+                status_code=400
+            )
+
+    except Exception as e:
+        return JSONResponse(
+            content={"status": "error", "message": str(e)},
+            status_code=500
+        )
+
+
 @app.get("/health")
 async def health_check():
     """Simple health check endpoint."""

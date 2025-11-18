@@ -453,11 +453,91 @@
                     </ul>
                 </div>
             </div>
+
+            <!-- Command Console Card -->
+            <div class="card" style="grid-column: 1 / -1;">
+                <div class="card-header">
+                    <span>Command Console</span>
+                    <span id="console-status" class="status-badge status-ok">Ready</span>
+                </div>
+                <div class="card-content">
+                    <div style="display: flex; gap: 1rem; align-items: flex-end; margin-bottom: 1rem;">
+                        <div style="flex: 1;">
+                            <label for="console-mode" style="display: block; margin-bottom: 0.5rem; color: #94a3b8; font-size: 0.85rem;">
+                                Command Mode
+                            </label>
+                            <select id="console-mode" style="
+                                width: 100%;
+                                padding: 0.5rem;
+                                background: rgba(15, 23, 42, 0.8);
+                                border: 1px solid rgba(255, 255, 255, 0.2);
+                                border-radius: 6px;
+                                color: #e2e8f0;
+                                font-size: 0.9rem;
+                            ">
+                                <option value="scaffold_project">Scaffold Project</option>
+                            </select>
+                        </div>
+                        <div style="flex: 2;">
+                            <label for="console-command" style="display: block; margin-bottom: 0.5rem; color: #94a3b8; font-size: 0.85rem;">
+                                <span id="console-command-label">Project name (e.g., crossword-demo)</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="console-command"
+                                placeholder="Enter project name..."
+                                style="
+                                    width: 100%;
+                                    padding: 0.5rem;
+                                    background: rgba(15, 23, 42, 0.8);
+                                    border: 1px solid rgba(255, 255, 255, 0.2);
+                                    border-radius: 6px;
+                                    color: #e2e8f0;
+                                    font-size: 0.9rem;
+                                "
+                            />
+                        </div>
+                        <button
+                            id="console-submit"
+                            onclick="executeConsoleCommand()"
+                            style="
+                                padding: 0.5rem 1.5rem;
+                                background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+                                border: none;
+                                border-radius: 6px;
+                                color: white;
+                                font-weight: 600;
+                                cursor: pointer;
+                                font-size: 0.9rem;
+                                transition: transform 0.2s ease, box-shadow 0.2s ease;
+                            "
+                            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(59, 130, 246, 0.4)'"
+                            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'"
+                        >
+                            Execute
+                        </button>
+                    </div>
+                    <div id="console-output" style="
+                        background: rgba(15, 23, 42, 0.5);
+                        border-radius: 6px;
+                        padding: 1rem;
+                        min-height: 100px;
+                        font-family: 'Courier New', monospace;
+                        font-size: 0.85rem;
+                        color: #94a3b8;
+                        white-space: pre-wrap;
+                        overflow-x: auto;
+                    ">
+                        Ready to execute commands...
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
         const INFO_ENDPOINT = "/api/info";
+        const CONSOLE_ENDPOINT = "/api/console";
         let lastData = null;
 
         // Auto-refresh on load and every 3 seconds
@@ -465,6 +545,83 @@
             refreshData();
             setInterval(refreshData, 3000);
         };
+
+        // Execute console command
+        async function executeConsoleCommand() {
+            const mode = document.getElementById("console-mode").value;
+            const command = document.getElementById("console-command").value.trim();
+            const statusBadge = document.getElementById("console-status");
+            const outputEl = document.getElementById("console-output");
+            const submitBtn = document.getElementById("console-submit");
+
+            if (!command) {
+                outputEl.textContent = "Error: Command is required";
+                outputEl.style.color = "#ef4444";
+                return;
+            }
+
+            // Update UI - executing state
+            statusBadge.textContent = "Executing...";
+            statusBadge.className = "status-badge status-warn";
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = "0.5";
+            outputEl.textContent = `Executing ${mode} for: ${command}...`;
+            outputEl.style.color = "#94a3b8";
+
+            try {
+                const response = await fetch(CONSOLE_ENDPOINT, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ mode, command })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.status === "success") {
+                    // Success
+                    statusBadge.textContent = "Success";
+                    statusBadge.className = "status-badge status-ok";
+
+                    let output = `✓ SUCCESS: ${result.project_name}\n\n`;
+                    output += `Location: ${result.project_dir}\n`;
+                    output += `Files created: ${result.paths_created.length}\n\n`;
+                    output += `${result.notes}\n\n`;
+                    output += `Next steps:\n`;
+                    output += `  cd workspaces/${result.project_slug}\n`;
+                    output += `  See README.md for setup instructions`;
+
+                    outputEl.textContent = output;
+                    outputEl.style.color = "#22c55e";
+
+                    // Clear input
+                    document.getElementById("console-command").value = "";
+                } else {
+                    // Error from server
+                    statusBadge.textContent = "Error";
+                    statusBadge.className = "status-badge status-error";
+                    outputEl.textContent = `Error: ${result.message || "Unknown error occurred"}`;
+                    outputEl.style.color = "#ef4444";
+                }
+            } catch (error) {
+                // Network or other error
+                statusBadge.textContent = "Error";
+                statusBadge.className = "status-badge status-error";
+                outputEl.textContent = `Error: ${error.message}`;
+                outputEl.style.color = "#ef4444";
+            } finally {
+                // Reset button
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = "1";
+
+                // Reset status after 3 seconds
+                setTimeout(() => {
+                    statusBadge.textContent = "Ready";
+                    statusBadge.className = "status-badge status-ok";
+                }, 3000);
+            }
+        }
 
         async function refreshData() {
             try {

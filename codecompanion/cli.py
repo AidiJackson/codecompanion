@@ -45,6 +45,11 @@ def main():
         action="store_true",
         help="Output raw JSON format (used with --info)",
     )
+    parser.add_argument(
+        "--scaffold",
+        metavar="PROJECT_NAME",
+        help="Scaffold a new project workspace (e.g., 'crossword-demo')",
+    )
     args = parser.parse_args()
 
     if args.version:
@@ -133,6 +138,39 @@ def main():
     if args.dashboard:
         from .dashboard.app import run_dashboard
         run_dashboard()
+        return 0
+
+    # Handle --scaffold command
+    if args.scaffold:
+        from .scaffolder import scaffold_project, scaffold_crossword_demo, ProjectSpec
+
+        project_name = args.scaffold.strip()
+
+        # Special case: crossword-demo
+        if project_name.lower() in ["crossword-demo", "crossword-arcade"]:
+            print(f"[codecompanion] Scaffolding crossword demo project...")
+            result = scaffold_crossword_demo()
+        else:
+            # Generic project scaffolding
+            print(f"[codecompanion] Scaffolding project: {project_name}")
+            slug = project_name.lower().replace(" ", "-")
+            spec = ProjectSpec(
+                name=project_name,
+                slug=slug,
+                summary=f"Scaffolded project: {project_name}",
+                frontend="vite-react",
+                backend="fastapi"
+            )
+            result = scaffold_project(spec)
+
+        # Print results
+        print(f"✓ {result['status'].upper()}: {result['project_name']}")
+        print(f"  Location: {result['project_dir']}")
+        print(f"  Files created: {len(result['paths_created'])}")
+        print(f"\n{result['notes']}")
+        print(f"\nNext steps:")
+        print(f"  cd workspaces/{result['project_slug']}")
+        print(f"  See README.md for setup instructions")
         return 0
 
     info = ensure_bootstrap()

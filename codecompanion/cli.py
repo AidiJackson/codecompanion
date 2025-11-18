@@ -91,6 +91,33 @@ def main():
 
             console.print(provider_table)
 
+            # Pipeline section
+            console.print("\n[bold cyan]Pipeline Status[/bold cyan]")
+            pipeline = info_data['pipeline']
+            console.print(f"  Status: {pipeline['status']}")
+            console.print(f"  Total Runs: {pipeline['total_runs']}")
+            if pipeline['last_run']:
+                console.print(f"  Last Run: {pipeline['last_run']['timestamp']}")
+                console.print(f"  Last Status: {pipeline['last_run']['status']}")
+                console.print(f"  Summary: {pipeline['last_run']['summary']}")
+            else:
+                console.print("  Last Run: Never")
+            if pipeline['success_rate']:
+                console.print(f"  Success Rate: {pipeline['success_rate']}")
+
+            # Errors section
+            console.print("\n[bold cyan]Errors & Recovery[/bold cyan]")
+            errors = info_data['errors']
+            console.print(f"  Total Errors: {errors['total_errors']}")
+            console.print(f"  Unrecovered: {errors['unrecovered_errors']}")
+            if errors['recent']:
+                console.print("  Recent Errors:")
+                for err in errors['recent']:
+                    status_marker = "✓" if err['recovered'] else "✗"
+                    console.print(f"    [{status_marker}] {err['timestamp']} - {err['agent']} ({err['stage']}): {err['message']}")
+            else:
+                console.print("  No errors recorded")
+
             # Recommendations section
             if info_data['recommendations']:
                 console.print("\n[bold yellow]Recommendations[/bold yellow]")

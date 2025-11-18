@@ -7,3 +7,8 @@ build/
 .venv/
 snapshots/
 .cc/*.lock
+.cc/state.json
+cc_artifacts/architect/
+cc_artifacts/specialist_*/
+cc_artifacts/quality/
+cc_artifacts/final_output/

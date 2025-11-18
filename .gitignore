@@ -7,3 +7,5 @@ build/
 .venv/
 snapshots/
 .cc/*.lock
+.cc/run_history.json
+.cc/error_timeline.json

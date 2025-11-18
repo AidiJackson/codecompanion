@@ -6,18 +6,18 @@ packages = ["glibcLocales", "libxcrypt"]
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["python", "server.py"]
+run = ["codecompanion", "--dashboard"]
 
 [workflows]
-runButton = "FastAPI Server"
+runButton = "Control Tower Dashboard"
 
 [[workflows.workflow]]
-name = "FastAPI Server"
+name = "Control Tower Dashboard"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python server.py"
+args = "codecompanion --dashboard"
 waitForPort = 5050
 
 [workflows.workflow.metadata]

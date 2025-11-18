@@ -66,7 +66,7 @@ async def health_check():
     return {"status": "healthy", "service": "codecompanion-dashboard"}
 
 
-def run_dashboard(host: str = "127.0.0.1", port: int = 8008):
+def run_dashboard(host: str = "0.0.0.0", port: int = 5050):
     """Run the dashboard server using uvicorn."""
     import uvicorn
 

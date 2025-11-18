@@ -1,0 +1,11 @@
+{
+  "provider": "claude",
+  "model": "claude-3-5-sonnet-20241022",
+  "max_tokens": 4096,
+  "temperature": 0.7,
+  "features": {
+    "auto_architect": false,
+    "auto_specialist": false,
+    "quality_gates": true
+  }
+}

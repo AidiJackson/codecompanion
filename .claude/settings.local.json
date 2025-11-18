@@ -39,7 +39,14 @@
       "Bash(pip show:*)",
       "Bash(timeout:*)",
       "Bash(ruff:*)",
-      "Bash(export CODECOMPANION_TOKEN=test123)"
+      "Bash(export CODECOMPANION_TOKEN=test123)",
+      "Bash(cat:*)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)",
+      "Bash(pkill:*)",
+      "Bash(netstat:*)",
+      "Bash(ss -tlnp:*)",
+      "Bash(lsof:*)"
     ],
     "deny": []
   }

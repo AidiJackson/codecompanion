@@ -130,3 +130,103 @@ def load_error_timeline(path: Path) -> list:
     except (json.JSONDecodeError, IOError) as e:
         print(f"[history] Warning: Failed to load {path}: {e}")
         return []
+
+
+def save_run_history(path: Path, records: list) -> None:
+    """
+    Save run history to JSON file.
+
+    Args:
+        path: Path to run_history.json
+        records: List of RunRecord objects to save
+    """
+    try:
+        # Ensure parent directory exists
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Convert RunRecord objects to dicts
+        data = [asdict(r) if hasattr(r, '__dataclass_fields__') else r for r in records]
+
+        # Write to file
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+
+    except (IOError, OSError) as e:
+        print(f"[history] Warning: Failed to save run history to {path}: {e}")
+
+
+def save_error_timeline(path: Path, records: list) -> None:
+    """
+    Save error timeline to JSON file.
+
+    Args:
+        path: Path to error_timeline.json
+        records: List of ErrorRecord objects to save
+    """
+    try:
+        # Ensure parent directory exists
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Convert ErrorRecord objects to dicts
+        data = [asdict(r) if hasattr(r, '__dataclass_fields__') else r for r in records]
+
+        # Write to file
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+
+    except (IOError, OSError) as e:
+        print(f"[history] Warning: Failed to save error timeline to {path}: {e}")
+
+
+def append_run_record(path: Path, record: RunRecord, max_records: int = 100) -> None:
+    """
+    Append a run record to run history, maintaining a maximum number of records.
+
+    Args:
+        path: Path to run_history.json
+        record: RunRecord to append
+        max_records: Maximum number of records to keep (default 100)
+    """
+    try:
+        # Load existing records
+        records = load_run_history(path)
+
+        # Append new record
+        records.append(record)
+
+        # Truncate to max_records (keep most recent)
+        if len(records) > max_records:
+            records = records[-max_records:]
+
+        # Save back to file
+        save_run_history(path, records)
+
+    except Exception as e:
+        print(f"[history] Warning: Failed to append run record: {e}")
+
+
+def append_error_record(path: Path, record: ErrorRecord, max_records: int = 200) -> None:
+    """
+    Append an error record to error timeline, maintaining a maximum number of records.
+
+    Args:
+        path: Path to error_timeline.json
+        record: ErrorRecord to append
+        max_records: Maximum number of records to keep (default 200)
+    """
+    try:
+        # Load existing records
+        records = load_error_timeline(path)
+
+        # Append new record
+        records.append(record)
+
+        # Truncate to max_records (keep most recent)
+        if len(records) > max_records:
+            records = records[-max_records:]
+
+        # Save back to file
+        save_error_timeline(path, records)
+
+    except Exception as e:
+        print(f"[history] Warning: Failed to append error record: {e}")

@@ -1,5 +1,9 @@
 from .engine import run_cmd, load_repo_map
 from .llm import complete
+import os
+from pathlib import Path
+from datetime import datetime
+from .history import RunRecord, ErrorRecord, append_run_record, append_error_record
 
 # Agent workflow with optimal LLM provider assignments
 AGENT_WORKFLOW = [
@@ -30,16 +34,98 @@ def run_single_agent(name: str, provider: str = None):
 
 def run_pipeline(provider: str = None):
     """Run full pipeline - provider param ignored, uses optimal assignments"""
-    for agent_config in AGENT_WORKFLOW:
-        name = agent_config["name"]
-        assigned_provider = agent_config["provider"]
-        print(f"[agent] {name} (provider: {assigned_provider or 'none'})")
-        rc = run_single_agent(name, assigned_provider)
-        if rc != 0:
-            print(f"[error] {name} returned {rc}")
-            return rc
-    print("[ok] pipeline complete")
-    return 0
+    # Set up history logging
+    project_root = Path(os.getcwd())
+    cc_dir = project_root / ".cc"
+    run_history_path = cc_dir / "run_history.json"
+    error_timeline_path = cc_dir / "error_timeline.json"
+
+    # Get current timestamp and branch info
+    timestamp = datetime.utcnow().isoformat() + "Z"
+    branch = None
+    try:
+        r = run_cmd("git rev-parse --abbrev-ref HEAD")
+        if r["code"] == 0:
+            branch = r["stdout"].strip()
+    except:
+        pass
+
+    # Track which agents will run
+    agents_run = [agent_config["name"] for agent_config in AGENT_WORKFLOW]
+
+    try:
+        # Run the pipeline
+        for agent_config in AGENT_WORKFLOW:
+            name = agent_config["name"]
+            assigned_provider = agent_config["provider"]
+            print(f"[agent] {name} (provider: {assigned_provider or 'none'})")
+            rc = run_single_agent(name, assigned_provider)
+            if rc != 0:
+                print(f"[error] {name} returned {rc}")
+
+                # Log failure run
+                run_record = RunRecord(
+                    timestamp=timestamp,
+                    project_root=str(project_root),
+                    branch=branch,
+                    agents_run=agents_run,
+                    status="failure",
+                    summary=f"Pipeline failed at agent '{name}' with exit code {rc}"
+                )
+                append_run_record(run_history_path, run_record)
+
+                # Log error
+                error_record = ErrorRecord(
+                    timestamp=datetime.utcnow().isoformat() + "Z",
+                    agent=name,
+                    stage="pipeline",
+                    message=f"Agent '{name}' returned exit code {rc}",
+                    recovered=False
+                )
+                append_error_record(error_timeline_path, error_record)
+
+                return rc
+
+        print("[ok] pipeline complete")
+
+        # Log success run
+        run_record = RunRecord(
+            timestamp=timestamp,
+            project_root=str(project_root),
+            branch=branch,
+            agents_run=agents_run,
+            status="success",
+            summary="Pipeline completed successfully"
+        )
+        append_run_record(run_history_path, run_record)
+
+        return 0
+
+    except Exception as exc:
+        # Log failure run for unexpected exceptions
+        run_record = RunRecord(
+            timestamp=timestamp,
+            project_root=str(project_root),
+            branch=branch,
+            agents_run=agents_run,
+            status="failure",
+            summary=f"Pipeline failed with exception: {type(exc).__name__}"
+        )
+        append_run_record(run_history_path, run_record)
+
+        # Log error
+        error_record = ErrorRecord(
+            timestamp=datetime.utcnow().isoformat() + "Z",
+            agent="pipeline",
+            stage="pipeline",
+            message=f"{type(exc).__name__}: {str(exc)}",
+            recovered=False,
+            details=str(exc)
+        )
+        append_error_record(error_timeline_path, error_record)
+
+        # Re-raise the exception
+        raise
 
 
 # --- Specialized agent implementations using our 10 agents ---

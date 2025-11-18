@@ -453,6 +453,81 @@
                     </ul>
                 </div>
             </div>
+
+            <!-- Command Console Card -->
+            <div class="card" style="grid-column: 1 / -1;">
+                <div class="card-header">
+                    <span>Command Console</span>
+                    <span id="console-status" class="status-badge status-ok">Ready</span>
+                </div>
+                <div class="card-content">
+                    <div style="margin-bottom: 1rem;">
+                        <label for="console-input" style="display: block; margin-bottom: 0.5rem; color: #94a3b8; font-weight: 600;">
+                            Instruction
+                        </label>
+                        <textarea
+                            id="console-input"
+                            placeholder="Enter your instruction here (e.g., 'Describe the project structure')"
+                            style="width: 100%; min-height: 100px; padding: 0.75rem; background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #e2e8f0; font-family: 'Courier New', monospace; font-size: 0.9rem; resize: vertical;"
+                        ></textarea>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 1rem; margin-bottom: 1rem;">
+                        <div>
+                            <label for="console-mode" style="display: block; margin-bottom: 0.5rem; color: #94a3b8; font-weight: 600; font-size: 0.85rem;">
+                                Mode
+                            </label>
+                            <select
+                                id="console-mode"
+                                style="width: 100%; padding: 0.5rem; background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #e2e8f0; font-size: 0.9rem;"
+                            >
+                                <option value="chat">Chat (default)</option>
+                                <option value="auto">Auto Pipeline</option>
+                                <option value="agent">Run Single Agent</option>
+                            </select>
+                        </div>
+
+                        <div id="console-agent-container" style="display: none;">
+                            <label for="console-agent" style="display: block; margin-bottom: 0.5rem; color: #94a3b8; font-weight: 600; font-size: 0.85rem;">
+                                Agent Name
+                            </label>
+                            <input
+                                type="text"
+                                id="console-agent"
+                                placeholder="e.g., Analyzer"
+                                style="width: 100%; padding: 0.5rem; background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #e2e8f0; font-size: 0.9rem;"
+                            />
+                        </div>
+
+                        <div style="display: flex; align-items: flex-end;">
+                            <button
+                                id="console-run-btn"
+                                onclick="runConsoleCommand()"
+                                style="padding: 0.65rem 1.5rem; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border: none; border-radius: 6px; color: white; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: opacity 0.2s ease, transform 0.1s ease;"
+                                onmouseover="this.style.opacity='0.9'"
+                                onmouseout="this.style.opacity='1'"
+                            >
+                                Run Command
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="console-output-container" style="display: none; margin-top: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <span style="color: #94a3b8; font-weight: 600; font-size: 0.85rem;">Output</span>
+                            <div style="display: flex; gap: 0.5rem; font-size: 0.75rem; color: #64748b;">
+                                <span id="console-output-mode"></span>
+                                <span>•</span>
+                                <span id="console-output-time"></span>
+                            </div>
+                        </div>
+                        <pre
+                            id="console-output"
+                            style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; padding: 1rem; color: #e2e8f0; font-family: 'Courier New', monospace; font-size: 0.85rem; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; max-height: 500px; overflow-y: auto;"
+                        ></pre>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -722,6 +797,116 @@
             } else {
                 countBadge.className = "status-badge status-ok";
                 recommendationsList.innerHTML = '<li style="color: #94a3b8; list-style: none;">System appears healthy. No immediate changes recommended.</li>';
+            }
+        }
+
+        // Console command functionality
+        const CONSOLE_ENDPOINT = "/api/console";
+
+        // Show/hide agent name input based on mode selection
+        document.getElementById("console-mode").addEventListener("change", function(e) {
+            const agentContainer = document.getElementById("console-agent-container");
+            if (e.target.value === "agent") {
+                agentContainer.style.display = "block";
+            } else {
+                agentContainer.style.display = "none";
+            }
+        });
+
+        async function runConsoleCommand() {
+            const inputEl = document.getElementById("console-input");
+            const modeEl = document.getElementById("console-mode");
+            const agentEl = document.getElementById("console-agent");
+            const runBtn = document.getElementById("console-run-btn");
+            const statusBadge = document.getElementById("console-status");
+            const outputContainer = document.getElementById("console-output-container");
+            const outputEl = document.getElementById("console-output");
+            const outputModeEl = document.getElementById("console-output-mode");
+            const outputTimeEl = document.getElementById("console-output-time");
+
+            // Get input values
+            const input = inputEl.value.trim();
+            const mode = modeEl.value;
+            const agent = agentEl.value.trim();
+
+            // Validate input
+            if (!input) {
+                alert("Please enter an instruction");
+                return;
+            }
+
+            if (mode === "agent" && !agent) {
+                alert("Please enter an agent name");
+                return;
+            }
+
+            // Set loading state
+            runBtn.disabled = true;
+            runBtn.textContent = "Running…";
+            statusBadge.textContent = "Running";
+            statusBadge.className = "status-badge status-warn";
+            outputContainer.style.display = "none";
+
+            try {
+                // Build request payload
+                const payload = {
+                    mode: mode,
+                    input: input
+                };
+
+                if (mode === "agent" && agent) {
+                    payload.agent = agent;
+                }
+
+                // Make API request
+                const response = await fetch(CONSOLE_ENDPOINT, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                // Display results
+                outputContainer.style.display = "block";
+                outputModeEl.textContent = `Mode: ${result.mode}`;
+
+                // Calculate duration
+                const started = new Date(result.started_at);
+                const finished = new Date(result.finished_at);
+                const duration = ((finished - started) / 1000).toFixed(1);
+                outputTimeEl.textContent = `Duration: ${duration}s`;
+
+                if (result.status === "ok") {
+                    // Success
+                    outputEl.textContent = result.output || "(no output)";
+                    outputEl.style.borderLeftColor = "#22c55e";
+                    statusBadge.textContent = "Success";
+                    statusBadge.className = "status-badge status-ok";
+                } else {
+                    // Error
+                    outputEl.textContent = result.error || "Unknown error";
+                    outputEl.style.borderLeftColor = "#ef4444";
+                    statusBadge.textContent = "Error";
+                    statusBadge.className = "status-badge status-error";
+                }
+
+            } catch (error) {
+                // Network or parsing error
+                console.error("Console command error:", error);
+                outputContainer.style.display = "block";
+                outputEl.textContent = `Network error: ${error.message}`;
+                outputEl.style.borderLeftColor = "#ef4444";
+                outputModeEl.textContent = "";
+                outputTimeEl.textContent = "";
+                statusBadge.textContent = "Error";
+                statusBadge.className = "status-badge status-error";
+            } finally {
+                // Reset button state
+                runBtn.disabled = false;
+                runBtn.textContent = "Run Command";
             }
         }
     </script>

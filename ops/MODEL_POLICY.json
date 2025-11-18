@@ -1,0 +1,133 @@
+{
+  "modes": {
+    "balanced": {
+      "description": "Default: good mix of cost, speed, and quality.",
+      "roles": {
+        "planner": [
+          {"provider": "openrouter", "model": "anthropic/claude-3.5-sonnet", "temperature": 0.4, "max_tokens": 4096}
+        ],
+        "architect": [
+          {"provider": "openrouter", "model": "anthropic/claude-3.5-sonnet", "temperature": 0.3, "max_tokens": 4096}
+        ],
+        "specialist_frontend": [
+          {"provider": "openrouter", "model": "anthropic/claude-3.5-sonnet", "temperature": 0.2, "max_tokens": 4096}
+        ],
+        "specialist_backend": [
+          {"provider": "openrouter", "model": "openai/gpt-4-turbo", "temperature": 0.2, "max_tokens": 4096}
+        ],
+        "specialist_docs": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.5, "max_tokens": 4096}
+        ],
+        "specialist_test": [
+          {"provider": "openrouter", "model": "openai/gpt-4-turbo", "temperature": 0.2, "max_tokens": 4096}
+        ],
+        "quality": [
+          {"provider": "openrouter", "model": "anthropic/claude-3.5-sonnet", "temperature": 0.1, "max_tokens": 2048}
+        ],
+        "recovery": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.2, "max_tokens": 2048}
+        ],
+        "generic": [
+          {"provider": "claude", "model": "claude-3-5-sonnet-20241022", "temperature": 0.3, "max_tokens": 4096}
+        ]
+      }
+    },
+    "cheapest": {
+      "description": "Minimize cost: use lightweight models for all tasks.",
+      "roles": {
+        "planner": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.4, "max_tokens": 2048}
+        ],
+        "architect": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.3, "max_tokens": 2048}
+        ],
+        "specialist_frontend": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.2, "max_tokens": 2048}
+        ],
+        "specialist_backend": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.2, "max_tokens": 2048}
+        ],
+        "specialist_docs": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.5, "max_tokens": 2048}
+        ],
+        "specialist_test": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.2, "max_tokens": 2048}
+        ],
+        "quality": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.1, "max_tokens": 1024}
+        ],
+        "recovery": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.2, "max_tokens": 1024}
+        ],
+        "generic": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.3, "max_tokens": 2048}
+        ]
+      }
+    },
+    "fastest": {
+      "description": "Optimize for speed: use fastest models with minimal tokens.",
+      "roles": {
+        "planner": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.4, "max_tokens": 1024}
+        ],
+        "architect": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.3, "max_tokens": 1024}
+        ],
+        "specialist_frontend": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.2, "max_tokens": 1024}
+        ],
+        "specialist_backend": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.2, "max_tokens": 1024}
+        ],
+        "specialist_docs": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.5, "max_tokens": 1024}
+        ],
+        "specialist_test": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.2, "max_tokens": 1024}
+        ],
+        "quality": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.1, "max_tokens": 512}
+        ],
+        "recovery": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.2, "max_tokens": 512}
+        ],
+        "generic": [
+          {"provider": "openrouter", "model": "openai/gpt-4o-mini", "temperature": 0.3, "max_tokens": 1024}
+        ]
+      }
+    },
+    "max_quality": {
+      "description": "Maximum quality: use top-tier models regardless of cost.",
+      "roles": {
+        "planner": [
+          {"provider": "openrouter", "model": "anthropic/claude-3.5-sonnet", "temperature": 0.4, "max_tokens": 8192}
+        ],
+        "architect": [
+          {"provider": "openrouter", "model": "anthropic/claude-3.5-sonnet", "temperature": 0.3, "max_tokens": 8192}
+        ],
+        "specialist_frontend": [
+          {"provider": "openrouter", "model": "anthropic/claude-3.5-sonnet", "temperature": 0.2, "max_tokens": 8192}
+        ],
+        "specialist_backend": [
+          {"provider": "openrouter", "model": "openai/gpt-4-turbo", "temperature": 0.2, "max_tokens": 8192}
+        ],
+        "specialist_docs": [
+          {"provider": "openrouter", "model": "anthropic/claude-3.5-sonnet", "temperature": 0.5, "max_tokens": 8192}
+        ],
+        "specialist_test": [
+          {"provider": "openrouter", "model": "openai/gpt-4-turbo", "temperature": 0.2, "max_tokens": 8192}
+        ],
+        "quality": [
+          {"provider": "openrouter", "model": "anthropic/claude-3.5-sonnet", "temperature": 0.1, "max_tokens": 4096}
+        ],
+        "recovery": [
+          {"provider": "openrouter", "model": "openai/gpt-4-turbo", "temperature": 0.2, "max_tokens": 4096}
+        ],
+        "generic": [
+          {"provider": "openrouter", "model": "anthropic/claude-3.5-sonnet", "temperature": 0.3, "max_tokens": 8192}
+        ]
+      }
+    }
+  },
+  "default_mode": "balanced"
+}

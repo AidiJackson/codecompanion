@@ -1,0 +1,7 @@
+{
+  "model_policy_mode": "balanced",
+  "model_policy_path": "ops/MODEL_POLICY.json",
+  "project_name": "codecompanion",
+  "project_root": ".",
+  "default_provider": "claude"
+}

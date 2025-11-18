@@ -1,6 +1,8 @@
 import os
 import time
 import httpx
+from typing import Optional
+from .model_policy import TaskContext, get_model_for_task, ModelSelection
 
 
 class LLMError(Exception): ...
@@ -29,8 +31,49 @@ PROVIDERS = {
 }
 
 
-def complete(system: str, messages: list, provider: str = "claude", **kwargs):
-    """Complete using specified provider (claude, gpt4, gemini)"""
+def complete(
+    system: str,
+    messages: list,
+    provider: str = "claude",
+    task_context: Optional[TaskContext] = None,
+    mode: Optional[str] = None,
+    **kwargs
+):
+    """
+    Complete using specified provider (claude, gpt4, gemini).
+
+    Args:
+        system: System prompt
+        messages: List of message dicts
+        provider: Provider name (used if task_context is None)
+        task_context: Optional TaskContext for policy-based model selection
+        mode: Optional mode override for policy selection
+        **kwargs: Additional parameters (temperature, max_tokens, etc.)
+
+    Returns:
+        Response dict with 'content' key
+    """
+    # If task_context is provided, use model policy
+    if task_context is not None:
+        try:
+            selection = get_model_for_task(task_context, mode=mode)
+            # Override kwargs with policy values if not explicitly provided
+            if "temperature" not in kwargs:
+                kwargs["temperature"] = selection.temperature
+            if "max_tokens" not in kwargs:
+                kwargs["max_tokens"] = selection.max_tokens
+
+            # For now, we still use the old provider system
+            # In the future, selection.provider could route to different backends
+            # For this implementation, map policy providers to our existing ones
+            provider = _map_policy_provider(selection.provider)
+
+            print(f"[llm] Using model from policy: {selection.provider}/{selection.model} "
+                  f"(mode={selection.mode}, role={selection.role})")
+        except Exception as e:
+            print(f"[llm] WARNING: Failed to load model policy: {e}")
+            print(f"[llm] Falling back to provider={provider}")
+
     if provider not in PROVIDERS:
         raise LLMError(f"Unknown provider: {provider}. Use: {list(PROVIDERS.keys())}")
 
@@ -45,6 +88,31 @@ def complete(system: str, messages: list, provider: str = "claude", **kwargs):
         return _call_openai(system, messages, key, config, **kwargs)
     elif provider == "gemini":
         return _call_gemini(system, messages, key, config, **kwargs)
+
+
+def _map_policy_provider(policy_provider: str) -> str:
+    """
+    Map policy provider strings to internal provider names.
+
+    Args:
+        policy_provider: Provider from policy (e.g., "openrouter", "claude")
+
+    Returns:
+        Internal provider name (e.g., "claude", "gpt4", "gemini")
+    """
+    # For OpenRouter, we need to map based on model prefix
+    # For now, default to claude for openrouter
+    if policy_provider == "openrouter":
+        return "claude"  # Default, could be smarter
+    elif policy_provider == "claude":
+        return "claude"
+    elif policy_provider == "openai":
+        return "gpt4"
+    elif policy_provider == "gemini":
+        return "gemini"
+    else:
+        # Default to claude
+        return "claude"
 
 
 def _call_claude(system: str, messages: list, key: str, config: dict, **kwargs):

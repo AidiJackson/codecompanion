@@ -4,6 +4,9 @@ from .bootstrap import ensure_bootstrap
 from . import __version__
 from .repl import chat_repl
 from .runner import run_pipeline, run_single_agent
+from .commands.init_cmd import add_init_subcommand
+from .commands.state_cmd import add_state_subcommand
+from .commands.show_policy import add_policy_subcommand
 
 
 def main():
@@ -27,6 +30,13 @@ def main():
         default=os.getenv("CC_PROVIDER", "claude"),
         help="LLM provider (claude, gpt4, gemini)",
     )
+
+    # Add subcommands
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+    add_init_subcommand(subparsers)
+    add_state_subcommand(subparsers)
+    add_policy_subcommand(subparsers)
+
     args = parser.parse_args()
 
     if args.version:
@@ -41,6 +51,10 @@ def main():
         print("[codecompanion] Agents dir:", info["agents_dir"])
         print("[codecompanion] Provider:", args.provider)
         return 0
+
+    # Handle subcommands
+    if hasattr(args, 'func'):
+        return args.func(args)
 
     if args.chat:
         return chat_repl(provider=args.provider)

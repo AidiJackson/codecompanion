@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
+from typing import Optional
 import os
 
 # Import info gathering functions
@@ -66,7 +67,7 @@ async def health_check():
     return {"status": "healthy", "service": "codecompanion-dashboard"}
 
 
-def run_dashboard(host: str = "0.0.0.0", port: int = None):
+def run_dashboard(host: str = "0.0.0.0", port: Optional[int] = None):
     """Run the dashboard server using uvicorn."""
     import uvicorn
 

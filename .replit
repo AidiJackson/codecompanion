@@ -6,22 +6,27 @@ packages = ["glibcLocales", "libxcrypt"]
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["python", "server.py"]
+run = ["codecompanion", "--dashboard"]
 
 [workflows]
-runButton = "FastAPI Server"
+runButton = "Project"
 
 [[workflows.workflow]]
-name = "FastAPI Server"
+name = "Control Tower Dashboard"
+mode = "parallel"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python server.py"
-waitForPort = 5050
+args = "codecompanion --dashboard"
+waitForPort = 3000
 
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[ports]]
+localPort = 3000
+externalPort = 3003
 
 [[ports]]
 localPort = 5050

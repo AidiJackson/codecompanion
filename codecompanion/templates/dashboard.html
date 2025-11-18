@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeCompanion Control Tower</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .page {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-subtitle {
+            font-size: 1rem;
+            color: #94a3b8;
+            margin-bottom: 1rem;
+        }
+
+        .header-right {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.35rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .pill-live {
+            background: rgba(34, 197, 94, 0.12);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .pill-refresh {
+            background: rgba(59, 130, 246, 0.12);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            opacity: 0;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .pill-refresh.spinning {
+            opacity: 1;
+            transform: translateY(-1px);
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: #22c55e;
+            margin-right: 0.5rem;
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+            }
+            70% {
+                transform: scale(1.2);
+                box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+            }
+        }
+
+        .last-updated {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-header {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-content {
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #cbd5e1;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.65rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid;
+        }
+
+        .status-ok {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+
+        .status-warn {
+            background: rgba(234, 179, 8, 0.15);
+            color: #eab308;
+            border-color: rgba(234, 179, 8, 0.3);
+        }
+
+        .status-error {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        .info-value {
+            color: #e2e8f0;
+            font-weight: 600;
+        }
+
+        .table {
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        .table-header {
+            display: grid;
+            grid-template-columns: 2fr 2fr 1fr;
+            gap: 1rem;
+            padding: 0.75rem;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        .table-row {
+            display: grid;
+            grid-template-columns: 2fr 2fr 1fr;
+            gap: 1rem;
+            padding: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            align-items: center;
+        }
+
+        .table-row:last-child {
+            border-bottom: none;
+        }
+
+        .agents-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .agent-item {
+            padding: 0.5rem 0.75rem;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 6px;
+            border-left: 3px solid;
+            font-size: 0.85rem;
+        }
+
+        .agent-item.stub {
+            border-left-color: #eab308;
+        }
+
+        .agent-item.custom {
+            border-left-color: #22c55e;
+        }
+
+        .recommendations-list {
+            list-style: none;
+        }
+
+        .recommendation-item {
+            padding: 1rem;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 6px;
+            margin-bottom: 0.75rem;
+            border-left: 3px solid;
+        }
+
+        .recommendation-item.warning {
+            border-left-color: #eab308;
+        }
+
+        .recommendation-item.info {
+            border-left-color: #3b82f6;
+        }
+
+        .recommendation-item.error {
+            border-left-color: #ef4444;
+        }
+
+        .recommendation-message {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .recommendation-action {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            font-family: 'Courier New', monospace;
+        }
+
+        .error-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(239, 68, 68, 0.95);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            font-weight: 600;
+            z-index: 1000;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .error-banner.visible {
+            transform: translateY(0);
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .table-header,
+            .table-row {
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+            }
+
+            .agents-list {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="error-banner" class="error-banner"></div>
+
+    <div class="page">
+        <div class="header">
+            <h1>CodeCompanion Control Tower</h1>
+            <div class="header-subtitle">Live snapshot of your standalone Dev OS</div>
+            <div class="header-right">
+                <span class="pill pill-live">
+                    <span class="dot"></span> Live
+                </span>
+                <span id="refresh-indicator" class="pill pill-refresh">Refreshing…</span>
+                <span id="last-updated" class="last-updated">Last updated: --:--:--</span>
+            </div>
+        </div>
+
+        <div class="cards-grid">
+            <!-- Project / Bootstrap Card -->
+            <div class="card">
+                <div class="card-header">
+                    <span>Project Status</span>
+                    <span id="project-status" class="status-badge status-ok">Loading...</span>
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">Project Root</span>
+                        <span class="info-value" id="project-root">--</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Config Directory</span>
+                        <span class="info-value" id="cc-dir">--</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Bootstrap File</span>
+                        <span class="info-value" id="bootstrap-file">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agent Workflow Card -->
+            <div class="card">
+                <div class="card-header">
+                    <span>Agent Workflow</span>
+                    <span id="agent-completion" class="status-badge status-ok">0/10</span>
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">Agents Directory</span>
+                        <span class="info-value" id="agents-dir">--</span>
+                    </div>
+                    <div id="agents-list" class="agents-list">
+                        <!-- Agent items will be populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Providers Card -->
+            <div class="card" style="grid-column: 1 / -1;">
+                <div class="card-header">
+                    <span>LLM Providers</span>
+                    <span id="providers-status" class="status-badge status-ok">--</span>
+                </div>
+                <div class="card-content">
+                    <div class="table">
+                        <div class="table-header">
+                            <div>Provider</div>
+                            <div>Model</div>
+                            <div>Status</div>
+                        </div>
+                        <div id="providers-body">
+                            <!-- Provider rows will be populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pipeline Status Card -->
+            <div class="card">
+                <div class="card-header">
+                    <span>Pipeline Status</span>
+                    <span id="pipeline-status" class="status-badge status-ok">Idle</span>
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">Last Run</span>
+                        <span class="info-value" id="pipeline-last-run">Never</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Total Runs</span>
+                        <span class="info-value" id="pipeline-total-runs">0</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Success Rate</span>
+                        <span class="info-value" id="pipeline-success-rate">N/A</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Errors & Recovery Card -->
+            <div class="card">
+                <div class="card-header">
+                    <span>Errors & Recovery</span>
+                    <span id="error-count" class="status-badge status-ok">0</span>
+                </div>
+                <div class="card-content">
+                    <div id="errors-content">
+                        <p style="color: #94a3b8;">No errors recorded.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendations Card -->
+            <div class="card" style="grid-column: 1 / -1;">
+                <div class="card-header">
+                    <span>System Recommendations</span>
+                    <span id="recommendations-count" class="status-badge status-ok">0</span>
+                </div>
+                <div class="card-content">
+                    <ul id="recommendations-list" class="recommendations-list">
+                        <!-- Recommendations will be populated by JS -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const INFO_ENDPOINT = "/api/info";
+        let lastData = null;
+
+        // Auto-refresh on load and every 3 seconds
+        window.onload = function() {
+            refreshData();
+            setInterval(refreshData, 3000);
+        };
+
+        async function refreshData() {
+            try {
+                setRefreshing(true);
+                const res = await fetch(INFO_ENDPOINT, { cache: "no-store" });
+                if (!res.ok) throw new Error("Failed to fetch info");
+                const data = await res.json();
+                lastData = data;
+                renderData(data);
+                setLastUpdated();
+                hideErrorBanner();
+            } catch (err) {
+                console.error("Dashboard refresh error:", err);
+                showErrorBanner("Failed to refresh dashboard data. See console for details.");
+            } finally {
+                setRefreshing(false);
+            }
+        }
+
+        function setRefreshing(isRefreshing) {
+            const indicator = document.getElementById("refresh-indicator");
+            if (isRefreshing) {
+                indicator.classList.add("spinning");
+            } else {
+                indicator.classList.remove("spinning");
+            }
+        }
+
+        function setLastUpdated() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
+            document.getElementById("last-updated").textContent = `Last updated: ${timeStr}`;
+        }
+
+        function showErrorBanner(message) {
+            const banner = document.getElementById("error-banner");
+            banner.textContent = message;
+            banner.classList.add("visible");
+        }
+
+        function hideErrorBanner() {
+            const banner = document.getElementById("error-banner");
+            banner.classList.remove("visible");
+        }
+
+        function renderData(data) {
+            renderBootstrap(data.bootstrap);
+            renderAgentWorkflow(data.agent_workflow);
+            renderProviders(data.providers);
+            renderPipeline(data.pipeline);
+            renderErrors(data.errors);
+            renderRecommendations(data.recommendations);
+        }
+
+        function renderBootstrap(bootstrap) {
+            // Update project status
+            const statusBadge = document.getElementById("project-status");
+            if (bootstrap.status === "initialized") {
+                statusBadge.textContent = "Initialized";
+                statusBadge.className = "status-badge status-ok";
+            } else {
+                statusBadge.textContent = "Incomplete";
+                statusBadge.className = "status-badge status-warn";
+            }
+
+            // Update project info
+            document.getElementById("project-root").textContent = bootstrap.root || "--";
+            document.getElementById("cc-dir").textContent = bootstrap.cc_dir || "--";
+            document.getElementById("bootstrap-file").textContent = bootstrap.bootstrap_file ? "✓ Present" : "✗ Missing";
+        }
+
+        function renderAgentWorkflow(workflow) {
+            // Update completion badge
+            const completionBadge = document.getElementById("agent-completion");
+            completionBadge.textContent = workflow.completion || "0/10";
+
+            const existingCount = workflow.existing_agents ? workflow.existing_agents.length : 0;
+            const totalCount = workflow.total_agents || 10;
+
+            if (existingCount === totalCount) {
+                completionBadge.className = "status-badge status-ok";
+            } else if (existingCount > totalCount / 2) {
+                completionBadge.className = "status-badge status-warn";
+            } else {
+                completionBadge.className = "status-badge status-error";
+            }
+
+            // Update agents directory
+            document.getElementById("agents-dir").textContent = workflow.agents_dir || "--";
+
+            // Render agent items
+            const agentsList = document.getElementById("agents-list");
+            agentsList.innerHTML = "";
+
+            if (workflow.existing_agents && workflow.existing_agents.length > 0) {
+                workflow.existing_agents.forEach(agent => {
+                    const item = document.createElement("div");
+                    item.className = `agent-item ${agent.is_stub ? 'stub' : 'custom'}`;
+                    item.textContent = agent.name;
+                    item.title = agent.is_stub ? "Using default stub" : "Custom agent";
+                    agentsList.appendChild(item);
+                });
+            } else {
+                agentsList.innerHTML = '<p style="color: #94a3b8;">No agents found</p>';
+            }
+        }
+
+        function renderProviders(providers) {
+            const providersBody = document.getElementById("providers-body");
+            providersBody.innerHTML = "";
+
+            let configuredCount = 0;
+
+            if (providers && providers.length > 0) {
+                providers.forEach(provider => {
+                    const row = document.createElement("div");
+                    row.className = "table-row";
+
+                    const nameCell = document.createElement("div");
+                    nameCell.textContent = provider.name.toUpperCase();
+
+                    const modelCell = document.createElement("div");
+                    modelCell.textContent = provider.model;
+
+                    const statusCell = document.createElement("div");
+                    const statusBadge = document.createElement("span");
+                    statusBadge.className = provider.api_key_set ? "status-badge status-ok" : "status-badge status-error";
+                    statusBadge.textContent = provider.api_key_set ? "Configured" : "Missing Key";
+                    statusCell.appendChild(statusBadge);
+
+                    row.appendChild(nameCell);
+                    row.appendChild(modelCell);
+                    row.appendChild(statusCell);
+
+                    providersBody.appendChild(row);
+
+                    if (provider.api_key_set) configuredCount++;
+                });
+            }
+
+            // Update providers status badge
+            const statusBadge = document.getElementById("providers-status");
+            if (configuredCount === providers.length) {
+                statusBadge.textContent = "All Configured";
+                statusBadge.className = "status-badge status-ok";
+            } else if (configuredCount > 0) {
+                statusBadge.textContent = `${configuredCount}/${providers.length} Configured`;
+                statusBadge.className = "status-badge status-warn";
+            } else {
+                statusBadge.textContent = "Not Configured";
+                statusBadge.className = "status-badge status-error";
+            }
+        }
+
+        function renderPipeline(pipeline) {
+            document.getElementById("pipeline-last-run").textContent = pipeline.last_run || "Never";
+            document.getElementById("pipeline-total-runs").textContent = pipeline.total_runs || 0;
+            document.getElementById("pipeline-success-rate").textContent = pipeline.success_rate || "N/A";
+
+            const statusBadge = document.getElementById("pipeline-status");
+            statusBadge.textContent = (pipeline.status || "idle").charAt(0).toUpperCase() + (pipeline.status || "idle").slice(1);
+            statusBadge.className = "status-badge status-ok";
+        }
+
+        function renderErrors(errors) {
+            const errorCount = errors ? errors.length : 0;
+            const errorBadge = document.getElementById("error-count");
+            const errorsContent = document.getElementById("errors-content");
+
+            errorBadge.textContent = errorCount;
+
+            if (errorCount === 0) {
+                errorBadge.className = "status-badge status-ok";
+                errorsContent.innerHTML = '<p style="color: #94a3b8;">No errors recorded.</p>';
+            } else if (errorCount < 5) {
+                errorBadge.className = "status-badge status-warn";
+                errorsContent.innerHTML = `<p style="color: #eab308;">${errorCount} error(s) recorded</p>`;
+            } else {
+                errorBadge.className = "status-badge status-error";
+                errorsContent.innerHTML = `<p style="color: #ef4444;">${errorCount} error(s) recorded</p>`;
+            }
+        }
+
+        function renderRecommendations(recommendations) {
+            const recommendationsList = document.getElementById("recommendations-list");
+            const countBadge = document.getElementById("recommendations-count");
+
+            countBadge.textContent = recommendations ? recommendations.length : 0;
+
+            if (recommendations && recommendations.length > 0) {
+                countBadge.className = "status-badge status-warn";
+                recommendationsList.innerHTML = "";
+
+                recommendations.forEach(rec => {
+                    const item = document.createElement("li");
+                    item.className = `recommendation-item ${rec.level || 'info'}`;
+
+                    const message = document.createElement("div");
+                    message.className = "recommendation-message";
+                    message.textContent = rec.message;
+
+                    const action = document.createElement("div");
+                    action.className = "recommendation-action";
+                    action.textContent = rec.action;
+
+                    item.appendChild(message);
+                    item.appendChild(action);
+                    recommendationsList.appendChild(item);
+                });
+            } else {
+                countBadge.className = "status-badge status-ok";
+                recommendationsList.innerHTML = '<li style="color: #94a3b8; list-style: none;">System appears healthy. No immediate changes recommended.</li>';
+            }
+        }
+    </script>
+</body>
+</html>

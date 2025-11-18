@@ -459,11 +459,20 @@
     <script>
         const INFO_ENDPOINT = "/api/info";
         let lastData = null;
+        let refreshInterval = null;
 
-        // Auto-refresh on load and every 3 seconds
+        // Auto-refresh on load and every 5 seconds
         window.onload = function() {
             refreshData();
-            setInterval(refreshData, 3000);
+            // Use 5 second refresh instead of 3 to reduce server load
+            refreshInterval = setInterval(refreshData, 5000);
+        };
+
+        // Clean up interval on page unload
+        window.onbeforeunload = function() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
         };
 
         async function refreshData() {

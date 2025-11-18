@@ -68,8 +68,10 @@ async def health_check():
 
 
 def run_dashboard(host: str = "0.0.0.0", port: Optional[int] = None):
-    """Run the dashboard server using uvicorn."""
+    """Run the dashboard server using uvicorn with graceful shutdown."""
     import uvicorn
+    import signal
+    import sys
 
     if port is None:
         port = int(os.getenv("PORT", 3000))
@@ -78,4 +80,29 @@ def run_dashboard(host: str = "0.0.0.0", port: Optional[int] = None):
     print(f"[CodeCompanion] Dashboard available at: http://{host}:{port}/")
     print(f"[CodeCompanion] Press Ctrl+C to stop")
 
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    # Create uvicorn server instance for graceful shutdown
+    server = uvicorn.Server(
+        uvicorn.Config(
+            app,
+            host=host,
+            port=port,
+            log_level="info",
+            access_log=True,
+        )
+    )
+
+    # Handle graceful shutdown
+    def signal_handler(signum, frame):
+        print("\n[CodeCompanion] Shutting down dashboard...")
+        server.should_exit = True
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
+    # Run the server
+    try:
+        server.run()
+    except KeyboardInterrupt:
+        print("\n[CodeCompanion] Dashboard stopped")
+        sys.exit(0)

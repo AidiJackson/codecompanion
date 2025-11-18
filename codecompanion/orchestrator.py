@@ -13,8 +13,9 @@ from typing import Any, Dict, List, Optional
 import json
 import datetime as _dt
 
-# TODO: Future imports for multi-model components
-# from codecompanion.planning import PlannerCouncil
+from codecompanion.planners.council import PlannerCouncil
+
+# TODO: Future imports for remaining multi-model components
 # from codecompanion.architecture import ArchitectAgent
 # from codecompanion.specialists import BackendSpecialist, FrontendSpecialist
 # from codecompanion.specialists import TestSpecialist, DocsSpecialist
@@ -114,6 +115,7 @@ class Orchestrator:
     Attributes:
         state_path: Path to the PROJECT_STATE.json file
         state: Current project state
+        planner_council: Multi-model planner council instance
     """
 
     def __init__(self, state_path: Path | str = Path("ops/PROJECT_STATE.json")):
@@ -125,6 +127,7 @@ class Orchestrator:
         """
         self.state_path = Path(state_path)
         self.state: ProjectState = self.load_state()
+        self.planner_council = PlannerCouncil()
 
     def load_state(self) -> ProjectState:
         """
@@ -252,22 +255,36 @@ class Orchestrator:
     # Stubbed methods for upcoming multi-model components
     # =========================================================================
 
-    def run_planner_council(self, goal_spec: str) -> None:
+    def run_planner_council(self, goal_spec: str) -> Dict[str, Any]:
         """
-        Call the multi-model Planner Council (GPT, Claude, Gemini) to update PLAN.md and TODO.json.
+        Call the multi-model Planner Council (GPT, Claude, Gemini) to generate a consensus plan.
 
         The Planner Council orchestrates multiple LLMs to collaboratively create
         and refine project plans, ensuring diverse perspectives and robust planning.
 
-        This will be implemented in a later phase.
+        Currently runs stubbed planners. Will be connected to real LLM APIs in a future phase.
+        Does NOT write PLAN.md or TODO.json files yet (next phase).
 
         Args:
             goal_spec: Specification of the goal or feature to plan
 
-        Raises:
-            NotImplementedError: This feature is not yet implemented
+        Returns:
+            Dict containing merged_plan, open_questions, and raw planner outputs
         """
-        raise NotImplementedError("Planner Council integration not implemented yet.")
+        # Run the planner council
+        result = self.planner_council.run(goal_spec)
+
+        # Update project state with open questions from council
+        self.state.open_questions = result.get("open_questions", [])
+
+        # Optionally update todo list from merged tasks
+        # For now, we keep the existing todo list and don't auto-populate from plan
+        # This will be implemented in a future phase
+
+        # Save updated state
+        self.save_state()
+
+        return result
 
     def run_architect(self) -> None:
         """

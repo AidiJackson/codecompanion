@@ -496,6 +496,173 @@
             .tab {
                 white-space: nowrap;
             }
+
+            .analytics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .timeline-view {
+                gap: 1rem;
+            }
+
+            .session-card {
+                padding: 1rem;
+            }
+        }
+
+        /* Analytics Grid */
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .analytics-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .analytics-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .analytics-card-title {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .analytics-card-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin-bottom: 0.5rem;
+        }
+
+        .analytics-card-subtitle {
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        /* Timeline View */
+        .timeline-view {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .session-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .session-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #e2e8f0;
+        }
+
+        .session-meta {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        .session-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .session-jobs {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .timeline-job {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 1rem;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 1rem;
+            align-items: start;
+        }
+
+        .timeline-job-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .timeline-job-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .timeline-job-mode {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .timeline-job-input {
+            font-size: 0.9rem;
+            color: #e2e8f0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .timeline-job-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 0.25rem;
+        }
+
+        .timeline-job-metrics {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.25rem;
+            font-size: 0.85rem;
+        }
+
+        .timeline-job-cost {
+            color: #22c55e;
+            font-weight: 600;
+        }
+
+        .timeline-job-tokens {
+            color: #64748b;
+            font-size: 0.75rem;
         }
     </style>
 </head>
@@ -517,6 +684,7 @@
         <div class="tabs">
             <button class="tab active" onclick="switchTab('overview')">Overview</button>
             <button class="tab" onclick="switchTab('projects')">Projects</button>
+            <button class="tab" onclick="switchTab('timeline')">Timeline & Analytics</button>
         </div>
 
         <!-- Overview Tab -->
@@ -641,6 +809,25 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Timeline Tab -->
+            <div id="timeline-tab" class="tab-content" style="display: none;">
+                <!-- Analytics Cards -->
+                <div class="section">
+                    <h2>Analytics Overview</h2>
+                    <div id="analytics-cards" class="analytics-grid">
+                        <!-- Cards will be populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Timeline View -->
+                <div class="section">
+                    <h2>Timeline</h2>
+                    <div id="timeline-view" class="timeline-view">
+                        <!-- Timeline will be populated by JS -->
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -682,9 +869,12 @@
             });
             document.getElementById(`${tabName}-tab`).classList.add('active');
 
-            // Refresh data when switching to projects
+            // Refresh data when switching tabs
             if (tabName === 'projects') {
                 refreshJobs();
+            } else if (tabName === 'timeline') {
+                refreshTimeline();
+                refreshAnalytics();
             }
         }
 
@@ -1097,6 +1287,177 @@ ${job.output ? `\nOutput:\n${job.output}` : ''}${job.error ? `\nError:\n${job.er
             } catch (err) {
                 console.error('View job details error:', err);
                 alert('Failed to fetch job details: ' + err.message);
+            }
+        }
+
+        // Analytics Refresh
+        async function refreshAnalytics() {
+            try {
+                const res = await fetch('/api/analytics', { cache: 'no-store' });
+                if (!res.ok) throw new Error('Failed to fetch analytics');
+                const data = await res.json();
+                renderAnalytics(data);
+            } catch (err) {
+                console.error('Analytics refresh error:', err);
+            }
+        }
+
+        function renderAnalytics(data) {
+            const container = document.getElementById('analytics-cards');
+
+            container.innerHTML = `
+                <div class="analytics-card">
+                    <div class="analytics-card-title">Total Jobs</div>
+                    <div class="analytics-card-value">${formatNumber(data.total_jobs)}</div>
+                    <div class="analytics-card-subtitle">Across ${data.total_sessions} sessions</div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="analytics-card-title">Total Cost</div>
+                    <div class="analytics-card-value">$${formatCost(data.total_cost)}</div>
+                    <div class="analytics-card-subtitle">${formatNumber(data.total_tokens)} tokens</div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="analytics-card-title">Success Rate</div>
+                    <div class="analytics-card-value">${data.success_rate.toFixed(1)}%</div>
+                    <div class="analytics-card-subtitle">${data.by_status.completed || 0} completed</div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="analytics-card-title">Avg Duration</div>
+                    <div class="analytics-card-value">${formatDuration(data.avg_duration)}</div>
+                    <div class="analytics-card-subtitle">Per job</div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="analytics-card-title">By Status</div>
+                    <div class="analytics-card-value" style="font-size: 1rem;">
+                        ${Object.entries(data.by_status).map(([status, count]) =>
+                            `<div style="margin: 0.25rem 0;">${status}: ${count}</div>`
+                        ).join('')}
+                    </div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="analytics-card-title">By Mode</div>
+                    <div class="analytics-card-value" style="font-size: 1rem;">
+                        ${Object.entries(data.by_mode).map(([mode, count]) =>
+                            `<div style="margin: 0.25rem 0;">${mode}: ${count}</div>`
+                        ).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Timeline Refresh
+        async function refreshTimeline() {
+            try {
+                const res = await fetch('/api/timeline', { cache: 'no-store' });
+                if (!res.ok) throw new Error('Failed to fetch timeline');
+                const data = await res.json();
+                renderTimeline(data);
+            } catch (err) {
+                console.error('Timeline refresh error:', err);
+            }
+        }
+
+        function renderTimeline(data) {
+            const container = document.getElementById('timeline-view');
+
+            if (!data.timeline || data.timeline.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📊</div>
+                        <div class="empty-state-text">No timeline data</div>
+                        <div class="empty-state-subtext">Submit some jobs to see your timeline</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = data.timeline.map(item => {
+                const session = item.session;
+                const jobs = item.jobs;
+
+                const sessionName = session ? session.name : 'Ungrouped Jobs';
+                const sessionMeta = session ? `
+                    <div class="session-meta">
+                        <div class="session-meta-item">
+                            💰 $${formatCost(session.total_cost)}
+                        </div>
+                        <div class="session-meta-item">
+                            🔤 ${formatNumber(session.total_tokens)} tokens
+                        </div>
+                        <div class="session-meta-item">
+                            📋 ${session.completed_jobs}/${session.total_jobs} completed
+                        </div>
+                    </div>
+                ` : '';
+
+                const jobsHtml = jobs.map(job => `
+                    <div class="timeline-job">
+                        <div class="timeline-job-status status-${job.status}">
+                            ${job.status}
+                        </div>
+                        <div class="timeline-job-content">
+                            <div class="timeline-job-mode">${job.mode}${job.agent_name ? ` · ${job.agent_name}` : ''}</div>
+                            <div class="timeline-job-input">${escapeHtml(job.input.substring(0, 100))}${job.input.length > 100 ? '...' : ''}</div>
+                            <div class="timeline-job-meta">
+                                <span>${formatTimeAgo(job.created_at)}</span>
+                                ${job.started_at && job.finished_at ? `<span>⏱ ${calculateDuration(job.started_at, job.finished_at)}</span>` : ''}
+                                <span>🤖 ${job.provider}</span>
+                            </div>
+                        </div>
+                        <div class="timeline-job-metrics">
+                            <div class="timeline-job-cost">$${formatCost(job.estimated_cost)}</div>
+                            <div class="timeline-job-tokens">${formatNumber(job.total_tokens)} tok</div>
+                        </div>
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="session-card">
+                        <div class="session-header">
+                            <div class="session-name">${escapeHtml(sessionName)}</div>
+                            ${sessionMeta}
+                        </div>
+                        <div class="session-jobs">
+                            ${jobsHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Utility Functions
+        function formatCost(cost) {
+            if (cost === undefined || cost === null) return '0.00';
+            return cost.toFixed(4);
+        }
+
+        function formatNumber(num) {
+            if (num === undefined || num === null) return '0';
+            if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+
+        function formatDuration(seconds) {
+            if (!seconds || seconds < 1) return '<1s';
+            if (seconds < 60) return `${Math.round(seconds)}s`;
+            if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+            return `${(seconds / 3600).toFixed(1)}h`;
+        }
+
+        function calculateDuration(startTime, endTime) {
+            try {
+                const start = new Date(startTime);
+                const end = new Date(endTime);
+                const diffSeconds = (end - start) / 1000;
+                return formatDuration(diffSeconds);
+            } catch (e) {
+                return 'N/A';
             }
         }
     </script>

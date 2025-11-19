@@ -1,36 +1,41 @@
 """
 FastAPI dashboard application for CodeCompanion Control Tower.
-Provides a web-based live status board with auto-refresh capabilities.
+Provides a web-based live status board with async job execution.
 
-This is a read-only dashboard that uses /api/info endpoint.
-No mutations or configuration changes are made through this interface.
+Features:
+- Non-blocking agent execution via background job queue
+- Real-time job status tracking
+- Job cancellation support
+- Persistent job history with SQLite
 """
 import os
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 # Suppress Streamlit warnings before any imports that might trigger it
 os.environ['STREAMLIT_LOGGER_LEVEL'] = 'error'
 
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-import io
-from contextlib import redirect_stdout, redirect_stderr
+import asyncio
+import json
 from datetime import datetime
 
 # Import info gathering functions
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from codecompanion.info_core import gather_all_info
-from codecompanion.llm import complete, LLMError
-from codecompanion.runner import run_pipeline, run_single_agent
+
+# Import async job execution components
+from .models import Job, JobStatus, JobMode, get_job_store
+from .executor import get_executor
 
 
 app = FastAPI(
     title="CodeCompanion Control Tower",
-    description="Live status dashboard for CodeCompanion standalone Dev OS",
-    version="0.1.0",
+    description="Live status dashboard for CodeCompanion with async job execution",
+    version="0.2.0",
 )
 
 
@@ -76,169 +81,326 @@ async def health_check():
     return {"status": "healthy", "service": "codecompanion-dashboard"}
 
 
-def run_console_command(mode: str, input_text: str, agent_name: Optional[str] = None, provider: str = "claude") -> dict:
+# ============================================================================
+# ASYNC JOB EXECUTION API
+# ============================================================================
+
+
+@app.post("/api/runs")
+async def create_run(request: Request):
     """
-    Run a CodeCompanion command programmatically and capture output.
-
-    Args:
-        mode: "chat", "auto", or "agent"
-        input_text: User input/instruction
-        agent_name: Optional agent name (for mode="agent")
-        provider: LLM provider to use (default: "claude")
-
-    Returns:
-        dict with status, output, timestamps, etc.
-    """
-    started_at = datetime.utcnow().isoformat() + "Z"
-    output_buffer = io.StringIO()
-    error_buffer = io.StringIO()
-
-    try:
-        # Capture stdout and stderr
-        with redirect_stdout(output_buffer), redirect_stderr(error_buffer):
-            if mode == "chat":
-                # Single-turn chat mode: send user input and get response
-                try:
-                    response = complete(
-                        "You are CodeCompanion, a helpful coding assistant. Respond to the user's question or instruction concisely.",
-                        [{"role": "user", "content": input_text}],
-                        provider=provider,
-                    )
-                    output = response.get("content", "")
-                    print(output)
-                except LLMError as e:
-                    raise Exception(f"LLM Error: {str(e)}")
-
-            elif mode == "auto":
-                # Run full pipeline
-                print(f"[console] Running full pipeline in current repo...")
-                print(f"[console] Project root: {os.getcwd()}")
-                exit_code = run_pipeline(provider=provider)
-                if exit_code != 0:
-                    raise Exception(f"Pipeline failed with exit code {exit_code}")
-                print(f"[console] Pipeline completed successfully")
-
-            elif mode == "agent":
-                # Run single agent
-                if not agent_name:
-                    raise Exception("Agent name is required for mode='agent'")
-                print(f"[console] Running agent: {agent_name}")
-                print(f"[console] Project root: {os.getcwd()}")
-                exit_code = run_single_agent(agent_name, provider=provider)
-                if exit_code != 0:
-                    raise Exception(f"Agent '{agent_name}' failed with exit code {exit_code}")
-                print(f"[console] Agent '{agent_name}' completed successfully")
-
-            else:
-                raise Exception(f"Unknown mode: {mode}. Use 'chat', 'auto', or 'agent'")
-
-        # Success case
-        finished_at = datetime.utcnow().isoformat() + "Z"
-        stdout_output = output_buffer.getvalue()
-        stderr_output = error_buffer.getvalue()
-
-        # Combine stdout and stderr for display
-        full_output = stdout_output
-        if stderr_output.strip():
-            full_output += "\n\n[stderr]\n" + stderr_output
-
-        return {
-            "status": "ok",
-            "mode": mode,
-            "input": input_text,
-            "output": full_output,
-            "started_at": started_at,
-            "finished_at": finished_at,
-        }
-
-    except Exception as e:
-        # Error case
-        finished_at = datetime.utcnow().isoformat() + "Z"
-        stdout_output = output_buffer.getvalue()
-        stderr_output = error_buffer.getvalue()
-
-        # Include captured output in error response
-        error_context = ""
-        if stdout_output.strip():
-            error_context += f"\n\n[stdout]\n{stdout_output}"
-        if stderr_output.strip():
-            error_context += f"\n\n[stderr]\n{stderr_output}"
-
-        return {
-            "status": "error",
-            "mode": mode,
-            "input": input_text,
-            "error": str(e) + error_context,
-            "started_at": started_at,
-            "finished_at": finished_at,
-        }
-
-
-@app.post("/api/console")
-async def console_command(request: Request):
-    """
-    Execute a console command and return results.
+    Create a new async run/job.
 
     Request body (JSON):
     {
-        "mode": "chat" | "auto" | "agent",
+        "mode": "chat" | "auto" | "agent" | "task",
         "input": "<user instruction>",
-        "agent": "<optional agent name>",
-        "provider": "<optional provider, defaults to claude>"
+        "agent": "<optional agent name>",  # required for mode=agent
+        "provider": "<optional provider, defaults to claude>",
+        "target_root": "<optional target directory, defaults to cwd>"
     }
 
     Response (JSON):
     {
-        "status": "ok" | "error",
+        "id": "<job_id>",
+        "status": "pending",
         "mode": "...",
-        "input": "...",
-        "output": "..." (on success) or "error": "..." (on failure),
-        "started_at": "...",
-        "finished_at": "..."
+        "created_at": "...",
+        ...
     }
     """
     try:
         body = await request.json()
     except Exception as e:
-        return JSONResponse(
-            content={
-                "status": "error",
-                "error": f"Invalid JSON request body: {str(e)}",
-            },
+        raise HTTPException(
             status_code=400,
+            detail=f"Invalid JSON request body: {str(e)}"
         )
 
-    # Extract parameters with defaults
-    mode = body.get("mode", "chat")
+    # Extract and validate parameters
+    mode_str = body.get("mode", "chat")
+    input_text = body.get("input", "").strip()
+    agent_name = body.get("agent")
+    provider = body.get("provider", "claude")
+    target_root = body.get("target_root")
+
+    # Validate input
+    if not input_text:
+        raise HTTPException(
+            status_code=400,
+            detail="Input text is required"
+        )
+
+    # Validate mode
+    try:
+        mode = JobMode(mode_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid mode: {mode_str}. Use 'chat', 'auto', 'agent', or 'task'"
+        )
+
+    # Validate agent name for agent mode
+    if mode == JobMode.AGENT and not agent_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Agent name is required for mode='agent'"
+        )
+
+    # Submit job to executor
+    executor = get_executor()
+    job = executor.submit(
+        mode=mode,
+        input_text=input_text,
+        agent_name=agent_name,
+        provider=provider,
+        target_root=target_root
+    )
+
+    return JSONResponse(content=job.to_dict())
+
+
+@app.get("/api/runs")
+async def list_runs(
+    status: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0
+):
+    """
+    List all runs with optional filtering.
+
+    Query parameters:
+    - status: Filter by status (pending, running, completed, failed, cancelled)
+    - limit: Maximum number of runs to return (default: 100)
+    - offset: Number of runs to skip (default: 0)
+
+    Response (JSON):
+    {
+        "runs": [{...}, {...}, ...],
+        "total": <total_count>,
+        "limit": <limit>,
+        "offset": <offset>
+    }
+    """
+    # Validate status
+    status_filter = None
+    if status:
+        try:
+            status_filter = JobStatus(status)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid status: {status}"
+            )
+
+    # Get jobs from store
+    job_store = get_job_store()
+    jobs = job_store.list(status=status_filter, limit=limit, offset=offset)
+    total = job_store.count(status=status_filter)
+
+    return JSONResponse(content={
+        "runs": [job.to_dict() for job in jobs],
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    })
+
+
+@app.get("/api/runs/{run_id}")
+async def get_run(run_id: str):
+    """
+    Get a specific run by ID.
+
+    Response (JSON):
+    {
+        "id": "<run_id>",
+        "status": "...",
+        "mode": "...",
+        "output": "...",  # current output (may be incomplete if still running)
+        ...
+    }
+    """
+    executor = get_executor()
+    job = executor.get_status(run_id)
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    # Include current output if job is running
+    if job.status == JobStatus.RUNNING:
+        current_output = executor.get_output(run_id)
+        if current_output:
+            job.output = current_output
+
+    return JSONResponse(content=job.to_dict())
+
+
+@app.post("/api/runs/{run_id}/cancel")
+async def cancel_run(run_id: str):
+    """
+    Cancel a running job.
+
+    Response (JSON):
+    {
+        "success": true/false,
+        "message": "..."
+    }
+    """
+    executor = get_executor()
+    success = executor.cancel(run_id)
+
+    if success:
+        return JSONResponse(content={
+            "success": True,
+            "message": f"Run {run_id} cancelled successfully"
+        })
+    else:
+        return JSONResponse(
+            content={
+                "success": False,
+                "message": f"Run {run_id} not found or already finished"
+            },
+            status_code=404
+        )
+
+
+@app.get("/api/runs/{run_id}/stream")
+async def stream_run_output(run_id: str):
+    """
+    Stream run output and status using Server-Sent Events (SSE).
+
+    This endpoint provides real-time updates for a running job,
+    sending periodic status updates until the job finishes.
+
+    Response: text/event-stream (Server-Sent Events)
+
+    Event format:
+    data: {"status": "...", "output": "...", "finished": true/false}
+    """
+    executor = get_executor()
+
+    # Check if run exists
+    job = executor.get_status(run_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    async def event_generator():
+        """Generate SSE events for job status updates."""
+        last_output_length = 0
+
+        while True:
+            # Get current job status
+            job = executor.get_status(run_id)
+            if not job:
+                break
+
+            # Get current output
+            current_output = executor.get_output(run_id) or ""
+
+            # Only send new output (incremental)
+            new_output = current_output[last_output_length:]
+            last_output_length = len(current_output)
+
+            # Check if job is finished
+            is_finished = job.status in [
+                JobStatus.COMPLETED,
+                JobStatus.FAILED,
+                JobStatus.CANCELLED
+            ]
+
+            # Send update event
+            event_data = {
+                "status": job.status.value,
+                "output": new_output,
+                "finished": is_finished,
+                "exit_code": job.exit_code,
+                "error": job.error
+            }
+
+            yield f"data: {json.dumps(event_data)}\n\n"
+
+            # If finished, stop streaming
+            if is_finished:
+                break
+
+            # Wait before next update (1 second)
+            await asyncio.sleep(1)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
+    )
+
+
+# ============================================================================
+# LEGACY API (for backward compatibility)
+# ============================================================================
+
+
+@app.post("/api/console")
+async def console_command_legacy(request: Request):
+    """
+    Legacy console command endpoint.
+
+    This endpoint is maintained for backward compatibility.
+    New code should use POST /api/runs instead.
+
+    Behaves the same as POST /api/runs.
+    """
+    try:
+        body = await request.json()
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid JSON request body: {str(e)}"
+        )
+
+    # Map mode
+    mode_str = body.get("mode", "chat")
+    if mode_str not in ["chat", "auto", "agent"]:
+        # Support "task" mode
+        if "task" in body.get("input", "").lower():
+            mode_str = "task"
+
+    # Submit as new run
     input_text = body.get("input", "").strip()
     agent_name = body.get("agent")
     provider = body.get("provider", "claude")
 
-    # Validate input
     if not input_text:
-        return JSONResponse(
-            content={
-                "status": "error",
-                "error": "Input text is required",
-            },
+        raise HTTPException(
             status_code=400,
+            detail="Input text is required"
         )
 
-    if mode not in ["chat", "auto", "agent"]:
-        return JSONResponse(
-            content={
-                "status": "error",
-                "error": f"Invalid mode: {mode}. Use 'chat', 'auto', or 'agent'",
-            },
+    try:
+        mode = JobMode(mode_str)
+    except ValueError:
+        raise HTTPException(
             status_code=400,
+            detail=f"Invalid mode: {mode_str}"
         )
 
-    # Execute command
-    result = run_console_command(mode, input_text, agent_name, provider)
+    executor = get_executor()
+    job = executor.submit(
+        mode=mode,
+        input_text=input_text,
+        agent_name=agent_name,
+        provider=provider,
+        target_root=None
+    )
 
-    # Return result with appropriate status code
-    status_code = 200 if result["status"] == "ok" else 500
-    return JSONResponse(content=result, status_code=status_code)
+    # Return job details (not blocking)
+    return JSONResponse(content={
+        "status": "submitted",
+        "run_id": job.id,
+        "message": f"Job submitted successfully. Use GET /api/runs/{job.id} to check status",
+        "job": job.to_dict()
+    })
 
 
 def run_dashboard(host: str = "0.0.0.0", port: Optional[int] = None):
@@ -268,6 +430,11 @@ def run_dashboard(host: str = "0.0.0.0", port: Optional[int] = None):
     # Handle graceful shutdown
     def signal_handler(signum, frame):
         print("\n[CodeCompanion] Shutting down dashboard...")
+
+        # Shutdown executor
+        executor = get_executor()
+        executor.shutdown(wait=False)
+
         server.should_exit = True
         sys.exit(0)
 

@@ -20,7 +20,30 @@ from .info_core import gather_all_info
 def main():
     parser = argparse.ArgumentParser(
         prog="codecompanion",
-        description="CodeCompanion – standalone agent runner & chat REPL (OpenRouter-backed).",
+        description="""
+CodeCompanion - Repo-Agnostic AI Development Assistant
+
+Runs specialized AI agents on any codebase with secure target isolation.
+Automatically detects project type and optimizes agent workflows.
+        """,
+        epilog="""
+Examples:
+  codecompanion --init                      Initialize in current repository
+  codecompanion --check                     Verify installation and config
+  codecompanion --auto                      Run full 9-agent pipeline
+  codecompanion --run Analyzer              Run single agent
+  codecompanion --task "fix import errors"  Natural language task
+  codecompanion detect                      Show project type detection
+  codecompanion --dashboard                 Launch web UI
+  codecompanion --info                      Show system status
+
+Available Agents:
+  Installer, EnvDoctor, Analyzer, DepAuditor, BugTriage,
+  Fixer, TestRunner, WebDoctor, PRPreparer
+
+Learn more: https://github.com/AidiJackson/codecompanion
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--version", action="store_true", help="Show version and exit")
     parser.add_argument(
@@ -58,6 +81,20 @@ def main():
         action="store_true",
         help="Output raw JSON format (used with --info)",
     )
+    parser.add_argument(
+        "--task",
+        metavar="DESCRIPTION",
+        help="Natural language task description (runs Orchestrator + relevant agents)",
+    )
+
+    # Subcommands (detect, etc.)
+    subparsers = parser.add_subparsers(dest='command', help='Subcommands')
+
+    detect_parser = subparsers.add_parser(
+        'detect',
+        help='Detect project type and show recommendations'
+    )
+
     args = parser.parse_args()
 
     if args.version:
@@ -199,6 +236,55 @@ def main():
         from .dashboard.app import run_dashboard
         run_dashboard()
         return 0
+
+    # Handle detect subcommand
+    if args.command == 'detect':
+        from .project_detector import ProjectDetector
+        from rich.console import Console
+        from rich.panel import Panel
+        from rich.table import Table
+
+        target = TargetContext(os.getcwd())
+        info = ProjectDetector.detect_project_type(target.root)
+        preset = ProjectDetector.get_recommended_preset(info)
+
+        console = Console()
+
+        # Project detection panel
+        console.print(Panel.fit(
+            f"[cyan]Type:[/cyan] {info['type']}\n"
+            f"[cyan]Language:[/cyan] {info.get('language', 'unknown')}\n"
+            f"[cyan]Framework:[/cyan] {info.get('framework', 'none')}\n"
+            f"[cyan]Confidence:[/cyan] {info['confidence']:.0%}",
+            title="📦 Project Detection",
+            border_style="blue"
+        ))
+
+        # Recommended preset
+        console.print("\n[bold cyan]Recommended Agent Preset[/bold cyan]")
+        console.print(f"  {preset['description']}")
+        console.print(f"\n[bold cyan]Focus Areas[/bold cyan]")
+        console.print(f"  {preset['focus']}")
+        console.print(f"\n[bold cyan]Suggested Agents[/bold cyan]")
+        for i, agent in enumerate(preset['agents'], 1):
+            console.print(f"  {i}. {agent}")
+
+        console.print("\n[bold green]💡 Tip:[/bold green] Run [cyan]codecompanion --auto[/cyan] to execute this preset")
+
+        return 0
+
+    # Handle --task command
+    if args.task:
+        from .task_handler import run_task
+
+        try:
+            target = TargetContext(os.getcwd())
+            return run_task(args.task, target, provider=args.provider)
+        except Exception as e:
+            print(f"❌ Task execution failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return 1
 
     # Create target context for current directory
     target = TargetContext(os.getcwd())

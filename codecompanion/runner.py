@@ -1,8 +1,10 @@
 from .engine import run_cmd, load_repo_map
 from .llm import complete
+from .target import TargetContext
 import os
 from pathlib import Path
 from datetime import datetime
+from typing import Optional, Union
 from .history import RunRecord, ErrorRecord, append_run_record, append_error_record
 
 # Agent workflow with optimal LLM provider assignments
@@ -19,7 +21,22 @@ AGENT_WORKFLOW = [
 ]
 
 
-def run_single_agent(name: str, provider: str = None):
+def run_single_agent(name: str, provider: str = None, target: Optional[TargetContext] = None):
+    """
+    Run a single agent.
+
+    Args:
+        name: Agent name
+        provider: LLM provider override
+        target: TargetContext for secure execution (uses cwd if None)
+
+    Returns:
+        Exit code (0 = success)
+    """
+    # Create default target if none provided
+    if target is None:
+        target = TargetContext(os.getcwd())
+
     # Find agent config
     agent_config = next((a for a in AGENT_WORKFLOW if a["name"] == name), None)
     if not agent_config:
@@ -29,14 +46,27 @@ def run_single_agent(name: str, provider: str = None):
     # Use specified provider or agent's default
     selected_provider = provider or agent_config["provider"]
     fn = _get(name)
-    return fn(selected_provider)
+    return fn(selected_provider, target)
 
 
-def run_pipeline(provider: str = None):
-    """Run full pipeline - provider param ignored, uses optimal assignments"""
+def run_pipeline(provider: str = None, target: Optional[TargetContext] = None):
+    """
+    Run full pipeline with optimal LLM provider assignments.
+
+    Args:
+        provider: Ignored (uses optimal assignments per agent)
+        target: TargetContext for secure execution (uses cwd if None)
+
+    Returns:
+        Exit code (0 = success)
+    """
+    # Create default target if none provided
+    if target is None:
+        target = TargetContext(os.getcwd())
+
     # Set up history logging
-    project_root = Path(os.getcwd())
-    cc_dir = project_root / ".cc"
+    project_root = target.root
+    cc_dir = target.cc_dir
     run_history_path = cc_dir / "run_history.json"
     error_timeline_path = cc_dir / "error_timeline.json"
 
@@ -44,7 +74,7 @@ def run_pipeline(provider: str = None):
     timestamp = datetime.utcnow().isoformat() + "Z"
     branch = None
     try:
-        r = run_cmd("git rev-parse --abbrev-ref HEAD")
+        r = run_cmd("git rev-parse --abbrev-ref HEAD", target)
         if r["code"] == 0:
             branch = r["stdout"].strip()
     except:
@@ -59,7 +89,7 @@ def run_pipeline(provider: str = None):
             name = agent_config["name"]
             assigned_provider = agent_config["provider"]
             print(f"[agent] {name} (provider: {assigned_provider or 'none'})")
-            rc = run_single_agent(name, assigned_provider)
+            rc = run_single_agent(name, assigned_provider, target)
             if rc != 0:
                 print(f"[error] {name} returned {rc}")
 
@@ -140,18 +170,17 @@ def _get(name):
         "TestRunner": TestRunnerCoverage,
         "WebDoctor": WebAppDoctor,
         "PRPreparer": CommitPRPreparer,
-    }.get(name, lambda p: (print(f"Unknown agent {name}"), 2)[1])
+    }.get(name, lambda p, t: (print(f"Unknown agent {name}"), 2)[1])
 
 
-def PythonProjectInstaller(provider):
+def PythonProjectInstaller(provider, target: TargetContext):
     """Use python-project-installer to set up clean Python environment and dependencies"""
     print("[installer] Setting up Python environment...")
-    run_cmd("python -m pip install -U pip")
-    if not _exists("requirements.txt"):
-        with open("requirements.txt", "w") as f:
-            f.write("rich>=13.7\nhttpx>=0.27\npytest>=7.0\nruff>=0.1\npyright>=1.1\n")
+    run_cmd("python -m pip install -U pip", target)
+    if not target.file_exists("requirements.txt"):
+        target.write_file("requirements.txt", "rich>=13.7\nhttpx>=0.27\npytest>=7.0\nruff>=0.1\npyright>=1.1\n")
         print("[installer] Created requirements.txt")
-    r = run_cmd("pip install -r requirements.txt")
+    r = run_cmd("pip install -r requirements.txt", target)
     if r["code"] != 0:
         print(f"[installer] pip install failed: {r['stderr']}")
         return 1
@@ -159,19 +188,19 @@ def PythonProjectInstaller(provider):
     return 0
 
 
-def EnvironmentDoctor(provider):
+def EnvironmentDoctor(provider, target: TargetContext):
     """Use environment-doctor to diagnose import errors, dependency conflicts, or runtime environment issues"""
     print(f"[env-doctor] Diagnosing Python environment (using {provider})...")
 
     # Basic environment check
-    r = run_cmd("python -c 'import sys; print(f\"Python {sys.version}\")'")
+    r = run_cmd("python -c 'import sys; print(f\"Python {sys.version}\")'", target)
     print(f"[env-doctor] {r['stdout'].strip()}")
 
     # Check core imports
     imports_to_check = ["rich", "httpx", "pytest"]
     issues = []
     for pkg in imports_to_check:
-        r = run_cmd(f"python -c 'import {pkg}; print(f\"{pkg}: OK\")'")
+        r = run_cmd(f"python -c 'import {pkg}; print(f\"{pkg}: OK\")'", target)
         if r["code"] != 0:
             issues.append(f"{pkg} import failed")
             print(f"[env-doctor] WARN: {pkg} import failed")
@@ -194,14 +223,14 @@ def EnvironmentDoctor(provider):
     return 0
 
 
-def ProjectAnalyzerIndexer(provider):
+def ProjectAnalyzerIndexer(provider, target: TargetContext):
     """Use project-analyzer-indexer to analyze and index codebase structure, identify dead code, find asyncio.sleep() stubs"""
     print(f"[analyzer] Analyzing codebase structure (using {provider})...")
-    files = load_repo_map()
+    files = load_repo_map(target)
     print(f"[analyzer] Found {len(files)} tracked files")
 
     # Find asyncio.sleep stubs
-    r = run_cmd("grep -r 'asyncio.sleep' . --include='*.py' || true")
+    r = run_cmd("grep -r 'asyncio.sleep' . --include='*.py' || true", target)
     sleep_refs = []
     if r["stdout"]:
         lines = r["stdout"].strip().split("\n")
@@ -211,7 +240,7 @@ def ProjectAnalyzerIndexer(provider):
             print(f"[analyzer]   {line}")
 
     # Find TODO/FIXME comments
-    r = run_cmd("grep -r 'TODO\\|FIXME' . --include='*.py' || true")
+    r = run_cmd("grep -r 'TODO\\|FIXME' . --include='*.py' || true", target)
     todos = []
     if r["stdout"]:
         lines = r["stdout"].strip().split("\n")
@@ -235,15 +264,15 @@ def ProjectAnalyzerIndexer(provider):
     return 0
 
 
-def DependencyAuditorShrinker(provider):
+def DependencyAuditorShrinker(provider, target: TargetContext):
     """Use dependency-auditor-shrinker to optimize and audit project dependencies for bloat, redundancy, or unused packages"""
     print("[dep-auditor] Auditing dependencies...")
 
-    if _exists("requirements.txt"):
-        with open("requirements.txt", "r") as f:
-            reqs = [
-                line.strip() for line in f if line.strip() and not line.startswith("#")
-            ]
+    if target.file_exists("requirements.txt"):
+        content = target.read_file("requirements.txt")
+        reqs = [
+            line.strip() for line in content.splitlines() if line.strip() and not line.startswith("#")
+        ]
         print(f"[dep-auditor] Found {len(reqs)} requirements")
 
         # Check for common duplicates/conflicts
@@ -256,17 +285,17 @@ def DependencyAuditorShrinker(provider):
     return 0
 
 
-def BugTriageReproBuilder(provider):
+def BugTriageReproBuilder(provider, target: TargetContext):
     """Use bug-triage-repro-builder for vague failures, broken builds, or unclear error states that need systematic diagnosis"""
     print("[bug-triage] Checking for build/test issues...")
 
     # Quick syntax check
-    r = run_cmd("python -m py_compile *.py 2>/dev/null || true")
+    r = run_cmd("python -m py_compile *.py 2>/dev/null || true", target)
     if r["code"] != 0:
         print("[bug-triage] WARN: Python syntax issues found")
 
     # Quick import test
-    r = run_cmd("python -c 'import codecompanion' 2>/dev/null || true")
+    r = run_cmd("python -c 'import codecompanion' 2>/dev/null || true", target)
     if r["code"] != 0:
         print("[bug-triage] WARN: Package import issues found")
     else:
@@ -276,13 +305,14 @@ def BugTriageReproBuilder(provider):
     return 0
 
 
-def FixImplementerPatch(provider):
+def FixImplementerPatch(provider, target: TargetContext):
     """Use fix-implementer-patch to implement minimal patches for specific failures, particularly replacing placeholder code"""
     print("[fixer] Implementing fixes...")
 
     # Check for obvious stub patterns
     r = run_cmd(
-        "grep -r 'raise NotImplementedError\\|pass  # TODO' . --include='*.py' || true"
+        "grep -r 'raise NotImplementedError\\|pass  # TODO' . --include='*.py' || true",
+        target
     )
     if r["stdout"]:
         lines = r["stdout"].strip().split("\n")
@@ -293,19 +323,18 @@ def FixImplementerPatch(provider):
     return 0
 
 
-def TestRunnerCoverage(provider):
+def TestRunnerCoverage(provider, target: TargetContext):
     """Use test-runner-coverage to execute the full test suite with coverage reporting"""
     print("[test-runner] Running test suite...")
 
     # Check if tests exist
-    if not _exists("tests"):
+    if not target.file_exists("tests"):
         print("[test-runner] No tests directory found, creating basic test structure")
-        run_cmd("mkdir -p tests")
-        with open("tests/test_basic.py", "w") as f:
-            f.write("def test_import():\n    import codecompanion\n    assert True\n")
+        target.mkdir("tests")
+        target.write_file("tests/test_basic.py", "def test_import():\n    import codecompanion\n    assert True\n")
 
     # Run tests
-    r = run_cmd("python -m pytest tests/ -q --tb=short || true")
+    r = run_cmd("python -m pytest tests/ -q --tb=short || true", target)
     print(r["stdout"])
     if r["stderr"]:
         print(f"[test-runner] stderr: {r['stderr']}")
@@ -314,14 +343,14 @@ def TestRunnerCoverage(provider):
     return 0
 
 
-def WebAppDoctor(provider):
+def WebAppDoctor(provider, target: TargetContext):
     """Use web-app-doctor to diagnose and fix web application setup issues, particularly for Streamlit, FastAPI, or Flask applications"""
     print("[web-doctor] Checking web app configuration...")
 
     # Check for web app files
     web_files = []
     for pattern in ["*app.py", "main.py", "server.py"]:
-        r = run_cmd(f"ls {pattern} 2>/dev/null || true")
+        r = run_cmd(f"ls {pattern} 2>/dev/null || true", target)
         if r["stdout"]:
             web_files.extend(r["stdout"].strip().split("\n"))
 
@@ -330,7 +359,8 @@ def WebAppDoctor(provider):
         # Check for framework imports
         for f in web_files:
             r = run_cmd(
-                f"grep -l 'streamlit\\|fastapi\\|flask' {f} 2>/dev/null || true"
+                f"grep -l 'streamlit\\|fastapi\\|flask' {f} 2>/dev/null || true",
+                target
             )
             if r["stdout"]:
                 print(f"[web-doctor] {f} appears to be a web app")
@@ -341,21 +371,21 @@ def WebAppDoctor(provider):
     return 0
 
 
-def CommitPRPreparer(provider):
+def CommitPRPreparer(provider, target: TargetContext):
     """Use commit-pr-preparer to prepare codebase for commit and PR submission with proper documentation and safe rollback capabilities"""
     print("[pr-preparer] Preparing for commit...")
 
     # Check git status
-    r = run_cmd("git status --porcelain")
+    r = run_cmd("git status --porcelain", target)
     if r["stdout"]:
         changes = r["stdout"].strip().split("\n")
         print(f"[pr-preparer] Found {len(changes)} changed files")
 
         # Stage changes
-        run_cmd("git add -A")
+        run_cmd("git add -A", target)
 
         # Create commit
-        r = run_cmd("git commit -m 'chore: codecompanion pipeline run' || true")
+        r = run_cmd("git commit -m 'chore: codecompanion pipeline run' || true", target)
         if r["code"] == 0:
             print("[pr-preparer] Changes committed successfully")
         else:
@@ -365,12 +395,3 @@ def CommitPRPreparer(provider):
 
     print("[pr-preparer] PR preparation complete")
     return 0
-
-
-def _exists(p):
-    try:
-        import os
-
-        return os.path.exists(p)
-    except:
-        return False

@@ -10,6 +10,7 @@ logging.getLogger('streamlit.logger').setLevel(logging.ERROR)
 os.environ['STREAMLIT_LOGGER_LEVEL'] = 'error'
 
 from .bootstrap import ensure_bootstrap
+from .target import TargetContext
 from . import __version__
 from .repl import chat_repl
 from .runner import run_pipeline, run_single_agent
@@ -61,7 +62,8 @@ def main():
     # Handle --info command
     if args.info:
         project_root = os.getcwd()
-        info_data = gather_all_info(project_root)
+        target = TargetContext(project_root)
+        info_data = gather_all_info(str(target.root))
 
         if args.raw:
             # Raw JSON output
@@ -142,21 +144,25 @@ def main():
         run_dashboard()
         return 0
 
-    info = ensure_bootstrap()
+    # Create target context for current directory
+    target = TargetContext(os.getcwd())
+
+    info = ensure_bootstrap(target)
     if args.check:
         print("[codecompanion] OK. Bootstrap dir:", info["dir"])
         if info["created"]:
             print("[codecompanion] Created:", ", ".join(info["created"]))
         print("[codecompanion] Agents dir:", info["agents_dir"])
+        print("[codecompanion] Target:", target.root)
         print("[codecompanion] Provider:", args.provider)
         return 0
 
     if args.chat:
         return chat_repl(provider=args.provider)
     if args.auto:
-        return run_pipeline(provider=args.provider)
+        return run_pipeline(provider=args.provider, target=target)
     if args.run:
-        return run_single_agent(args.run, provider=args.provider)
+        return run_single_agent(args.run, provider=args.provider, target=target)
     # default help
     parser.print_help()
     return 0

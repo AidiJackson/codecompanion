@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Optional, Dict, Callable
 from contextlib import redirect_stdout, redirect_stderr
 
-from .models import Job, JobStatus, JobMode, JobStore, get_job_store
+from .models import Job, JobStatus, JobMode, JobStore, get_job_store, update_job_metrics
 
 
 class CancellationToken:
@@ -306,6 +306,9 @@ class JobExecutor:
             job.finished_at = datetime.utcnow().isoformat() + "Z"
             job.can_cancel = False
 
+            # Calculate token usage and cost
+            update_job_metrics(job)
+
         except Exception as e:
             # Restore cwd
             try:
@@ -323,6 +326,9 @@ class JobExecutor:
             job.output = output_capture.getvalue()
             job.finished_at = datetime.utcnow().isoformat() + "Z"
             job.can_cancel = False
+
+            # Calculate token usage and cost even for failed jobs
+            update_job_metrics(job)
 
         finally:
             # Update job in store

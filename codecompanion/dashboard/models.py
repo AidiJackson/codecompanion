@@ -35,6 +35,43 @@ class JobMode(str, Enum):
 
 
 @dataclass
+class Session:
+    """
+    Represents a grouping of related jobs.
+
+    Sessions allow grouping jobs that are part of the same workflow
+    or initiated from the same context.
+
+    Attributes:
+        id: Unique session identifier (UUID)
+        name: Human-readable session name
+        created_at: ISO timestamp when session was created
+        updated_at: ISO timestamp when session was last updated
+        total_jobs: Total number of jobs in this session
+        completed_jobs: Number of completed jobs
+        total_cost: Total estimated cost across all jobs (USD)
+        total_tokens: Total tokens used across all jobs
+    """
+    id: str
+    name: str
+    created_at: str
+    updated_at: str
+    total_jobs: int = 0
+    completed_jobs: int = 0
+    total_cost: float = 0.0
+    total_tokens: int = 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return asdict(self)
+
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> 'Session':
+        """Create Session from dictionary."""
+        return Session(**data)
+
+
+@dataclass
 class Job:
     """
     Represents an async CodeCompanion job/run.
@@ -54,6 +91,12 @@ class Job:
         error: Error message if failed (optional)
         exit_code: Process exit code (optional)
         can_cancel: Whether job can be cancelled
+        session_id: Optional session ID for grouping related jobs
+        input_tokens: Estimated input tokens used
+        output_tokens: Estimated output tokens used
+        total_tokens: Total tokens (input + output)
+        estimated_cost: Estimated cost in USD
+        model_used: Specific model used (e.g., claude-3-sonnet-20240229)
     """
     id: str
     mode: JobMode
@@ -69,6 +112,12 @@ class Job:
     error: Optional[str] = None
     exit_code: Optional[int] = None
     can_cancel: bool = True
+    session_id: Optional[str] = None
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_tokens: int = 0
+    estimated_cost: float = 0.0
+    model_used: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -109,11 +158,12 @@ class JobStore:
         self._init_db()
 
     def _init_db(self):
-        """Initialize database schema."""
+        """Initialize database schema with migrations."""
         # Ensure parent directory exists
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
         with self._get_conn() as conn:
+            # Create jobs table with all fields
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS jobs (
                     id TEXT PRIMARY KEY,
@@ -129,23 +179,79 @@ class JobStore:
                     output TEXT,
                     error TEXT,
                     exit_code INTEGER,
-                    can_cancel INTEGER DEFAULT 1
+                    can_cancel INTEGER DEFAULT 1,
+                    session_id TEXT,
+                    input_tokens INTEGER DEFAULT 0,
+                    output_tokens INTEGER DEFAULT 0,
+                    total_tokens INTEGER DEFAULT 0,
+                    estimated_cost REAL DEFAULT 0.0,
+                    model_used TEXT
                 )
             """)
 
-            # Create index on created_at for efficient sorting
+            # Migrate existing tables (add new columns if they don't exist)
+            self._migrate_schema(conn)
+
+            # Create sessions table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS sessions (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    total_jobs INTEGER DEFAULT 0,
+                    completed_jobs INTEGER DEFAULT 0,
+                    total_cost REAL DEFAULT 0.0,
+                    total_tokens INTEGER DEFAULT 0
+                )
+            """)
+
+            # Create indexes
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_jobs_created_at
                 ON jobs(created_at DESC)
             """)
 
-            # Create index on status for filtering
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_jobs_status
                 ON jobs(status)
             """)
 
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_jobs_session_id
+                ON jobs(session_id)
+            """)
+
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_sessions_created_at
+                ON sessions(created_at DESC)
+            """)
+
             conn.commit()
+
+    def _migrate_schema(self, conn):
+        """Add new columns to existing tables if they don't exist."""
+        # Get existing columns
+        cursor = conn.execute("PRAGMA table_info(jobs)")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+
+        # Add new columns if they don't exist
+        new_columns = {
+            'session_id': 'TEXT',
+            'input_tokens': 'INTEGER DEFAULT 0',
+            'output_tokens': 'INTEGER DEFAULT 0',
+            'total_tokens': 'INTEGER DEFAULT 0',
+            'estimated_cost': 'REAL DEFAULT 0.0',
+            'model_used': 'TEXT'
+        }
+
+        for column_name, column_type in new_columns.items():
+            if column_name not in existing_columns:
+                try:
+                    conn.execute(f"ALTER TABLE jobs ADD COLUMN {column_name} {column_type}")
+                except sqlite3.OperationalError:
+                    # Column might already exist due to race condition
+                    pass
 
     @contextmanager
     def _get_conn(self):
@@ -173,8 +279,10 @@ class JobStore:
                 INSERT INTO jobs (
                     id, mode, input, agent_name, provider, target_root,
                     status, created_at, started_at, finished_at,
-                    output, error, exit_code, can_cancel
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    output, error, exit_code, can_cancel,
+                    session_id, input_tokens, output_tokens, total_tokens,
+                    estimated_cost, model_used
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 job.id,
                 job.mode.value,
@@ -190,6 +298,12 @@ class JobStore:
                 job.error,
                 job.exit_code,
                 1 if job.can_cancel else 0,
+                job.session_id,
+                job.input_tokens,
+                job.output_tokens,
+                job.total_tokens,
+                job.estimated_cost,
+                job.model_used,
             ))
             conn.commit()
 
@@ -277,7 +391,13 @@ class JobStore:
                     output = ?,
                     error = ?,
                     exit_code = ?,
-                    can_cancel = ?
+                    can_cancel = ?,
+                    session_id = ?,
+                    input_tokens = ?,
+                    output_tokens = ?,
+                    total_tokens = ?,
+                    estimated_cost = ?,
+                    model_used = ?
                 WHERE id = ?
             """, (
                 job.mode.value,
@@ -293,6 +413,12 @@ class JobStore:
                 job.error,
                 job.exit_code,
                 1 if job.can_cancel else 0,
+                job.session_id,
+                job.input_tokens,
+                job.output_tokens,
+                job.total_tokens,
+                job.estimated_cost,
+                job.model_used,
                 job.id,
             ))
             conn.commit()
@@ -355,6 +481,12 @@ class JobStore:
             error=row['error'],
             exit_code=row['exit_code'],
             can_cancel=bool(row['can_cancel']),
+            session_id=row.get('session_id'),
+            input_tokens=row.get('input_tokens', 0),
+            output_tokens=row.get('output_tokens', 0),
+            total_tokens=row.get('total_tokens', 0),
+            estimated_cost=row.get('estimated_cost', 0.0),
+            model_used=row.get('model_used'),
         )
 
 
@@ -378,3 +510,309 @@ def get_job_store(db_path: Optional[Path] = None) -> JobStore:
         _job_store = JobStore(db_path)
 
     return _job_store
+
+# ==============================================================================
+# Session Store
+# ==============================================================================
+
+
+class SessionStore:
+    """
+    Thread-safe SQLite-based storage for sessions.
+
+    Manages session grouping and aggregated metrics.
+    """
+
+    def __init__(self, db_path: Optional[Path] = None):
+        """
+        Initialize session store.
+
+        Args:
+            db_path: Path to SQLite database file (uses same as JobStore)
+        """
+        if db_path is None:
+            db_path = Path.cwd() / ".cc" / "jobs.db"
+
+        self.db_path = db_path
+        self._lock = threading.Lock()
+
+    @contextmanager
+    def _get_conn(self):
+        """Get thread-safe database connection."""
+        with self._lock:
+            conn = sqlite3.connect(str(self.db_path))
+            conn.row_factory = sqlite3.Row
+            try:
+                yield conn
+            finally:
+                conn.close()
+
+    def create(self, session: Session) -> Session:
+        """Create a new session."""
+        with self._get_conn() as conn:
+            conn.execute("""
+                INSERT INTO sessions (
+                    id, name, created_at, updated_at,
+                    total_jobs, completed_jobs, total_cost, total_tokens
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                session.id,
+                session.name,
+                session.created_at,
+                session.updated_at,
+                session.total_jobs,
+                session.completed_jobs,
+                session.total_cost,
+                session.total_tokens,
+            ))
+            conn.commit()
+
+        return session
+
+    def get(self, session_id: str) -> Optional[Session]:
+        """Get session by ID."""
+        with self._get_conn() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM sessions WHERE id = ?",
+                (session_id,)
+            )
+            row = cursor.fetchone()
+
+            if row is None:
+                return None
+
+            return self._row_to_session(row)
+
+    def list(self, limit: int = 100, offset: int = 0) -> List[Session]:
+        """List sessions sorted by updated_at DESC."""
+        with self._get_conn() as conn:
+            cursor = conn.execute("""
+                SELECT * FROM sessions
+                ORDER BY updated_at DESC
+                LIMIT ? OFFSET ?
+            """, (limit, offset))
+
+            rows = cursor.fetchall()
+            return [self._row_to_session(row) for row in rows]
+
+    def update(self, session: Session) -> Session:
+        """Update existing session."""
+        with self._get_conn() as conn:
+            conn.execute("""
+                UPDATE sessions SET
+                    name = ?,
+                    updated_at = ?,
+                    total_jobs = ?,
+                    completed_jobs = ?,
+                    total_cost = ?,
+                    total_tokens = ?
+                WHERE id = ?
+            """, (
+                session.name,
+                session.updated_at,
+                session.total_jobs,
+                session.completed_jobs,
+                session.total_cost,
+                session.total_tokens,
+                session.id,
+            ))
+            conn.commit()
+
+        return session
+
+    def delete(self, session_id: str) -> bool:
+        """Delete session by ID."""
+        with self._get_conn() as conn:
+            cursor = conn.execute(
+                "DELETE FROM sessions WHERE id = ?",
+                (session_id,)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def count(self) -> int:
+        """Count total sessions."""
+        with self._get_conn() as conn:
+            cursor = conn.execute("SELECT COUNT(*) FROM sessions")
+            return cursor.fetchone()[0]
+
+    def _row_to_session(self, row: sqlite3.Row) -> Session:
+        """Convert database row to Session object."""
+        return Session(
+            id=row['id'],
+            name=row['name'],
+            created_at=row['created_at'],
+            updated_at=row['updated_at'],
+            total_jobs=row['total_jobs'],
+            completed_jobs=row['completed_jobs'],
+            total_cost=row['total_cost'],
+            total_tokens=row['total_tokens'],
+        )
+
+
+# Global session store instance (singleton)
+_session_store: Optional[SessionStore] = None
+
+
+def get_session_store(db_path: Optional[Path] = None) -> SessionStore:
+    """
+    Get global session store instance.
+
+    Args:
+        db_path: Optional path to database file
+
+    Returns:
+        SessionStore instance
+    """
+    global _session_store
+
+    if _session_store is None:
+        _session_store = SessionStore(db_path)
+
+    return _session_store
+
+
+# ==============================================================================
+# Token Estimation and Cost Calculation
+# ==============================================================================
+
+
+# Provider pricing (USD per 1M tokens)
+PROVIDER_PRICING = {
+    'claude': {
+        'input': 3.0,
+        'output': 15.0,
+        'models': {
+            'claude-3-sonnet-20240229': {'input': 3.0, 'output': 15.0},
+            'claude-3-opus-20240229': {'input': 15.0, 'output': 75.0},
+            'claude-3-haiku-20240307': {'input': 0.25, 'output': 1.25},
+        }
+    },
+    'gpt4': {
+        'input': 10.0,
+        'output': 30.0,
+        'models': {
+            'gpt-4': {'input': 30.0, 'output': 60.0},
+            'gpt-4-turbo': {'input': 10.0, 'output': 30.0},
+            'gpt-3.5-turbo': {'input': 0.5, 'output': 1.5},
+        }
+    },
+    'gemini': {
+        'input': 1.25,
+        'output': 5.0,
+        'models': {
+            'gemini-pro': {'input': 1.25, 'output': 5.0},
+            'gemini-ultra': {'input': 2.5, 'output': 10.0},
+        }
+    }
+}
+
+
+def estimate_tokens(text: str) -> int:
+    """
+    Estimate token count for text.
+
+    Uses simple character-based estimation: 1 token ≈ 4 characters.
+    This is a rough approximation for planning purposes.
+
+    Args:
+        text: Input text
+
+    Returns:
+        Estimated token count
+    """
+    if not text:
+        return 0
+
+    # Simple estimation: 1 token ≈ 4 characters
+    return max(1, len(text) // 4)
+
+
+def calculate_cost(
+    input_tokens: int,
+    output_tokens: int,
+    provider: str,
+    model: Optional[str] = None
+) -> float:
+    """
+    Calculate estimated cost in USD.
+
+    Args:
+        input_tokens: Number of input tokens
+        output_tokens: Number of output tokens
+        provider: Provider name (claude, gpt4, gemini)
+        model: Optional specific model name
+
+    Returns:
+        Estimated cost in USD
+    """
+    if provider not in PROVIDER_PRICING:
+        return 0.0
+
+    pricing = PROVIDER_PRICING[provider]
+
+    # Try to use specific model pricing
+    if model and 'models' in pricing:
+        for model_key, model_pricing in pricing['models'].items():
+            if model_key in model.lower() if model else False:
+                pricing = model_pricing
+                break
+
+    # Calculate cost per million tokens
+    input_cost = (input_tokens / 1_000_000) * pricing.get('input', 0.0)
+    output_cost = (output_tokens / 1_000_000) * pricing.get('output', 0.0)
+
+    return input_cost + output_cost
+
+
+def estimate_job_cost(job: Job) -> float:
+    """
+    Estimate cost for a job based on input/output.
+
+    Args:
+        job: Job object
+
+    Returns:
+        Estimated cost in USD
+    """
+    if job.estimated_cost > 0:
+        return job.estimated_cost
+
+    input_tokens = estimate_tokens(job.input)
+    output_tokens = estimate_tokens(job.output or "")
+
+    return calculate_cost(
+        input_tokens,
+        output_tokens,
+        job.provider,
+        job.model_used
+    )
+
+
+def update_job_metrics(job: Job) -> Job:
+    """
+    Update job token and cost metrics.
+
+    Args:
+        job: Job object to update
+
+    Returns:
+        Updated job with calculated metrics
+    """
+    if job.input_tokens == 0:
+        job.input_tokens = estimate_tokens(job.input)
+
+    if job.output_tokens == 0 and job.output:
+        job.output_tokens = estimate_tokens(job.output)
+
+    job.total_tokens = job.input_tokens + job.output_tokens
+
+    if job.estimated_cost == 0.0:
+        job.estimated_cost = calculate_cost(
+            job.input_tokens,
+            job.output_tokens,
+            job.provider,
+            job.model_used
+        )
+
+    return job

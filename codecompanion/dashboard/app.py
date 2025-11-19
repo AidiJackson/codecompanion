@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from codecompanion.info_core import gather_all_info
 
 # Import async job execution components
-from .models import Job, JobStatus, JobMode, get_job_store
+from .models import Job, JobStatus, JobMode, Session, get_job_store, get_session_store
 from .executor import get_executor
 
 
@@ -334,6 +334,244 @@ async def stream_run_output(run_id: str):
             "X-Accel-Buffering": "no"  # Disable nginx buffering
         }
     )
+
+
+# ============================================================================
+# SESSIONS API
+# ============================================================================
+
+
+@app.get("/api/sessions")
+async def list_sessions(limit: int = 100, offset: int = 0):
+    """
+    List all sessions.
+
+    Query parameters:
+    - limit: Maximum number of sessions to return (default: 100)
+    - offset: Number of sessions to skip (default: 0)
+
+    Response (JSON):
+    {
+        "sessions": [{...}, {...}, ...],
+        "total": <total_count>,
+        "limit": <limit>,
+        "offset": <offset>
+    }
+    """
+    session_store = get_session_store()
+    sessions = session_store.list(limit=limit, offset=offset)
+    total = session_store.count()
+
+    return JSONResponse(content={
+        "sessions": [session.to_dict() for session in sessions],
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    })
+
+
+@app.get("/api/sessions/{session_id}")
+async def get_session(session_id: str):
+    """
+    Get a specific session by ID.
+
+    Response (JSON):
+    {
+        "id": "<session_id>",
+        "name": "...",
+        "total_jobs": ...,
+        "total_cost": ...,
+        ...
+    }
+    """
+    session_store = get_session_store()
+    session = session_store.get(session_id)
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return JSONResponse(content=session.to_dict())
+
+
+@app.get("/api/sessions/{session_id}/jobs")
+async def get_session_jobs(session_id: str):
+    """
+    Get all jobs for a specific session.
+
+    Response (JSON):
+    {
+        "session": {...},
+        "jobs": [{...}, {...}, ...]
+    }
+    """
+    session_store = get_session_store()
+    job_store = get_job_store()
+
+    session = session_store.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Get all jobs for this session
+    all_jobs = job_store.list(limit=1000)  # Get enough jobs
+    session_jobs = [job for job in all_jobs if job.session_id == session_id]
+
+    return JSONResponse(content={
+        "session": session.to_dict(),
+        "jobs": [job.to_dict() for job in session_jobs]
+    })
+
+
+# ============================================================================
+# TIMELINE & ANALYTICS API
+# ============================================================================
+
+
+@app.get("/api/timeline")
+async def get_timeline(
+    session_id: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0
+):
+    """
+    Get timeline view of jobs with optional session filtering.
+
+    Timeline shows jobs chronologically grouped by session.
+
+    Query parameters:
+    - session_id: Optional session ID to filter by
+    - limit: Maximum number of jobs to return (default: 100)
+    - offset: Number of jobs to skip (default: 0)
+
+    Response (JSON):
+    {
+        "timeline": [
+            {
+                "session": {...} or null,
+                "jobs": [{...}, {...}, ...]
+            },
+            ...
+        ],
+        "total_jobs": <total_count>
+    }
+    """
+    job_store = get_job_store()
+    session_store = get_session_store()
+
+    # Get jobs
+    if session_id:
+        all_jobs = job_store.list(limit=1000)
+        jobs = [job for job in all_jobs if job.session_id == session_id]
+    else:
+        jobs = job_store.list(limit=limit, offset=offset)
+
+    # Group by session
+    sessions_map = {}
+    for job in jobs:
+        sid = job.session_id or "ungrouped"
+        if sid not in sessions_map:
+            sessions_map[sid] = []
+        sessions_map[sid].append(job)
+
+    # Build timeline
+    timeline = []
+    for sid, job_list in sessions_map.items():
+        if sid == "ungrouped":
+            session_data = None
+        else:
+            session = session_store.get(sid)
+            session_data = session.to_dict() if session else None
+
+        timeline.append({
+            "session": session_data,
+            "jobs": [job.to_dict() for job in job_list]
+        })
+
+    return JSONResponse(content={
+        "timeline": timeline,
+        "total_jobs": len(jobs)
+    })
+
+
+@app.get("/api/analytics")
+async def get_analytics():
+    """
+    Get analytics dashboard data.
+
+    Response (JSON):
+    {
+        "total_jobs": ...,
+        "total_sessions": ...,
+        "total_cost": ...,
+        "total_tokens": ...,
+        "by_status": {...},
+        "by_mode": {...},
+        "by_provider": {...},
+        "avg_duration": ...,
+        "success_rate": ...
+    }
+    """
+    job_store = get_job_store()
+    session_store = get_session_store()
+
+    # Get all jobs
+    all_jobs = job_store.list(limit=10000)  # Get all jobs
+
+    # Calculate metrics
+    total_jobs = len(all_jobs)
+    total_sessions = session_store.count()
+
+    total_cost = sum(job.estimated_cost for job in all_jobs)
+    total_tokens = sum(job.total_tokens for job in all_jobs)
+
+    # Group by status
+    by_status = {}
+    for job in all_jobs:
+        status = job.status.value
+        by_status[status] = by_status.get(status, 0) + 1
+
+    # Group by mode
+    by_mode = {}
+    for job in all_jobs:
+        mode = job.mode.value
+        by_mode[mode] = by_mode.get(mode, 0) + 1
+
+    # Group by provider
+    by_provider = {}
+    for job in all_jobs:
+        provider = job.provider
+        by_provider[provider] = by_provider.get(provider, 0) + 1
+
+    # Calculate average duration
+    finished_jobs = [j for j in all_jobs if j.finished_at and j.started_at]
+    if finished_jobs:
+        durations = []
+        for job in finished_jobs:
+            try:
+                started = datetime.fromisoformat(job.started_at.replace('Z', '+00:00'))
+                finished = datetime.fromisoformat(job.finished_at.replace('Z', '+00:00'))
+                duration = (finished - started).total_seconds()
+                durations.append(duration)
+            except:
+                pass
+        avg_duration = sum(durations) / len(durations) if durations else 0
+    else:
+        avg_duration = 0
+
+    # Calculate success rate
+    completed_jobs = by_status.get('completed', 0)
+    success_rate = (completed_jobs / total_jobs * 100) if total_jobs > 0 else 0
+
+    return JSONResponse(content={
+        "total_jobs": total_jobs,
+        "total_sessions": total_sessions,
+        "total_cost": round(total_cost, 4),
+        "total_tokens": total_tokens,
+        "by_status": by_status,
+        "by_mode": by_mode,
+        "by_provider": by_provider,
+        "avg_duration": round(avg_duration, 2),
+        "success_rate": round(success_rate, 2)
+    })
 
 
 # ============================================================================

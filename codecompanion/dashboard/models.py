@@ -481,12 +481,12 @@ class JobStore:
             error=row['error'],
             exit_code=row['exit_code'],
             can_cancel=bool(row['can_cancel']),
-            session_id=row.get('session_id'),
-            input_tokens=row.get('input_tokens', 0),
-            output_tokens=row.get('output_tokens', 0),
-            total_tokens=row.get('total_tokens', 0),
-            estimated_cost=row.get('estimated_cost', 0.0),
-            model_used=row.get('model_used'),
+            session_id=row['session_id'] if 'session_id' in row.keys() else None,
+            input_tokens=row['input_tokens'] if 'input_tokens' in row.keys() else 0,
+            output_tokens=row['output_tokens'] if 'output_tokens' in row.keys() else 0,
+            total_tokens=row['total_tokens'] if 'total_tokens' in row.keys() else 0,
+            estimated_cost=row['estimated_cost'] if 'estimated_cost' in row.keys() else 0.0,
+            model_used=row['model_used'] if 'model_used' in row.keys() else None,
         )
 
 

@@ -24,6 +24,11 @@ def main():
     )
     parser.add_argument("--version", action="store_true", help="Show version and exit")
     parser.add_argument(
+        "--init",
+        action="store_true",
+        help="Initialize CodeCompanion in current repository",
+    )
+    parser.add_argument(
         "--check",
         action="store_true",
         help="Check environment and bootstrap presence, then exit",
@@ -58,6 +63,57 @@ def main():
     if args.version:
         print(__version__)
         return 0
+
+    # Handle --init command
+    if args.init:
+        from .workspace import (
+            create_workspace_config,
+            save_workspace_config,
+            is_initialized,
+            get_workspace_summary
+        )
+        from .target import TargetSecurityError
+
+        try:
+            target = TargetContext(os.getcwd())
+
+            # Check if already initialized
+            already_initialized = is_initialized(target)
+
+            # Run bootstrap to ensure .cc/ structure
+            info = ensure_bootstrap(target)
+
+            # Create/update workspace configuration
+            workspace_config = create_workspace_config(target, force=False)
+            save_workspace_config(target, workspace_config)
+
+            # Display success message
+            if already_initialized:
+                print("ℹ️  CodeCompanion workspace updated")
+            else:
+                print("✅ CodeCompanion initialized successfully!")
+
+            print(f"\n📁 Target: {target.root}")
+            print()
+            print(get_workspace_summary(workspace_config))
+
+            print("\n💡 Next steps:")
+            print("   codecompanion --check        # Verify installation")
+            print("   codecompanion --auto         # Run full pipeline")
+            print("   codecompanion --run Analyzer # Run single agent")
+
+            return 0
+
+        except TargetSecurityError as e:
+            print(f"❌ Security error: {e}")
+            print("\n💡 Tip: CodeCompanion cannot operate on system directories.")
+            print("   Please run this command from within a project directory.")
+            return 1
+        except Exception as e:
+            print(f"❌ Initialization failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return 1
 
     # Handle --info command
     if args.info:

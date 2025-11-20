@@ -17,7 +17,7 @@ classifiers = [
     "License :: Other/Proprietary License",
     "Operating System :: OS Independent",
 ]
-dependencies = ["rich>=13.7", "httpx>=0.27", "fastapi>=0.100.0", "uvicorn>=0.23.0"]
+dependencies = ["rich>=13.7", "httpx>=0.27", "fastapi>=0.100.0", "uvicorn>=0.23.0", "psutil>=5.9.0"]
 
 [project.scripts]
 codecompanion = "codecompanion.cli:main"

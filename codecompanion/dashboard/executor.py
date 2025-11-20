@@ -4,7 +4,8 @@ Background job executor for CodeCompanion async runs.
 This module provides:
 - ThreadPoolExecutor-based async job execution
 - Output streaming with real-time capture
-- Cancellation support
+- Enhanced cancellation support (graceful/forced)
+- Process tree management
 - Thread-safe job management
 """
 import os
@@ -20,6 +21,7 @@ from typing import Optional, Dict, Callable
 from contextlib import redirect_stdout, redirect_stderr
 
 from .models import Job, JobStatus, JobMode, JobStore, get_job_store, update_job_metrics
+from .process_manager import ProcessManager, CancellationMode, get_process_manager
 
 
 class CancellationToken:
@@ -67,14 +69,16 @@ class JobExecutor:
     Features:
     - Parallel job execution with configurable worker pool
     - Real-time output capture
-    - Cancellation support
+    - Enhanced cancellation (graceful/forced)
+    - Process tree management
     - Automatic status updates to JobStore
     """
 
     def __init__(
         self,
         max_workers: int = 4,
-        job_store: Optional[JobStore] = None
+        job_store: Optional[JobStore] = None,
+        process_manager: Optional[ProcessManager] = None
     ):
         """
         Initialize job executor.
@@ -82,9 +86,11 @@ class JobExecutor:
         Args:
             max_workers: Maximum number of concurrent jobs
             job_store: JobStore instance (uses global if None)
+            process_manager: ProcessManager instance (uses global if None)
         """
         self.max_workers = max_workers
         self.job_store = job_store or get_job_store()
+        self.process_manager = process_manager or get_process_manager()
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._futures: Dict[str, Future] = {}
         self._cancellation_tokens: Dict[str, CancellationToken] = {}
@@ -187,34 +193,55 @@ class JobExecutor:
         job = self.job_store.get(job_id)
         return job.output if job else None
 
-    def cancel(self, job_id: str) -> bool:
+    def cancel(self, job_id: str, mode: CancellationMode = CancellationMode.GRACEFUL) -> bool:
         """
-        Cancel a running job.
+        Cancel a running job using the specified mode.
+
+        Cancellation process:
+        1. Set cancellation token (for cooperative cancellation)
+        2. If job has a process ID, kill the process tree
+           - Graceful: SIGTERM -> wait -> SIGKILL
+           - Forced: SIGKILL immediately
+        3. Update job status and record cancellation mode
 
         Args:
             job_id: Job ID
+            mode: Cancellation mode (graceful or forced)
 
         Returns:
             True if job was cancelled, False if not found or already finished
         """
+        # Get cancellation token
         with self._lock:
             token = self._cancellation_tokens.get(job_id)
             if not token:
                 return False
 
-        # Mark token as cancelled
+        # Mark token as cancelled (cooperative cancellation)
         token.cancel()
 
-        # Update job status
+        # Get job and check if it has a process ID
         job = self.job_store.get(job_id)
-        if job and job.status == JobStatus.RUNNING:
-            job.status = JobStatus.CANCELLED
-            job.finished_at = datetime.utcnow().isoformat() + "Z"
-            job.can_cancel = False
-            self.job_store.update(job)
-            return True
+        if not job or job.status != JobStatus.RUNNING:
+            return False
 
-        return False
+        # Kill process tree if process ID exists
+        if job.process_id:
+            try:
+                success = self.process_manager.cancel_process(job.process_id, mode)
+                if not success:
+                    print(f"[executor] Warning: Could not fully terminate process tree for job {job_id}")
+            except Exception as e:
+                print(f"[executor] Error killing process tree: {e}")
+
+        # Update job status
+        job.status = JobStatus.CANCELLED
+        job.finished_at = datetime.utcnow().isoformat() + "Z"
+        job.can_cancel = False
+        job.cancellation_mode = mode.value
+        self.job_store.update(job)
+
+        return True
 
     def _execute_job(
         self,
@@ -229,9 +256,10 @@ class JobExecutor:
         from codecompanion.task_handler import run_task
         from codecompanion.target import TargetContext
 
-        # Update status to RUNNING
+        # Update status to RUNNING and store process ID
         job.status = JobStatus.RUNNING
         job.started_at = datetime.utcnow().isoformat() + "Z"
+        job.process_id = os.getpid()  # Store current process ID
         self.job_store.update(job)
 
         try:

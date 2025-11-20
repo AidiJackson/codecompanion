@@ -374,6 +374,16 @@
             background: rgba(59, 130, 246, 0.25);
         }
 
+        .btn-warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-warning:hover {
+            background: rgba(245, 158, 11, 0.25);
+        }
+
         .btn-danger {
             background: rgba(239, 68, 68, 0.15);
             color: #ef4444;
@@ -1154,7 +1164,10 @@
                         </div>
                         <div class="job-actions">
                             <span class="status-badge status-${getStatusColor(job.status)}">${statusText}</span>
-                            ${canCancel ? `<button class="btn btn-small btn-danger" onclick="cancelJob('${job.id}')">Cancel</button>` : ''}
+                            ${canCancel ? `
+                                <button class="btn btn-small btn-warning" onclick="cancelJob('${job.id}', 'graceful')" title="Graceful shutdown (SIGTERM then SIGKILL)">Cancel</button>
+                                <button class="btn btn-small btn-danger" onclick="cancelJob('${job.id}', 'forced')" title="Force stop immediately (SIGKILL)">⚡ Force</button>
+                            ` : ''}
                             ${job.status !== 'running' ? `<button class="btn btn-small btn-secondary" onclick="viewJobDetails('${job.id}')">Details</button>` : ''}
                         </div>
                     </div>
@@ -1235,17 +1248,25 @@
             };
         }
 
-        async function cancelJob(jobId) {
-            if (!confirm('Are you sure you want to cancel this job?')) {
+        async function cancelJob(jobId, mode = 'graceful') {
+            const modeText = mode === 'forced' ? 'force stop' : 'cancel';
+            const confirmText = mode === 'forced'
+                ? 'Force stop will immediately kill the process tree (SIGKILL). Continue?'
+                : 'Cancel will attempt graceful shutdown (SIGTERM, then SIGKILL after 5s). Continue?';
+
+            if (!confirm(confirmText)) {
                 return;
             }
 
             try {
-                const response = await fetch(`/api/runs/${jobId}/cancel`, {
+                const response = await fetch(`/api/runs/${jobId}/cancel?mode=${mode}`, {
                     method: 'POST'
                 });
 
-                if (!response.ok) throw new Error('Failed to cancel job');
+                if (!response.ok) throw new Error(`Failed to ${modeText} job`);
+
+                const result = await response.json();
+                console.log(`Job ${jobId} ${modeText}led: ${result.message}`);
 
                 // Close stream if exists
                 const stream = jobStreams.get(jobId);
@@ -1257,8 +1278,8 @@
                 // Refresh jobs
                 await refreshJobs();
             } catch (err) {
-                console.error('Cancel job error:', err);
-                alert('Failed to cancel job: ' + err.message);
+                console.error(`${modeText} job error:`, err);
+                alert(`Failed to ${modeText} job: ` + err.message);
             }
         }
 

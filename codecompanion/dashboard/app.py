@@ -236,23 +236,41 @@ async def get_run(run_id: str):
 
 
 @app.post("/api/runs/{run_id}/cancel")
-async def cancel_run(run_id: str):
+async def cancel_run(run_id: str, mode: str = "graceful"):
     """
-    Cancel a running job.
+    Cancel a running job with specified mode.
+
+    Query Parameters:
+        mode: Cancellation mode - "graceful" (default) or "forced"
+              - graceful: SIGTERM -> wait 5s -> SIGKILL
+              - forced: SIGKILL immediately
 
     Response (JSON):
     {
         "success": true/false,
-        "message": "..."
+        "message": "...",
+        "mode": "graceful|forced"
     }
     """
+    from .process_manager import CancellationMode
+
+    # Validate mode
+    try:
+        cancel_mode = CancellationMode(mode.lower())
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid cancellation mode: {mode}. Use 'graceful' or 'forced'"
+        )
+
     executor = get_executor()
-    success = executor.cancel(run_id)
+    success = executor.cancel(run_id, cancel_mode)
 
     if success:
         return JSONResponse(content={
             "success": True,
-            "message": f"Run {run_id} cancelled successfully"
+            "message": f"Run {run_id} cancelled successfully ({mode} mode)",
+            "mode": mode
         })
     else:
         return JSONResponse(

@@ -97,6 +97,8 @@ class Job:
         total_tokens: Total tokens (input + output)
         estimated_cost: Estimated cost in USD
         model_used: Specific model used (e.g., claude-3-sonnet-20240229)
+        process_id: Process ID of running subprocess (if any)
+        cancellation_mode: Mode used for cancellation (graceful/forced)
     """
     id: str
     mode: JobMode
@@ -118,6 +120,8 @@ class Job:
     total_tokens: int = 0
     estimated_cost: float = 0.0
     model_used: Optional[str] = None
+    process_id: Optional[int] = None
+    cancellation_mode: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -185,7 +189,9 @@ class JobStore:
                     output_tokens INTEGER DEFAULT 0,
                     total_tokens INTEGER DEFAULT 0,
                     estimated_cost REAL DEFAULT 0.0,
-                    model_used TEXT
+                    model_used TEXT,
+                    process_id INTEGER,
+                    cancellation_mode TEXT
                 )
             """)
 
@@ -242,7 +248,9 @@ class JobStore:
             'output_tokens': 'INTEGER DEFAULT 0',
             'total_tokens': 'INTEGER DEFAULT 0',
             'estimated_cost': 'REAL DEFAULT 0.0',
-            'model_used': 'TEXT'
+            'model_used': 'TEXT',
+            'process_id': 'INTEGER',
+            'cancellation_mode': 'TEXT'
         }
 
         for column_name, column_type in new_columns.items():
@@ -487,6 +495,8 @@ class JobStore:
             total_tokens=row['total_tokens'] if 'total_tokens' in row.keys() else 0,
             estimated_cost=row['estimated_cost'] if 'estimated_cost' in row.keys() else 0.0,
             model_used=row['model_used'] if 'model_used' in row.keys() else None,
+            process_id=row['process_id'] if 'process_id' in row.keys() else None,
+            cancellation_mode=row['cancellation_mode'] if 'cancellation_mode' in row.keys() else None,
         )
 
 

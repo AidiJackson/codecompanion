@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from codecompanion.info_core import gather_all_info
 
 # Import async job execution components
-from .models import Job, JobStatus, JobMode, Session, get_job_store, get_session_store
+from .models import Job, JobStatus, JobMode, Session, Budget, BudgetPeriod, get_job_store, get_session_store, get_budget_store
 from .executor import get_executor
 
 
@@ -589,6 +589,446 @@ async def get_analytics():
         "by_provider": by_provider,
         "avg_duration": round(avg_duration, 2),
         "success_rate": round(success_rate, 2)
+    })
+
+
+# ============================================================================
+# BUDGET API
+# ============================================================================
+
+
+@app.get("/api/budgets")
+async def list_budgets(
+    period: Optional[str] = None,
+    enabled_only: bool = False
+):
+    """
+    List all budgets with optional filters.
+
+    Query Parameters:
+        period: Filter by period (daily, weekly, monthly, session, total)
+        enabled_only: Only return enabled budgets (default: false)
+
+    Response (JSON):
+    {
+        "budgets": [
+            {
+                "id": "<budget_id>",
+                "name": "Daily Budget",
+                "period": "daily",
+                "limit": 10.0,
+                "current_spending": 3.5,
+                "alert_threshold": 80.0,
+                "enabled": true,
+                "created_at": "...",
+                "period_start": "...",
+                "period_end": "...",
+                "last_alert_at": null
+            }
+        ],
+        "total": 5
+    }
+    """
+    budget_store = get_budget_store()
+
+    # Parse period filter
+    period_filter = None
+    if period:
+        try:
+            period_filter = BudgetPeriod(period.lower())
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid period: {period}. Use 'daily', 'weekly', 'monthly', 'session', or 'total'"
+            )
+
+    budgets = budget_store.list(period=period_filter, enabled_only=enabled_only)
+
+    return JSONResponse(content={
+        "budgets": [b.to_dict() for b in budgets],
+        "total": len(budgets)
+    })
+
+
+@app.post("/api/budgets")
+async def create_budget(request: Request):
+    """
+    Create a new budget.
+
+    Request Body (JSON):
+    {
+        "name": "Daily Development Budget",
+        "period": "daily",
+        "limit": 10.0,
+        "alert_threshold": 80.0,  // optional, default 80
+        "enabled": true           // optional, default true
+    }
+
+    Response (JSON):
+    {
+        "id": "<budget_id>",
+        "name": "...",
+        ...
+    }
+    """
+    try:
+        body = await request.json()
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid JSON request body: {str(e)}"
+        )
+
+    # Validate required fields
+    name = body.get("name", "").strip()
+    period_str = body.get("period", "").lower()
+    limit = body.get("limit")
+
+    if not name:
+        raise HTTPException(status_code=400, detail="Budget name is required")
+
+    if not period_str:
+        raise HTTPException(status_code=400, detail="Budget period is required")
+
+    if limit is None or limit <= 0:
+        raise HTTPException(status_code=400, detail="Budget limit must be positive")
+
+    # Validate period
+    try:
+        period = BudgetPeriod(period_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid period: {period_str}. Use 'daily', 'weekly', 'monthly', 'session', or 'total'"
+        )
+
+    # Create budget
+    import uuid
+    budget = Budget(
+        id=str(uuid.uuid4()),
+        name=name,
+        period=period,
+        limit=float(limit),
+        alert_threshold=float(body.get("alert_threshold", 80.0)),
+        enabled=bool(body.get("enabled", True)),
+        created_at=datetime.utcnow().isoformat() + "Z"
+    )
+
+    # Set period_start for new budget
+    budget.period_start = budget.created_at
+
+    # Calculate period_end for time-based budgets
+    if period == BudgetPeriod.DAILY:
+        from datetime import timedelta
+        end = datetime.utcnow() + timedelta(days=1)
+        budget.period_end = end.isoformat() + "Z"
+    elif period == BudgetPeriod.WEEKLY:
+        from datetime import timedelta
+        end = datetime.utcnow() + timedelta(weeks=1)
+        budget.period_end = end.isoformat() + "Z"
+    elif period == BudgetPeriod.MONTHLY:
+        from datetime import timedelta
+        end = datetime.utcnow() + timedelta(days=30)
+        budget.period_end = end.isoformat() + "Z"
+
+    budget_store = get_budget_store()
+    budget_store.create(budget)
+
+    return JSONResponse(content=budget.to_dict(), status_code=201)
+
+
+@app.get("/api/budgets/{budget_id}")
+async def get_budget(budget_id: str):
+    """
+    Get a specific budget by ID.
+
+    Response (JSON):
+    {
+        "id": "<budget_id>",
+        "name": "...",
+        "period": "...",
+        "limit": 10.0,
+        "current_spending": 3.5,
+        "usage_percentage": 35.0,
+        "remaining": 6.5,
+        "is_exceeded": false,
+        "should_alert": false,
+        ...
+    }
+    """
+    budget_store = get_budget_store()
+    budget = budget_store.get(budget_id)
+
+    if not budget:
+        raise HTTPException(status_code=404, detail="Budget not found")
+
+    # Add computed fields
+    budget_dict = budget.to_dict()
+    budget_dict['usage_percentage'] = budget.usage_percentage()
+    budget_dict['remaining'] = budget.remaining()
+    budget_dict['is_exceeded'] = budget.is_exceeded()
+    budget_dict['should_alert'] = budget.should_alert()
+
+    return JSONResponse(content=budget_dict)
+
+
+@app.put("/api/budgets/{budget_id}")
+async def update_budget(budget_id: str, request: Request):
+    """
+    Update an existing budget.
+
+    Request Body (JSON) - all fields optional:
+    {
+        "name": "Updated Name",
+        "limit": 15.0,
+        "alert_threshold": 85.0,
+        "enabled": false
+    }
+
+    Response (JSON):
+    {
+        "id": "<budget_id>",
+        "name": "...",
+        ...
+    }
+    """
+    budget_store = get_budget_store()
+    budget = budget_store.get(budget_id)
+
+    if not budget:
+        raise HTTPException(status_code=404, detail="Budget not found")
+
+    try:
+        body = await request.json()
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid JSON request body: {str(e)}"
+        )
+
+    # Update fields if provided
+    if "name" in body:
+        budget.name = body["name"].strip()
+        if not budget.name:
+            raise HTTPException(status_code=400, detail="Budget name cannot be empty")
+
+    if "limit" in body:
+        limit = float(body["limit"])
+        if limit <= 0:
+            raise HTTPException(status_code=400, detail="Budget limit must be positive")
+        budget.limit = limit
+
+    if "alert_threshold" in body:
+        threshold = float(body["alert_threshold"])
+        if threshold < 0 or threshold > 100:
+            raise HTTPException(status_code=400, detail="Alert threshold must be between 0 and 100")
+        budget.alert_threshold = threshold
+
+    if "enabled" in body:
+        budget.enabled = bool(body["enabled"])
+
+    budget_store.update(budget)
+
+    return JSONResponse(content=budget.to_dict())
+
+
+@app.delete("/api/budgets/{budget_id}")
+async def delete_budget(budget_id: str):
+    """
+    Delete a budget.
+
+    Response (JSON):
+    {
+        "success": true,
+        "message": "Budget deleted successfully"
+    }
+    """
+    budget_store = get_budget_store()
+    success = budget_store.delete(budget_id)
+
+    if not success:
+        raise HTTPException(status_code=404, detail="Budget not found")
+
+    return JSONResponse(content={
+        "success": True,
+        "message": "Budget deleted successfully"
+    })
+
+
+@app.post("/api/budgets/{budget_id}/reset")
+async def reset_budget_period(budget_id: str):
+    """
+    Reset a budget's period.
+
+    Sets current_spending to 0 and recalculates period_start/period_end.
+
+    Response (JSON):
+    {
+        "id": "<budget_id>",
+        "current_spending": 0.0,
+        "period_start": "...",
+        "period_end": "...",
+        ...
+    }
+    """
+    budget_store = get_budget_store()
+    budget = budget_store.reset_period(budget_id)
+
+    if not budget:
+        raise HTTPException(status_code=404, detail="Budget not found")
+
+    return JSONResponse(content=budget.to_dict())
+
+
+@app.get("/api/spending/summary")
+async def get_spending_summary(
+    period: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    """
+    Get spending summary with various breakdowns.
+
+    Query Parameters:
+        period: Filter by period (today, week, month, all)
+        start_date: ISO timestamp start (optional)
+        end_date: ISO timestamp end (optional)
+
+    Response (JSON):
+    {
+        "total_spending": 123.45,
+        "total_jobs": 250,
+        "by_provider": {
+            "claude": {"cost": 80.0, "jobs": 150},
+            "gpt4": {"cost": 43.45, "jobs": 100}
+        },
+        "by_mode": {
+            "auto": {"cost": 90.0, "jobs": 50},
+            "chat": {"cost": 33.45, "jobs": 200}
+        },
+        "by_status": {
+            "completed": {"cost": 120.0, "jobs": 230},
+            "failed": {"cost": 3.45, "jobs": 20}
+        },
+        "by_session": [
+            {"session_id": "...", "name": "...", "cost": 25.0, "jobs": 10}
+        ],
+        "timeline": [
+            {"date": "2025-01-19", "cost": 15.0, "jobs": 20}
+        ]
+    }
+    """
+    from datetime import timedelta
+    job_store = get_job_store()
+    session_store = get_session_store()
+
+    # Get all jobs (with date filtering if provided)
+    all_jobs = job_store.list(limit=10000)
+
+    # Filter by date range
+    if period or start_date or end_date:
+        now = datetime.utcnow()
+
+        if period == "today":
+            start_date = (now.replace(hour=0, minute=0, second=0, microsecond=0)).isoformat() + "Z"
+        elif period == "week":
+            start_date = (now - timedelta(days=7)).isoformat() + "Z"
+        elif period == "month":
+            start_date = (now - timedelta(days=30)).isoformat() + "Z"
+
+        if start_date:
+            all_jobs = [j for j in all_jobs if j.created_at >= start_date]
+        if end_date:
+            all_jobs = [j for j in all_jobs if j.created_at <= end_date]
+
+    # Calculate totals
+    total_spending = sum(job.estimated_cost for job in all_jobs)
+    total_jobs = len(all_jobs)
+
+    # Group by provider
+    by_provider = {}
+    for job in all_jobs:
+        provider = job.provider
+        if provider not in by_provider:
+            by_provider[provider] = {"cost": 0.0, "jobs": 0}
+        by_provider[provider]["cost"] += job.estimated_cost
+        by_provider[provider]["jobs"] += 1
+
+    # Group by mode
+    by_mode = {}
+    for job in all_jobs:
+        mode = job.mode.value
+        if mode not in by_mode:
+            by_mode[mode] = {"cost": 0.0, "jobs": 0}
+        by_mode[mode]["cost"] += job.estimated_cost
+        by_mode[mode]["jobs"] += 1
+
+    # Group by status
+    by_status = {}
+    for job in all_jobs:
+        status = job.status.value
+        if status not in by_status:
+            by_status[status] = {"cost": 0.0, "jobs": 0}
+        by_status[status]["cost"] += job.estimated_cost
+        by_status[status]["jobs"] += 1
+
+    # Group by session
+    by_session_dict = {}
+    for job in all_jobs:
+        if not job.session_id:
+            continue
+        if job.session_id not in by_session_dict:
+            by_session_dict[job.session_id] = {"cost": 0.0, "jobs": 0}
+        by_session_dict[job.session_id]["cost"] += job.estimated_cost
+        by_session_dict[job.session_id]["jobs"] += 1
+
+    # Add session names
+    by_session = []
+    for session_id, data in by_session_dict.items():
+        session = session_store.get(session_id)
+        by_session.append({
+            "session_id": session_id,
+            "name": session.name if session else "Unknown",
+            "cost": round(data["cost"], 4),
+            "jobs": data["jobs"]
+        })
+
+    # Sort by cost descending
+    by_session.sort(key=lambda x: x["cost"], reverse=True)
+
+    # Create daily timeline
+    timeline_dict = {}
+    for job in all_jobs:
+        try:
+            date_str = job.created_at[:10]  # YYYY-MM-DD
+            if date_str not in timeline_dict:
+                timeline_dict[date_str] = {"cost": 0.0, "jobs": 0}
+            timeline_dict[date_str]["cost"] += job.estimated_cost
+            timeline_dict[date_str]["jobs"] += 1
+        except:
+            pass
+
+    timeline = [
+        {"date": date, "cost": round(data["cost"], 4), "jobs": data["jobs"]}
+        for date, data in sorted(timeline_dict.items())
+    ]
+
+    # Round costs
+    for provider_data in by_provider.values():
+        provider_data["cost"] = round(provider_data["cost"], 4)
+    for mode_data in by_mode.values():
+        mode_data["cost"] = round(mode_data["cost"], 4)
+    for status_data in by_status.values():
+        status_data["cost"] = round(status_data["cost"], 4)
+
+    return JSONResponse(content={
+        "total_spending": round(total_spending, 4),
+        "total_jobs": total_jobs,
+        "by_provider": by_provider,
+        "by_mode": by_mode,
+        "by_status": by_status,
+        "by_session": by_session,
+        "timeline": timeline
     })
 
 

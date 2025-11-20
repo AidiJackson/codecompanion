@@ -674,6 +674,170 @@
             color: #64748b;
             font-size: 0.75rem;
         }
+
+        /* Budget Styles */
+        .budgets-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .budget-card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .budget-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .budget-card.exceeded {
+            border-color: rgba(239, 68, 68, 0.5);
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .budget-card.warning {
+            border-color: rgba(245, 158, 11, 0.5);
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .budget-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .budget-name {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 0.25rem;
+        }
+
+        .budget-period {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .budget-toggle {
+            padding: 0.25rem 0.65rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .budget-toggle.enabled {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+        }
+
+        .budget-toggle.disabled {
+            background: rgba(100, 116, 139, 0.15);
+            color: #64748b;
+        }
+
+        .budget-usage {
+            margin: 1.5rem 0;
+        }
+
+        .budget-usage-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 0.5rem;
+        }
+
+        .budget-usage-label {
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        .budget-usage-value {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .budget-progress {
+            width: 100%;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .budget-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #22c55e, #16a34a);
+            border-radius: 6px;
+            transition: width 0.3s ease;
+        }
+
+        .budget-progress-bar.warning {
+            background: linear-gradient(90deg, #f59e0b, #d97706);
+        }
+
+        .budget-progress-bar.exceeded {
+            background: linear-gradient(90deg, #ef4444, #dc2626);
+        }
+
+        .budget-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .budget-stat {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .budget-stat-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-bottom: 0.25rem;
+        }
+
+        .budget-stat-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+        .budget-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .budget-form {
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
 <body>
@@ -695,6 +859,7 @@
             <button class="tab active" onclick="switchTab('overview')">Overview</button>
             <button class="tab" onclick="switchTab('projects')">Projects</button>
             <button class="tab" onclick="switchTab('timeline')">Timeline & Analytics</button>
+            <button class="tab" onclick="switchTab('budgets')">Budgets</button>
         </div>
 
         <!-- Overview Tab -->
@@ -738,6 +903,19 @@
                             <button class="btn btn-secondary" onclick="switchTab('projects')">
                                 View All Jobs
                             </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Budgets Card -->
+                <div class="card" style="grid-column: 1 / -1;">
+                    <div class="card-header">
+                        <span>Active Budgets</span>
+                        <button class="btn btn-small btn-primary" onclick="switchTab('budgets')">Manage Budgets</button>
+                    </div>
+                    <div class="card-content">
+                        <div id="overview-budgets">
+                            <!-- Budget status will be populated by JS -->
                         </div>
                     </div>
                 </div>
@@ -838,6 +1016,69 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Budgets Tab -->
+            <div id="budgets-tab" class="tab-content">
+                <!-- Active Budgets Overview -->
+                <div class="section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h2>Budget Management</h2>
+                        <button class="btn btn-primary" onclick="showCreateBudgetForm()">+ Create Budget</button>
+                    </div>
+
+                    <!-- Create Budget Form (hidden by default) -->
+                    <div id="create-budget-form" class="budget-form" style="display: none;">
+                        <div class="card" style="margin-bottom: 2rem;">
+                            <div class="card-header">
+                                <span>New Budget</span>
+                                <button class="btn btn-small btn-secondary" onclick="hideCreateBudgetForm()">Cancel</button>
+                            </div>
+                            <div class="card-content">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="budget-name">Budget Name</label>
+                                        <input type="text" id="budget-name" placeholder="e.g., Daily Development Budget">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="budget-period">Period</label>
+                                        <select id="budget-period">
+                                            <option value="daily">Daily</option>
+                                            <option value="weekly">Weekly</option>
+                                            <option value="monthly">Monthly</option>
+                                            <option value="session">Per Session</option>
+                                            <option value="total">Total (Lifetime)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="budget-limit">Spending Limit ($)</label>
+                                        <input type="number" id="budget-limit" placeholder="e.g., 10.00" step="0.01" min="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="budget-threshold">Alert Threshold (%)</label>
+                                        <input type="number" id="budget-threshold" placeholder="e.g., 80" value="80" min="0" max="100">
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary" onclick="createBudget()">Create Budget</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Budget Cards Grid -->
+                    <div id="budgets-list" class="budgets-grid">
+                        <!-- Budget cards will be populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Spending Summary -->
+                <div class="section">
+                    <h2>Spending Summary</h2>
+                    <div id="spending-summary" class="cards-grid">
+                        <!-- Summary cards will be populated by JS -->
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -885,6 +1126,9 @@
             } else if (tabName === 'timeline') {
                 refreshTimeline();
                 refreshAnalytics();
+            } else if (tabName === 'budgets') {
+                refreshBudgets();
+                refreshSpendingSummary();
             }
         }
 
@@ -897,6 +1141,9 @@
                 const data = await res.json();
                 renderOverview(data);
                 setLastUpdated();
+
+                // Also refresh budget status in overview
+                refreshOverviewBudgets();
             } catch (err) {
                 console.error('Overview refresh error:', err);
             } finally {
@@ -982,6 +1229,98 @@
                 statusBadge.textContent = 'Not Configured';
                 statusBadge.className = 'status-badge status-error';
             }
+        }
+
+        // Overview Budgets Status
+        async function refreshOverviewBudgets() {
+            try {
+                const res = await fetch('/api/budgets?enabled_only=true', { cache: 'no-store' });
+                if (!res.ok) throw new Error('Failed to fetch budgets');
+                const data = await res.json();
+                renderOverviewBudgets(data.budgets);
+            } catch (err) {
+                console.error('Overview budgets refresh error:', err);
+            }
+        }
+
+        function renderOverviewBudgets(budgets) {
+            const container = document.getElementById('overview-budgets');
+
+            if (!budgets || budgets.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 1.5rem; color: #94a3b8;">
+                        No active budgets configured.
+                        <a href="#" onclick="switchTab('budgets'); return false;" style="color: #3b82f6; text-decoration: underline;">
+                            Create a budget
+                        </a> to track spending.
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div style="display: grid; gap: 1rem;">
+                    ${budgets.map(budget => {
+                        const usagePercent = budget.usage_percentage || 0;
+                        const remaining = budget.remaining || 0;
+                        const isExceeded = budget.is_exceeded || false;
+                        const shouldAlert = budget.should_alert || false;
+
+                        let statusColor = '#22c55e'; // green
+                        let statusText = 'Healthy';
+                        let statusIcon = '✓';
+
+                        if (isExceeded) {
+                            statusColor = '#ef4444'; // red
+                            statusText = 'EXCEEDED';
+                            statusIcon = '⚠';
+                        } else if (shouldAlert) {
+                            statusColor = '#f59e0b'; // orange
+                            statusText = 'Warning';
+                            statusIcon = '⚠';
+                        }
+
+                        let progressBarClass = '';
+                        if (isExceeded) {
+                            progressBarClass = 'exceeded';
+                        } else if (shouldAlert) {
+                            progressBarClass = 'warning';
+                        }
+
+                        return `
+                            <div style="padding: 1rem; background: rgba(15, 23, 42, 0.5); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                                    <div>
+                                        <div style="font-weight: 600; color: #f1f5f9; margin-bottom: 0.25rem;">
+                                            ${budget.name}
+                                        </div>
+                                        <div style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">
+                                            ${budget.period}
+                                        </div>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <div style="font-size: 0.75rem; color: ${statusColor}; font-weight: 600; margin-bottom: 0.25rem;">
+                                            ${statusIcon} ${statusText}
+                                        </div>
+                                        <div style="font-size: 0.85rem; color: ${statusColor}; font-weight: 600;">
+                                            ${usagePercent.toFixed(1)}%
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="budget-progress" style="margin-bottom: 0.75rem;">
+                                    <div class="budget-progress-bar ${progressBarClass}" style="width: ${Math.min(usagePercent, 100)}%"></div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #cbd5e1;">
+                                    <span>$${budget.current_spending.toFixed(4)} / $${budget.limit.toFixed(2)}</span>
+                                    <span style="color: ${remaining > 0 ? '#22c55e' : '#ef4444'};">
+                                        $${remaining.toFixed(4)} left
+                                    </span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
         }
 
         // Quick Actions
@@ -1480,6 +1819,313 @@ ${job.output ? `\nOutput:\n${job.output}` : ''}${job.error ? `\nError:\n${job.er
             } catch (e) {
                 return 'N/A';
             }
+        }
+
+        // Budget Management Functions
+        function showCreateBudgetForm() {
+            document.getElementById('create-budget-form').style.display = 'block';
+        }
+
+        function hideCreateBudgetForm() {
+            document.getElementById('create-budget-form').style.display = 'none';
+            // Reset form
+            document.getElementById('budget-name').value = '';
+            document.getElementById('budget-period').value = 'daily';
+            document.getElementById('budget-limit').value = '';
+            document.getElementById('budget-threshold').value = '80';
+        }
+
+        async function createBudget() {
+            const name = document.getElementById('budget-name').value.trim();
+            const period = document.getElementById('budget-period').value;
+            const limit = parseFloat(document.getElementById('budget-limit').value);
+            const threshold = parseFloat(document.getElementById('budget-threshold').value);
+
+            // Validation
+            if (!name) {
+                alert('Please enter a budget name');
+                return;
+            }
+            if (!limit || limit <= 0) {
+                alert('Please enter a valid spending limit');
+                return;
+            }
+            if (threshold < 0 || threshold > 100) {
+                alert('Alert threshold must be between 0 and 100');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/budgets', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        period: period,
+                        limit: limit,
+                        alert_threshold: threshold
+                    })
+                });
+
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.detail || 'Failed to create budget');
+                }
+
+                hideCreateBudgetForm();
+                refreshBudgets();
+                refreshSpendingSummary();
+            } catch (err) {
+                alert('Error creating budget: ' + err.message);
+                console.error('Budget creation error:', err);
+            }
+        }
+
+        async function refreshBudgets() {
+            try {
+                const res = await fetch('/api/budgets', { cache: 'no-store' });
+                if (!res.ok) throw new Error('Failed to fetch budgets');
+                const data = await res.json();
+                renderBudgets(data.budgets);
+            } catch (err) {
+                console.error('Budgets refresh error:', err);
+            }
+        }
+
+        function renderBudgets(budgets) {
+            const container = document.getElementById('budgets-list');
+
+            if (!budgets || budgets.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <div class="empty-state-icon">💰</div>
+                        <div class="empty-state-text">No budgets configured</div>
+                        <div class="empty-state-subtext">Create a budget to track your spending</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = budgets.map(budget => {
+                const usagePercent = budget.usage_percentage || 0;
+                const remaining = budget.remaining || 0;
+                const isExceeded = budget.is_exceeded || false;
+                const shouldAlert = budget.should_alert || false;
+
+                let cardClass = 'budget-card';
+                let progressClass = 'budget-progress-bar';
+
+                if (isExceeded) {
+                    cardClass += ' exceeded';
+                    progressClass += ' exceeded';
+                } else if (shouldAlert) {
+                    cardClass += ' warning';
+                    progressClass += ' warning';
+                }
+
+                return `
+                    <div class="${cardClass}">
+                        <div class="budget-card-header">
+                            <div>
+                                <div class="budget-name">${budget.name}</div>
+                                <div class="budget-period">${budget.period}</div>
+                            </div>
+                            <button class="budget-toggle ${budget.enabled ? 'enabled' : 'disabled'}"
+                                    onclick="toggleBudget('${budget.id}', ${!budget.enabled})">
+                                ${budget.enabled ? '✓ Active' : '✗ Disabled'}
+                            </button>
+                        </div>
+
+                        <div class="budget-usage">
+                            <div class="budget-usage-header">
+                                <span class="budget-usage-label">Usage</span>
+                                <span class="budget-usage-value">
+                                    <span style="color: ${isExceeded ? '#ef4444' : shouldAlert ? '#f59e0b' : '#22c55e'};">
+                                        ${usagePercent.toFixed(1)}%
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="budget-progress">
+                                <div class="${progressClass}" style="width: ${Math.min(usagePercent, 100)}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="budget-stats">
+                            <div class="budget-stat">
+                                <span class="budget-stat-label">Spent</span>
+                                <span class="budget-stat-value">$${budget.current_spending.toFixed(4)}</span>
+                            </div>
+                            <div class="budget-stat">
+                                <span class="budget-stat-label">Remaining</span>
+                                <span class="budget-stat-value" style="color: ${remaining > 0 ? '#22c55e' : '#ef4444'};">
+                                    $${remaining.toFixed(4)}
+                                </span>
+                            </div>
+                            <div class="budget-stat">
+                                <span class="budget-stat-label">Limit</span>
+                                <span class="budget-stat-value">$${budget.limit.toFixed(2)}</span>
+                            </div>
+                            <div class="budget-stat">
+                                <span class="budget-stat-label">Alert at</span>
+                                <span class="budget-stat-value">${budget.alert_threshold}%</span>
+                            </div>
+                        </div>
+
+                        <div class="budget-actions">
+                            <button class="btn btn-small btn-secondary" onclick="resetBudget('${budget.id}')">
+                                Reset Period
+                            </button>
+                            <button class="btn btn-small btn-warning" onclick="editBudget('${budget.id}')">
+                                Edit
+                            </button>
+                            <button class="btn btn-small btn-danger" onclick="deleteBudget('${budget.id}')">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function toggleBudget(budgetId, enabled) {
+            try {
+                const res = await fetch(`/api/budgets/${budgetId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: enabled })
+                });
+
+                if (!res.ok) throw new Error('Failed to toggle budget');
+                refreshBudgets();
+            } catch (err) {
+                alert('Error toggling budget: ' + err.message);
+                console.error('Budget toggle error:', err);
+            }
+        }
+
+        async function resetBudget(budgetId) {
+            if (!confirm('Reset this budget period? Current spending will be cleared.')) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/budgets/${budgetId}/reset`, {
+                    method: 'POST'
+                });
+
+                if (!res.ok) throw new Error('Failed to reset budget');
+                refreshBudgets();
+            } catch (err) {
+                alert('Error resetting budget: ' + err.message);
+                console.error('Budget reset error:', err);
+            }
+        }
+
+        async function editBudget(budgetId) {
+            // Simple implementation - show prompt for new limit
+            const newLimit = prompt('Enter new spending limit ($):');
+            if (!newLimit) return;
+
+            const limit = parseFloat(newLimit);
+            if (isNaN(limit) || limit <= 0) {
+                alert('Please enter a valid limit');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/budgets/${budgetId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ limit: limit })
+                });
+
+                if (!res.ok) throw new Error('Failed to update budget');
+                refreshBudgets();
+            } catch (err) {
+                alert('Error updating budget: ' + err.message);
+                console.error('Budget update error:', err);
+            }
+        }
+
+        async function deleteBudget(budgetId) {
+            if (!confirm('Delete this budget? This cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/budgets/${budgetId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!res.ok) throw new Error('Failed to delete budget');
+                refreshBudgets();
+            } catch (err) {
+                alert('Error deleting budget: ' + err.message);
+                console.error('Budget delete error:', err);
+            }
+        }
+
+        async function refreshSpendingSummary() {
+            try {
+                const res = await fetch('/api/spending/summary', { cache: 'no-store' });
+                if (!res.ok) throw new Error('Failed to fetch spending summary');
+                const data = await res.json();
+                renderSpendingSummary(data);
+            } catch (err) {
+                console.error('Spending summary refresh error:', err);
+            }
+        }
+
+        function renderSpendingSummary(data) {
+            const container = document.getElementById('spending-summary');
+
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-header">Total Spending</div>
+                    <div class="card-content">
+                        <div style="font-size: 2rem; font-weight: 700; color: #22c55e; margin-bottom: 0.5rem;">
+                            $${data.total_spending.toFixed(4)}
+                        </div>
+                        <div style="color: #94a3b8;">Across ${data.total_jobs} jobs</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">By Provider</div>
+                    <div class="card-content">
+                        ${Object.entries(data.by_provider).map(([provider, stats]) => `
+                            <div class="info-row">
+                                <span class="info-label">${provider}</span>
+                                <span class="info-value">$${stats.cost.toFixed(4)} (${stats.jobs} jobs)</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">By Mode</div>
+                    <div class="card-content">
+                        ${Object.entries(data.by_mode).map(([mode, stats]) => `
+                            <div class="info-row">
+                                <span class="info-label">${mode}</span>
+                                <span class="info-value">$${stats.cost.toFixed(4)} (${stats.jobs} jobs)</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">By Status</div>
+                    <div class="card-content">
+                        ${Object.entries(data.by_status).map(([status, stats]) => `
+                            <div class="info-row">
+                                <span class="info-label">${status}</span>
+                                <span class="info-value">$${stats.cost.toFixed(4)} (${stats.jobs} jobs)</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
         }
     </script>
 </body>

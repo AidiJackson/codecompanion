@@ -1,36 +1,41 @@
 """
 FastAPI dashboard application for CodeCompanion Control Tower.
-Provides a web-based live status board with auto-refresh capabilities.
+Provides a web-based live status board with async job execution.
 
-This is a read-only dashboard that uses /api/info endpoint.
-No mutations or configuration changes are made through this interface.
+Features:
+- Non-blocking agent execution via background job queue
+- Real-time job status tracking
+- Job cancellation support
+- Persistent job history with SQLite
 """
 import os
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 # Suppress Streamlit warnings before any imports that might trigger it
 os.environ['STREAMLIT_LOGGER_LEVEL'] = 'error'
 
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-import io
-from contextlib import redirect_stdout, redirect_stderr
+import asyncio
+import json
 from datetime import datetime
 
 # Import info gathering functions
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from codecompanion.info_core import gather_all_info
-from codecompanion.llm import complete, LLMError
-from codecompanion.runner import run_pipeline, run_single_agent
+
+# Import async job execution components
+from .models import Job, JobStatus, JobMode, Session, Budget, BudgetPeriod, get_job_store, get_session_store, get_budget_store
+from .executor import get_executor
 
 
 app = FastAPI(
     title="CodeCompanion Control Tower",
-    description="Live status dashboard for CodeCompanion standalone Dev OS",
-    version="0.1.0",
+    description="Live status dashboard for CodeCompanion with async job execution",
+    version="0.2.0",
 )
 
 
@@ -76,169 +81,1022 @@ async def health_check():
     return {"status": "healthy", "service": "codecompanion-dashboard"}
 
 
-def run_console_command(mode: str, input_text: str, agent_name: Optional[str] = None, provider: str = "claude") -> dict:
+# ============================================================================
+# ASYNC JOB EXECUTION API
+# ============================================================================
+
+
+@app.post("/api/runs")
+async def create_run(request: Request):
     """
-    Run a CodeCompanion command programmatically and capture output.
-
-    Args:
-        mode: "chat", "auto", or "agent"
-        input_text: User input/instruction
-        agent_name: Optional agent name (for mode="agent")
-        provider: LLM provider to use (default: "claude")
-
-    Returns:
-        dict with status, output, timestamps, etc.
-    """
-    started_at = datetime.utcnow().isoformat() + "Z"
-    output_buffer = io.StringIO()
-    error_buffer = io.StringIO()
-
-    try:
-        # Capture stdout and stderr
-        with redirect_stdout(output_buffer), redirect_stderr(error_buffer):
-            if mode == "chat":
-                # Single-turn chat mode: send user input and get response
-                try:
-                    response = complete(
-                        "You are CodeCompanion, a helpful coding assistant. Respond to the user's question or instruction concisely.",
-                        [{"role": "user", "content": input_text}],
-                        provider=provider,
-                    )
-                    output = response.get("content", "")
-                    print(output)
-                except LLMError as e:
-                    raise Exception(f"LLM Error: {str(e)}")
-
-            elif mode == "auto":
-                # Run full pipeline
-                print(f"[console] Running full pipeline in current repo...")
-                print(f"[console] Project root: {os.getcwd()}")
-                exit_code = run_pipeline(provider=provider)
-                if exit_code != 0:
-                    raise Exception(f"Pipeline failed with exit code {exit_code}")
-                print(f"[console] Pipeline completed successfully")
-
-            elif mode == "agent":
-                # Run single agent
-                if not agent_name:
-                    raise Exception("Agent name is required for mode='agent'")
-                print(f"[console] Running agent: {agent_name}")
-                print(f"[console] Project root: {os.getcwd()}")
-                exit_code = run_single_agent(agent_name, provider=provider)
-                if exit_code != 0:
-                    raise Exception(f"Agent '{agent_name}' failed with exit code {exit_code}")
-                print(f"[console] Agent '{agent_name}' completed successfully")
-
-            else:
-                raise Exception(f"Unknown mode: {mode}. Use 'chat', 'auto', or 'agent'")
-
-        # Success case
-        finished_at = datetime.utcnow().isoformat() + "Z"
-        stdout_output = output_buffer.getvalue()
-        stderr_output = error_buffer.getvalue()
-
-        # Combine stdout and stderr for display
-        full_output = stdout_output
-        if stderr_output.strip():
-            full_output += "\n\n[stderr]\n" + stderr_output
-
-        return {
-            "status": "ok",
-            "mode": mode,
-            "input": input_text,
-            "output": full_output,
-            "started_at": started_at,
-            "finished_at": finished_at,
-        }
-
-    except Exception as e:
-        # Error case
-        finished_at = datetime.utcnow().isoformat() + "Z"
-        stdout_output = output_buffer.getvalue()
-        stderr_output = error_buffer.getvalue()
-
-        # Include captured output in error response
-        error_context = ""
-        if stdout_output.strip():
-            error_context += f"\n\n[stdout]\n{stdout_output}"
-        if stderr_output.strip():
-            error_context += f"\n\n[stderr]\n{stderr_output}"
-
-        return {
-            "status": "error",
-            "mode": mode,
-            "input": input_text,
-            "error": str(e) + error_context,
-            "started_at": started_at,
-            "finished_at": finished_at,
-        }
-
-
-@app.post("/api/console")
-async def console_command(request: Request):
-    """
-    Execute a console command and return results.
+    Create a new async run/job.
 
     Request body (JSON):
     {
-        "mode": "chat" | "auto" | "agent",
+        "mode": "chat" | "auto" | "agent" | "task",
         "input": "<user instruction>",
-        "agent": "<optional agent name>",
-        "provider": "<optional provider, defaults to claude>"
+        "agent": "<optional agent name>",  # required for mode=agent
+        "provider": "<optional provider, defaults to claude>",
+        "target_root": "<optional target directory, defaults to cwd>"
     }
 
     Response (JSON):
     {
-        "status": "ok" | "error",
+        "id": "<job_id>",
+        "status": "pending",
         "mode": "...",
-        "input": "...",
-        "output": "..." (on success) or "error": "..." (on failure),
-        "started_at": "...",
-        "finished_at": "..."
+        "created_at": "...",
+        ...
     }
     """
     try:
         body = await request.json()
     except Exception as e:
-        return JSONResponse(
-            content={
-                "status": "error",
-                "error": f"Invalid JSON request body: {str(e)}",
-            },
+        raise HTTPException(
             status_code=400,
+            detail=f"Invalid JSON request body: {str(e)}"
         )
 
-    # Extract parameters with defaults
-    mode = body.get("mode", "chat")
+    # Extract and validate parameters
+    mode_str = body.get("mode", "chat")
+    input_text = body.get("input", "").strip()
+    agent_name = body.get("agent")
+    provider = body.get("provider", "claude")
+    target_root = body.get("target_root")
+
+    # Validate input
+    if not input_text:
+        raise HTTPException(
+            status_code=400,
+            detail="Input text is required"
+        )
+
+    # Validate mode
+    try:
+        mode = JobMode(mode_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid mode: {mode_str}. Use 'chat', 'auto', 'agent', or 'task'"
+        )
+
+    # Validate agent name for agent mode
+    if mode == JobMode.AGENT and not agent_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Agent name is required for mode='agent'"
+        )
+
+    # Submit job to executor
+    executor = get_executor()
+    job = executor.submit(
+        mode=mode,
+        input_text=input_text,
+        agent_name=agent_name,
+        provider=provider,
+        target_root=target_root
+    )
+
+    return JSONResponse(content=job.to_dict())
+
+
+@app.get("/api/runs")
+async def list_runs(
+    status: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0
+):
+    """
+    List all runs with optional filtering.
+
+    Query parameters:
+    - status: Filter by status (pending, running, completed, failed, cancelled)
+    - limit: Maximum number of runs to return (default: 100)
+    - offset: Number of runs to skip (default: 0)
+
+    Response (JSON):
+    {
+        "runs": [{...}, {...}, ...],
+        "total": <total_count>,
+        "limit": <limit>,
+        "offset": <offset>
+    }
+    """
+    # Validate status
+    status_filter = None
+    if status:
+        try:
+            status_filter = JobStatus(status)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid status: {status}"
+            )
+
+    # Get jobs from store
+    job_store = get_job_store()
+    jobs = job_store.list(status=status_filter, limit=limit, offset=offset)
+    total = job_store.count(status=status_filter)
+
+    return JSONResponse(content={
+        "runs": [job.to_dict() for job in jobs],
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    })
+
+
+@app.get("/api/runs/{run_id}")
+async def get_run(run_id: str):
+    """
+    Get a specific run by ID.
+
+    Response (JSON):
+    {
+        "id": "<run_id>",
+        "status": "...",
+        "mode": "...",
+        "output": "...",  # current output (may be incomplete if still running)
+        ...
+    }
+    """
+    executor = get_executor()
+    job = executor.get_status(run_id)
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    # Include current output if job is running
+    if job.status == JobStatus.RUNNING:
+        current_output = executor.get_output(run_id)
+        if current_output:
+            job.output = current_output
+
+    return JSONResponse(content=job.to_dict())
+
+
+@app.post("/api/runs/{run_id}/cancel")
+async def cancel_run(run_id: str, mode: str = "graceful"):
+    """
+    Cancel a running job with specified mode.
+
+    Query Parameters:
+        mode: Cancellation mode - "graceful" (default) or "forced"
+              - graceful: SIGTERM -> wait 5s -> SIGKILL
+              - forced: SIGKILL immediately
+
+    Response (JSON):
+    {
+        "success": true/false,
+        "message": "...",
+        "mode": "graceful|forced"
+    }
+    """
+    from .process_manager import CancellationMode
+
+    # Validate mode
+    try:
+        cancel_mode = CancellationMode(mode.lower())
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid cancellation mode: {mode}. Use 'graceful' or 'forced'"
+        )
+
+    executor = get_executor()
+    success = executor.cancel(run_id, cancel_mode)
+
+    if success:
+        return JSONResponse(content={
+            "success": True,
+            "message": f"Run {run_id} cancelled successfully ({mode} mode)",
+            "mode": mode
+        })
+    else:
+        return JSONResponse(
+            content={
+                "success": False,
+                "message": f"Run {run_id} not found or already finished"
+            },
+            status_code=404
+        )
+
+
+@app.get("/api/runs/{run_id}/stream")
+async def stream_run_output(run_id: str):
+    """
+    Stream run output and status using Server-Sent Events (SSE).
+
+    This endpoint provides real-time updates for a running job,
+    sending periodic status updates until the job finishes.
+
+    Response: text/event-stream (Server-Sent Events)
+
+    Event format:
+    data: {"status": "...", "output": "...", "finished": true/false}
+    """
+    executor = get_executor()
+
+    # Check if run exists
+    job = executor.get_status(run_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    async def event_generator():
+        """Generate SSE events for job status updates."""
+        last_output_length = 0
+
+        while True:
+            # Get current job status
+            job = executor.get_status(run_id)
+            if not job:
+                break
+
+            # Get current output
+            current_output = executor.get_output(run_id) or ""
+
+            # Only send new output (incremental)
+            new_output = current_output[last_output_length:]
+            last_output_length = len(current_output)
+
+            # Check if job is finished
+            is_finished = job.status in [
+                JobStatus.COMPLETED,
+                JobStatus.FAILED,
+                JobStatus.CANCELLED
+            ]
+
+            # Send update event
+            event_data = {
+                "status": job.status.value,
+                "output": new_output,
+                "finished": is_finished,
+                "exit_code": job.exit_code,
+                "error": job.error
+            }
+
+            yield f"data: {json.dumps(event_data)}\n\n"
+
+            # If finished, stop streaming
+            if is_finished:
+                break
+
+            # Wait before next update (1 second)
+            await asyncio.sleep(1)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
+    )
+
+
+# ============================================================================
+# SESSIONS API
+# ============================================================================
+
+
+@app.get("/api/sessions")
+async def list_sessions(limit: int = 100, offset: int = 0):
+    """
+    List all sessions.
+
+    Query parameters:
+    - limit: Maximum number of sessions to return (default: 100)
+    - offset: Number of sessions to skip (default: 0)
+
+    Response (JSON):
+    {
+        "sessions": [{...}, {...}, ...],
+        "total": <total_count>,
+        "limit": <limit>,
+        "offset": <offset>
+    }
+    """
+    session_store = get_session_store()
+    sessions = session_store.list(limit=limit, offset=offset)
+    total = session_store.count()
+
+    return JSONResponse(content={
+        "sessions": [session.to_dict() for session in sessions],
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    })
+
+
+@app.get("/api/sessions/{session_id}")
+async def get_session(session_id: str):
+    """
+    Get a specific session by ID.
+
+    Response (JSON):
+    {
+        "id": "<session_id>",
+        "name": "...",
+        "total_jobs": ...,
+        "total_cost": ...,
+        ...
+    }
+    """
+    session_store = get_session_store()
+    session = session_store.get(session_id)
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return JSONResponse(content=session.to_dict())
+
+
+@app.get("/api/sessions/{session_id}/jobs")
+async def get_session_jobs(session_id: str):
+    """
+    Get all jobs for a specific session.
+
+    Response (JSON):
+    {
+        "session": {...},
+        "jobs": [{...}, {...}, ...]
+    }
+    """
+    session_store = get_session_store()
+    job_store = get_job_store()
+
+    session = session_store.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Get all jobs for this session
+    all_jobs = job_store.list(limit=1000)  # Get enough jobs
+    session_jobs = [job for job in all_jobs if job.session_id == session_id]
+
+    return JSONResponse(content={
+        "session": session.to_dict(),
+        "jobs": [job.to_dict() for job in session_jobs]
+    })
+
+
+# ============================================================================
+# TIMELINE & ANALYTICS API
+# ============================================================================
+
+
+@app.get("/api/timeline")
+async def get_timeline(
+    session_id: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0
+):
+    """
+    Get timeline view of jobs with optional session filtering.
+
+    Timeline shows jobs chronologically grouped by session.
+
+    Query parameters:
+    - session_id: Optional session ID to filter by
+    - limit: Maximum number of jobs to return (default: 100)
+    - offset: Number of jobs to skip (default: 0)
+
+    Response (JSON):
+    {
+        "timeline": [
+            {
+                "session": {...} or null,
+                "jobs": [{...}, {...}, ...]
+            },
+            ...
+        ],
+        "total_jobs": <total_count>
+    }
+    """
+    job_store = get_job_store()
+    session_store = get_session_store()
+
+    # Get jobs
+    if session_id:
+        all_jobs = job_store.list(limit=1000)
+        jobs = [job for job in all_jobs if job.session_id == session_id]
+    else:
+        jobs = job_store.list(limit=limit, offset=offset)
+
+    # Group by session
+    sessions_map = {}
+    for job in jobs:
+        sid = job.session_id or "ungrouped"
+        if sid not in sessions_map:
+            sessions_map[sid] = []
+        sessions_map[sid].append(job)
+
+    # Build timeline
+    timeline = []
+    for sid, job_list in sessions_map.items():
+        if sid == "ungrouped":
+            session_data = None
+        else:
+            session = session_store.get(sid)
+            session_data = session.to_dict() if session else None
+
+        timeline.append({
+            "session": session_data,
+            "jobs": [job.to_dict() for job in job_list]
+        })
+
+    return JSONResponse(content={
+        "timeline": timeline,
+        "total_jobs": len(jobs)
+    })
+
+
+@app.get("/api/analytics")
+async def get_analytics():
+    """
+    Get analytics dashboard data.
+
+    Response (JSON):
+    {
+        "total_jobs": ...,
+        "total_sessions": ...,
+        "total_cost": ...,
+        "total_tokens": ...,
+        "by_status": {...},
+        "by_mode": {...},
+        "by_provider": {...},
+        "avg_duration": ...,
+        "success_rate": ...
+    }
+    """
+    job_store = get_job_store()
+    session_store = get_session_store()
+
+    # Get all jobs
+    all_jobs = job_store.list(limit=10000)  # Get all jobs
+
+    # Calculate metrics
+    total_jobs = len(all_jobs)
+    total_sessions = session_store.count()
+
+    total_cost = sum(job.estimated_cost for job in all_jobs)
+    total_tokens = sum(job.total_tokens for job in all_jobs)
+
+    # Group by status
+    by_status = {}
+    for job in all_jobs:
+        status = job.status.value
+        by_status[status] = by_status.get(status, 0) + 1
+
+    # Group by mode
+    by_mode = {}
+    for job in all_jobs:
+        mode = job.mode.value
+        by_mode[mode] = by_mode.get(mode, 0) + 1
+
+    # Group by provider
+    by_provider = {}
+    for job in all_jobs:
+        provider = job.provider
+        by_provider[provider] = by_provider.get(provider, 0) + 1
+
+    # Calculate average duration
+    finished_jobs = [j for j in all_jobs if j.finished_at and j.started_at]
+    if finished_jobs:
+        durations = []
+        for job in finished_jobs:
+            try:
+                started = datetime.fromisoformat(job.started_at.replace('Z', '+00:00'))
+                finished = datetime.fromisoformat(job.finished_at.replace('Z', '+00:00'))
+                duration = (finished - started).total_seconds()
+                durations.append(duration)
+            except:
+                pass
+        avg_duration = sum(durations) / len(durations) if durations else 0
+    else:
+        avg_duration = 0
+
+    # Calculate success rate
+    completed_jobs = by_status.get('completed', 0)
+    success_rate = (completed_jobs / total_jobs * 100) if total_jobs > 0 else 0
+
+    return JSONResponse(content={
+        "total_jobs": total_jobs,
+        "total_sessions": total_sessions,
+        "total_cost": round(total_cost, 4),
+        "total_tokens": total_tokens,
+        "by_status": by_status,
+        "by_mode": by_mode,
+        "by_provider": by_provider,
+        "avg_duration": round(avg_duration, 2),
+        "success_rate": round(success_rate, 2)
+    })
+
+
+# ============================================================================
+# BUDGET API
+# ============================================================================
+
+
+@app.get("/api/budgets")
+async def list_budgets(
+    period: Optional[str] = None,
+    enabled_only: bool = False
+):
+    """
+    List all budgets with optional filters.
+
+    Query Parameters:
+        period: Filter by period (daily, weekly, monthly, session, total)
+        enabled_only: Only return enabled budgets (default: false)
+
+    Response (JSON):
+    {
+        "budgets": [
+            {
+                "id": "<budget_id>",
+                "name": "Daily Budget",
+                "period": "daily",
+                "limit": 10.0,
+                "current_spending": 3.5,
+                "alert_threshold": 80.0,
+                "enabled": true,
+                "created_at": "...",
+                "period_start": "...",
+                "period_end": "...",
+                "last_alert_at": null
+            }
+        ],
+        "total": 5
+    }
+    """
+    budget_store = get_budget_store()
+
+    # Parse period filter
+    period_filter = None
+    if period:
+        try:
+            period_filter = BudgetPeriod(period.lower())
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid period: {period}. Use 'daily', 'weekly', 'monthly', 'session', or 'total'"
+            )
+
+    budgets = budget_store.list(period=period_filter, enabled_only=enabled_only)
+
+    return JSONResponse(content={
+        "budgets": [b.to_dict() for b in budgets],
+        "total": len(budgets)
+    })
+
+
+@app.post("/api/budgets")
+async def create_budget(request: Request):
+    """
+    Create a new budget.
+
+    Request Body (JSON):
+    {
+        "name": "Daily Development Budget",
+        "period": "daily",
+        "limit": 10.0,
+        "alert_threshold": 80.0,  // optional, default 80
+        "enabled": true           // optional, default true
+    }
+
+    Response (JSON):
+    {
+        "id": "<budget_id>",
+        "name": "...",
+        ...
+    }
+    """
+    try:
+        body = await request.json()
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid JSON request body: {str(e)}"
+        )
+
+    # Validate required fields
+    name = body.get("name", "").strip()
+    period_str = body.get("period", "").lower()
+    limit = body.get("limit")
+
+    if not name:
+        raise HTTPException(status_code=400, detail="Budget name is required")
+
+    if not period_str:
+        raise HTTPException(status_code=400, detail="Budget period is required")
+
+    if limit is None or limit <= 0:
+        raise HTTPException(status_code=400, detail="Budget limit must be positive")
+
+    # Validate period
+    try:
+        period = BudgetPeriod(period_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid period: {period_str}. Use 'daily', 'weekly', 'monthly', 'session', or 'total'"
+        )
+
+    # Create budget
+    import uuid
+    budget = Budget(
+        id=str(uuid.uuid4()),
+        name=name,
+        period=period,
+        limit=float(limit),
+        alert_threshold=float(body.get("alert_threshold", 80.0)),
+        enabled=bool(body.get("enabled", True)),
+        created_at=datetime.utcnow().isoformat() + "Z"
+    )
+
+    # Set period_start for new budget
+    budget.period_start = budget.created_at
+
+    # Calculate period_end for time-based budgets
+    if period == BudgetPeriod.DAILY:
+        from datetime import timedelta
+        end = datetime.utcnow() + timedelta(days=1)
+        budget.period_end = end.isoformat() + "Z"
+    elif period == BudgetPeriod.WEEKLY:
+        from datetime import timedelta
+        end = datetime.utcnow() + timedelta(weeks=1)
+        budget.period_end = end.isoformat() + "Z"
+    elif period == BudgetPeriod.MONTHLY:
+        from datetime import timedelta
+        end = datetime.utcnow() + timedelta(days=30)
+        budget.period_end = end.isoformat() + "Z"
+
+    budget_store = get_budget_store()
+    budget_store.create(budget)
+
+    return JSONResponse(content=budget.to_dict(), status_code=201)
+
+
+@app.get("/api/budgets/{budget_id}")
+async def get_budget(budget_id: str):
+    """
+    Get a specific budget by ID.
+
+    Response (JSON):
+    {
+        "id": "<budget_id>",
+        "name": "...",
+        "period": "...",
+        "limit": 10.0,
+        "current_spending": 3.5,
+        "usage_percentage": 35.0,
+        "remaining": 6.5,
+        "is_exceeded": false,
+        "should_alert": false,
+        ...
+    }
+    """
+    budget_store = get_budget_store()
+    budget = budget_store.get(budget_id)
+
+    if not budget:
+        raise HTTPException(status_code=404, detail="Budget not found")
+
+    # Add computed fields
+    budget_dict = budget.to_dict()
+    budget_dict['usage_percentage'] = budget.usage_percentage()
+    budget_dict['remaining'] = budget.remaining()
+    budget_dict['is_exceeded'] = budget.is_exceeded()
+    budget_dict['should_alert'] = budget.should_alert()
+
+    return JSONResponse(content=budget_dict)
+
+
+@app.put("/api/budgets/{budget_id}")
+async def update_budget(budget_id: str, request: Request):
+    """
+    Update an existing budget.
+
+    Request Body (JSON) - all fields optional:
+    {
+        "name": "Updated Name",
+        "limit": 15.0,
+        "alert_threshold": 85.0,
+        "enabled": false
+    }
+
+    Response (JSON):
+    {
+        "id": "<budget_id>",
+        "name": "...",
+        ...
+    }
+    """
+    budget_store = get_budget_store()
+    budget = budget_store.get(budget_id)
+
+    if not budget:
+        raise HTTPException(status_code=404, detail="Budget not found")
+
+    try:
+        body = await request.json()
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid JSON request body: {str(e)}"
+        )
+
+    # Update fields if provided
+    if "name" in body:
+        budget.name = body["name"].strip()
+        if not budget.name:
+            raise HTTPException(status_code=400, detail="Budget name cannot be empty")
+
+    if "limit" in body:
+        limit = float(body["limit"])
+        if limit <= 0:
+            raise HTTPException(status_code=400, detail="Budget limit must be positive")
+        budget.limit = limit
+
+    if "alert_threshold" in body:
+        threshold = float(body["alert_threshold"])
+        if threshold < 0 or threshold > 100:
+            raise HTTPException(status_code=400, detail="Alert threshold must be between 0 and 100")
+        budget.alert_threshold = threshold
+
+    if "enabled" in body:
+        budget.enabled = bool(body["enabled"])
+
+    budget_store.update(budget)
+
+    return JSONResponse(content=budget.to_dict())
+
+
+@app.delete("/api/budgets/{budget_id}")
+async def delete_budget(budget_id: str):
+    """
+    Delete a budget.
+
+    Response (JSON):
+    {
+        "success": true,
+        "message": "Budget deleted successfully"
+    }
+    """
+    budget_store = get_budget_store()
+    success = budget_store.delete(budget_id)
+
+    if not success:
+        raise HTTPException(status_code=404, detail="Budget not found")
+
+    return JSONResponse(content={
+        "success": True,
+        "message": "Budget deleted successfully"
+    })
+
+
+@app.post("/api/budgets/{budget_id}/reset")
+async def reset_budget_period(budget_id: str):
+    """
+    Reset a budget's period.
+
+    Sets current_spending to 0 and recalculates period_start/period_end.
+
+    Response (JSON):
+    {
+        "id": "<budget_id>",
+        "current_spending": 0.0,
+        "period_start": "...",
+        "period_end": "...",
+        ...
+    }
+    """
+    budget_store = get_budget_store()
+    budget = budget_store.reset_period(budget_id)
+
+    if not budget:
+        raise HTTPException(status_code=404, detail="Budget not found")
+
+    return JSONResponse(content=budget.to_dict())
+
+
+@app.get("/api/spending/summary")
+async def get_spending_summary(
+    period: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    """
+    Get spending summary with various breakdowns.
+
+    Query Parameters:
+        period: Filter by period (today, week, month, all)
+        start_date: ISO timestamp start (optional)
+        end_date: ISO timestamp end (optional)
+
+    Response (JSON):
+    {
+        "total_spending": 123.45,
+        "total_jobs": 250,
+        "by_provider": {
+            "claude": {"cost": 80.0, "jobs": 150},
+            "gpt4": {"cost": 43.45, "jobs": 100}
+        },
+        "by_mode": {
+            "auto": {"cost": 90.0, "jobs": 50},
+            "chat": {"cost": 33.45, "jobs": 200}
+        },
+        "by_status": {
+            "completed": {"cost": 120.0, "jobs": 230},
+            "failed": {"cost": 3.45, "jobs": 20}
+        },
+        "by_session": [
+            {"session_id": "...", "name": "...", "cost": 25.0, "jobs": 10}
+        ],
+        "timeline": [
+            {"date": "2025-01-19", "cost": 15.0, "jobs": 20}
+        ]
+    }
+    """
+    from datetime import timedelta
+    job_store = get_job_store()
+    session_store = get_session_store()
+
+    # Get all jobs (with date filtering if provided)
+    all_jobs = job_store.list(limit=10000)
+
+    # Filter by date range
+    if period or start_date or end_date:
+        now = datetime.utcnow()
+
+        if period == "today":
+            start_date = (now.replace(hour=0, minute=0, second=0, microsecond=0)).isoformat() + "Z"
+        elif period == "week":
+            start_date = (now - timedelta(days=7)).isoformat() + "Z"
+        elif period == "month":
+            start_date = (now - timedelta(days=30)).isoformat() + "Z"
+
+        if start_date:
+            all_jobs = [j for j in all_jobs if j.created_at >= start_date]
+        if end_date:
+            all_jobs = [j for j in all_jobs if j.created_at <= end_date]
+
+    # Calculate totals
+    total_spending = sum(job.estimated_cost for job in all_jobs)
+    total_jobs = len(all_jobs)
+
+    # Group by provider
+    by_provider = {}
+    for job in all_jobs:
+        provider = job.provider
+        if provider not in by_provider:
+            by_provider[provider] = {"cost": 0.0, "jobs": 0}
+        by_provider[provider]["cost"] += job.estimated_cost
+        by_provider[provider]["jobs"] += 1
+
+    # Group by mode
+    by_mode = {}
+    for job in all_jobs:
+        mode = job.mode.value
+        if mode not in by_mode:
+            by_mode[mode] = {"cost": 0.0, "jobs": 0}
+        by_mode[mode]["cost"] += job.estimated_cost
+        by_mode[mode]["jobs"] += 1
+
+    # Group by status
+    by_status = {}
+    for job in all_jobs:
+        status = job.status.value
+        if status not in by_status:
+            by_status[status] = {"cost": 0.0, "jobs": 0}
+        by_status[status]["cost"] += job.estimated_cost
+        by_status[status]["jobs"] += 1
+
+    # Group by session
+    by_session_dict = {}
+    for job in all_jobs:
+        if not job.session_id:
+            continue
+        if job.session_id not in by_session_dict:
+            by_session_dict[job.session_id] = {"cost": 0.0, "jobs": 0}
+        by_session_dict[job.session_id]["cost"] += job.estimated_cost
+        by_session_dict[job.session_id]["jobs"] += 1
+
+    # Add session names
+    by_session = []
+    for session_id, data in by_session_dict.items():
+        session = session_store.get(session_id)
+        by_session.append({
+            "session_id": session_id,
+            "name": session.name if session else "Unknown",
+            "cost": round(data["cost"], 4),
+            "jobs": data["jobs"]
+        })
+
+    # Sort by cost descending
+    by_session.sort(key=lambda x: x["cost"], reverse=True)
+
+    # Create daily timeline
+    timeline_dict = {}
+    for job in all_jobs:
+        try:
+            date_str = job.created_at[:10]  # YYYY-MM-DD
+            if date_str not in timeline_dict:
+                timeline_dict[date_str] = {"cost": 0.0, "jobs": 0}
+            timeline_dict[date_str]["cost"] += job.estimated_cost
+            timeline_dict[date_str]["jobs"] += 1
+        except:
+            pass
+
+    timeline = [
+        {"date": date, "cost": round(data["cost"], 4), "jobs": data["jobs"]}
+        for date, data in sorted(timeline_dict.items())
+    ]
+
+    # Round costs
+    for provider_data in by_provider.values():
+        provider_data["cost"] = round(provider_data["cost"], 4)
+    for mode_data in by_mode.values():
+        mode_data["cost"] = round(mode_data["cost"], 4)
+    for status_data in by_status.values():
+        status_data["cost"] = round(status_data["cost"], 4)
+
+    return JSONResponse(content={
+        "total_spending": round(total_spending, 4),
+        "total_jobs": total_jobs,
+        "by_provider": by_provider,
+        "by_mode": by_mode,
+        "by_status": by_status,
+        "by_session": by_session,
+        "timeline": timeline
+    })
+
+
+# ============================================================================
+# LEGACY API (for backward compatibility)
+# ============================================================================
+
+
+@app.post("/api/console")
+async def console_command_legacy(request: Request):
+    """
+    Legacy console command endpoint.
+
+    This endpoint is maintained for backward compatibility.
+    New code should use POST /api/runs instead.
+
+    Behaves the same as POST /api/runs.
+    """
+    try:
+        body = await request.json()
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid JSON request body: {str(e)}"
+        )
+
+    # Map mode
+    mode_str = body.get("mode", "chat")
+    if mode_str not in ["chat", "auto", "agent"]:
+        # Support "task" mode
+        if "task" in body.get("input", "").lower():
+            mode_str = "task"
+
+    # Submit as new run
     input_text = body.get("input", "").strip()
     agent_name = body.get("agent")
     provider = body.get("provider", "claude")
 
-    # Validate input
     if not input_text:
-        return JSONResponse(
-            content={
-                "status": "error",
-                "error": "Input text is required",
-            },
+        raise HTTPException(
             status_code=400,
+            detail="Input text is required"
         )
 
-    if mode not in ["chat", "auto", "agent"]:
-        return JSONResponse(
-            content={
-                "status": "error",
-                "error": f"Invalid mode: {mode}. Use 'chat', 'auto', or 'agent'",
-            },
+    try:
+        mode = JobMode(mode_str)
+    except ValueError:
+        raise HTTPException(
             status_code=400,
+            detail=f"Invalid mode: {mode_str}"
         )
 
-    # Execute command
-    result = run_console_command(mode, input_text, agent_name, provider)
+    executor = get_executor()
+    job = executor.submit(
+        mode=mode,
+        input_text=input_text,
+        agent_name=agent_name,
+        provider=provider,
+        target_root=None
+    )
 
-    # Return result with appropriate status code
-    status_code = 200 if result["status"] == "ok" else 500
-    return JSONResponse(content=result, status_code=status_code)
+    # Return job details (not blocking)
+    return JSONResponse(content={
+        "status": "submitted",
+        "run_id": job.id,
+        "message": f"Job submitted successfully. Use GET /api/runs/{job.id} to check status",
+        "job": job.to_dict()
+    })
 
 
 def run_dashboard(host: str = "0.0.0.0", port: Optional[int] = None):
@@ -268,6 +1126,11 @@ def run_dashboard(host: str = "0.0.0.0", port: Optional[int] = None):
     # Handle graceful shutdown
     def signal_handler(signum, frame):
         print("\n[CodeCompanion] Shutting down dashboard...")
+
+        # Shutdown executor
+        executor = get_executor()
+        executor.shutdown(wait=False)
+
         server.should_exit = True
         sys.exit(0)
 

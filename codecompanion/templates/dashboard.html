@@ -20,14 +20,14 @@
         }
 
         .page {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 3rem;
-            padding-bottom: 2rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
@@ -114,6 +114,48 @@
             color: #64748b;
         }
 
+        /* Tab Navigation */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 0;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease;
+            position: relative;
+            bottom: -2px;
+        }
+
+        .tab:hover {
+            color: #e2e8f0;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Cards */
         .cards-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
@@ -180,6 +222,12 @@
             border-color: rgba(239, 68, 68, 0.3);
         }
 
+        .status-info {
+            background: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
         .info-row {
             display: flex;
             justify-content: space-between;
@@ -201,114 +249,243 @@
             font-weight: 600;
         }
 
-        .table {
-            width: 100%;
-            margin-top: 1rem;
+        /* Projects/Jobs List */
+        .jobs-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
 
-        .table-header {
-            display: grid;
-            grid-template-columns: 2fr 2fr 1fr;
-            gap: 1rem;
-            padding: 0.75rem;
+        .job-item {
             background: rgba(15, 23, 42, 0.5);
-            border-radius: 6px;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            font-size: 0.85rem;
-            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            transition: all 0.2s ease;
         }
 
-        .table-row {
-            display: grid;
-            grid-template-columns: 2fr 2fr 1fr;
-            gap: 1rem;
-            padding: 0.75rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        .job-item:hover {
+            background: rgba(15, 23, 42, 0.7);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .job-item.running {
+            border-left: 4px solid #eab308;
+        }
+
+        .job-item.completed {
+            border-left: 4px solid #22c55e;
+        }
+
+        .job-item.failed {
+            border-left: 4px solid #ef4444;
+        }
+
+        .job-item.cancelled {
+            border-left: 4px solid #94a3b8;
+        }
+
+        .job-header {
+            display: flex;
+            justify-content: space-between;
             align-items: center;
-        }
-
-        .table-row:last-child {
-            border-bottom: none;
-        }
-
-        .agents-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 0.5rem;
-            margin-top: 1rem;
-        }
-
-        .agent-item {
-            padding: 0.5rem 0.75rem;
-            background: rgba(15, 23, 42, 0.5);
-            border-radius: 6px;
-            border-left: 3px solid;
-            font-size: 0.85rem;
-        }
-
-        .agent-item.stub {
-            border-left-color: #eab308;
-        }
-
-        .agent-item.custom {
-            border-left-color: #22c55e;
-        }
-
-        .recommendations-list {
-            list-style: none;
-        }
-
-        .recommendation-item {
-            padding: 1rem;
-            background: rgba(15, 23, 42, 0.5);
-            border-radius: 6px;
             margin-bottom: 0.75rem;
-            border-left: 3px solid;
         }
 
-        .recommendation-item.warning {
-            border-left-color: #eab308;
-        }
-
-        .recommendation-item.info {
-            border-left-color: #3b82f6;
-        }
-
-        .recommendation-item.error {
-            border-left-color: #ef4444;
-        }
-
-        .recommendation-message {
+        .job-title {
             font-weight: 600;
-            margin-bottom: 0.25rem;
+            font-size: 1rem;
+            color: #e2e8f0;
         }
 
-        .recommendation-action {
+        .job-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .job-meta {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
             font-size: 0.85rem;
             color: #94a3b8;
+        }
+
+        .job-input {
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            margin-bottom: 0.75rem;
+            font-style: italic;
+        }
+
+        .job-output {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 0.75rem;
             font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #e2e8f0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 0.75rem;
         }
 
-        .error-banner {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: rgba(239, 68, 68, 0.95);
-            color: white;
-            padding: 1rem;
-            text-align: center;
+        .job-output:empty {
+            display: none;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
             font-weight: 600;
-            z-index: 1000;
-            transform: translateY(-100%);
-            transition: transform 0.3s ease;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
 
-        .error-banner.visible {
-            transform: translateY(0);
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
         }
 
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(59, 130, 246, 0.25);
+        }
+
+        .btn-warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-warning:hover {
+            background: rgba(245, 158, 11, 0.25);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+
+        .btn-small {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.75rem;
+        }
+
+        /* Form Elements */
+        input[type="text"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: border-color 0.2s ease;
+        }
+
+        input[type="text"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: rgba(59, 130, 246, 0.5);
+        }
+
+        textarea {
+            font-family: 'Courier New', monospace;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #94a3b8;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 2fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #64748b;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .empty-state-text {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-state-subtext {
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 2rem;
@@ -318,25 +495,356 @@
                 grid-template-columns: 1fr;
             }
 
-            .table-header,
-            .table-row {
+            .form-row {
                 grid-template-columns: 1fr;
-                gap: 0.5rem;
             }
 
-            .agents-list {
+            .tabs {
+                overflow-x: auto;
+            }
+
+            .tab {
+                white-space: nowrap;
+            }
+
+            .analytics-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .timeline-view {
+                gap: 1rem;
+            }
+
+            .session-card {
+                padding: 1rem;
+            }
+        }
+
+        /* Analytics Grid */
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .analytics-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .analytics-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .analytics-card-title {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .analytics-card-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin-bottom: 0.5rem;
+        }
+
+        .analytics-card-subtitle {
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        /* Timeline View */
+        .timeline-view {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .session-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .session-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #e2e8f0;
+        }
+
+        .session-meta {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        .session-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .session-jobs {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .timeline-job {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 1rem;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 1rem;
+            align-items: start;
+        }
+
+        .timeline-job-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .timeline-job-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .timeline-job-mode {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .timeline-job-input {
+            font-size: 0.9rem;
+            color: #e2e8f0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .timeline-job-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 0.25rem;
+        }
+
+        .timeline-job-metrics {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.25rem;
+            font-size: 0.85rem;
+        }
+
+        .timeline-job-cost {
+            color: #22c55e;
+            font-weight: 600;
+        }
+
+        .timeline-job-tokens {
+            color: #64748b;
+            font-size: 0.75rem;
+        }
+
+        /* Budget Styles */
+        .budgets-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .budget-card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .budget-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .budget-card.exceeded {
+            border-color: rgba(239, 68, 68, 0.5);
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .budget-card.warning {
+            border-color: rgba(245, 158, 11, 0.5);
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .budget-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .budget-name {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 0.25rem;
+        }
+
+        .budget-period {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .budget-toggle {
+            padding: 0.25rem 0.65rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .budget-toggle.enabled {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+        }
+
+        .budget-toggle.disabled {
+            background: rgba(100, 116, 139, 0.15);
+            color: #64748b;
+        }
+
+        .budget-usage {
+            margin: 1.5rem 0;
+        }
+
+        .budget-usage-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 0.5rem;
+        }
+
+        .budget-usage-label {
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        .budget-usage-value {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .budget-progress {
+            width: 100%;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .budget-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #22c55e, #16a34a);
+            border-radius: 6px;
+            transition: width 0.3s ease;
+        }
+
+        .budget-progress-bar.warning {
+            background: linear-gradient(90deg, #f59e0b, #d97706);
+        }
+
+        .budget-progress-bar.exceeded {
+            background: linear-gradient(90deg, #ef4444, #dc2626);
+        }
+
+        .budget-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .budget-stat {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .budget-stat-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-bottom: 0.25rem;
+        }
+
+        .budget-stat-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+        .budget-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .budget-form {
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
             }
         }
     </style>
 </head>
 <body>
-    <div id="error-banner" class="error-banner"></div>
-
     <div class="page">
         <div class="header">
             <h1>CodeCompanion Control Tower</h1>
-            <div class="header-subtitle">Live snapshot of your standalone Dev OS</div>
+            <div class="header-subtitle">Dashboard with Async Job Execution</div>
             <div class="header-right">
                 <span class="pill pill-live">
                     <span class="dot"></span> Live
@@ -346,185 +854,228 @@
             </div>
         </div>
 
-        <div class="cards-grid">
-            <!-- Project / Bootstrap Card -->
-            <div class="card">
-                <div class="card-header">
-                    <span>Project Status</span>
-                    <span id="project-status" class="status-badge status-ok">Loading...</span>
-                </div>
-                <div class="card-content">
-                    <div class="info-row">
-                        <span class="info-label">Project Root</span>
-                        <span class="info-value" id="project-root">--</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Config Directory</span>
-                        <span class="info-value" id="cc-dir">--</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Bootstrap File</span>
-                        <span class="info-value" id="bootstrap-file">--</span>
-                    </div>
-                </div>
-            </div>
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('overview')">Overview</button>
+            <button class="tab" onclick="switchTab('projects')">Projects</button>
+            <button class="tab" onclick="switchTab('timeline')">Timeline & Analytics</button>
+            <button class="tab" onclick="switchTab('budgets')">Budgets</button>
+        </div>
 
-            <!-- Agent Workflow Card -->
-            <div class="card">
-                <div class="card-header">
-                    <span>Agent Workflow</span>
-                    <span id="agent-completion" class="status-badge status-ok">0/10</span>
-                </div>
-                <div class="card-content">
-                    <div class="info-row">
-                        <span class="info-label">Agents Directory</span>
-                        <span class="info-value" id="agents-dir">--</span>
+        <!-- Overview Tab -->
+        <div id="overview-tab" class="tab-content active">
+            <div class="cards-grid">
+                <!-- Project / Bootstrap Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <span>Project Status</span>
+                        <span id="project-status" class="status-badge status-ok">Loading...</span>
                     </div>
-                    <div id="agents-list" class="agents-list">
-                        <!-- Agent items will be populated by JS -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- Providers Card -->
-            <div class="card" style="grid-column: 1 / -1;">
-                <div class="card-header">
-                    <span>LLM Providers</span>
-                    <span id="providers-status" class="status-badge status-ok">--</span>
-                </div>
-                <div class="card-content">
-                    <div class="table">
-                        <div class="table-header">
-                            <div>Provider</div>
-                            <div>Model</div>
-                            <div>Status</div>
+                    <div class="card-content">
+                        <div class="info-row">
+                            <span class="info-label">Project Root</span>
+                            <span class="info-value" id="project-root">--</span>
                         </div>
-                        <div id="providers-body">
-                            <!-- Provider rows will be populated by JS -->
+                        <div class="info-row">
+                            <span class="info-label">Config Directory</span>
+                            <span class="info-value" id="cc-dir">--</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Bootstrap File</span>
+                            <span class="info-value" id="bootstrap-file">--</span>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Pipeline Status Card -->
-            <div class="card">
-                <div class="card-header">
-                    <span>Pipeline Status</span>
-                    <span id="pipeline-status" class="status-badge status-ok">Idle</span>
-                </div>
-                <div class="card-content">
-                    <div class="info-row">
-                        <span class="info-label">Last Run</span>
-                        <span class="info-value" id="pipeline-last-run">Never</span>
+                <!-- Quick Actions Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <span>Quick Actions</span>
                     </div>
-                    <div class="info-row">
-                        <span class="info-label">Total Runs</span>
-                        <span class="info-value" id="pipeline-total-runs">0</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Success Rate</span>
-                        <span class="info-value" id="pipeline-success-rate">N/A</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Errors & Recovery Card -->
-            <div class="card">
-                <div class="card-header">
-                    <span>Errors & Recovery</span>
-                    <span id="error-count" class="status-badge status-ok">0</span>
-                </div>
-                <div class="card-content">
-                    <div id="errors-content">
-                        <p style="color: #94a3b8;">No errors recorded.</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recommendations Card -->
-            <div class="card" style="grid-column: 1 / -1;">
-                <div class="card-header">
-                    <span>System Recommendations</span>
-                    <span id="recommendations-count" class="status-badge status-ok">0</span>
-                </div>
-                <div class="card-content">
-                    <ul id="recommendations-list" class="recommendations-list">
-                        <!-- Recommendations will be populated by JS -->
-                    </ul>
-                </div>
-            </div>
-
-            <!-- Command Console Card -->
-            <div class="card" style="grid-column: 1 / -1;">
-                <div class="card-header">
-                    <span>Command Console</span>
-                    <span id="console-status" class="status-badge status-ok">Ready</span>
-                </div>
-                <div class="card-content">
-                    <div style="margin-bottom: 1rem;">
-                        <label for="console-input" style="display: block; margin-bottom: 0.5rem; color: #94a3b8; font-weight: 600;">
-                            Instruction
-                        </label>
-                        <textarea
-                            id="console-input"
-                            placeholder="Enter your instruction here (e.g., 'Describe the project structure')"
-                            style="width: 100%; min-height: 100px; padding: 0.75rem; background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #e2e8f0; font-family: 'Courier New', monospace; font-size: 0.9rem; resize: vertical;"
-                        ></textarea>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 1rem; margin-bottom: 1rem;">
-                        <div>
-                            <label for="console-mode" style="display: block; margin-bottom: 0.5rem; color: #94a3b8; font-weight: 600; font-size: 0.85rem;">
-                                Mode
-                            </label>
-                            <select
-                                id="console-mode"
-                                style="width: 100%; padding: 0.5rem; background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #e2e8f0; font-size: 0.9rem;"
-                            >
-                                <option value="chat">Chat (default)</option>
-                                <option value="auto">Auto Pipeline</option>
-                                <option value="agent">Run Single Agent</option>
-                            </select>
-                        </div>
-
-                        <div id="console-agent-container" style="display: none;">
-                            <label for="console-agent" style="display: block; margin-bottom: 0.5rem; color: #94a3b8; font-weight: 600; font-size: 0.85rem;">
-                                Agent Name
-                            </label>
-                            <input
-                                type="text"
-                                id="console-agent"
-                                placeholder="e.g., Analyzer"
-                                style="width: 100%; padding: 0.5rem; background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #e2e8f0; font-size: 0.9rem;"
-                            />
-                        </div>
-
-                        <div style="display: flex; align-items: flex-end;">
-                            <button
-                                id="console-run-btn"
-                                onclick="runConsoleCommand()"
-                                style="padding: 0.65rem 1.5rem; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border: none; border-radius: 6px; color: white; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: opacity 0.2s ease, transform 0.1s ease;"
-                                onmouseover="this.style.opacity='0.9'"
-                                onmouseout="this.style.opacity='1'"
-                            >
-                                Run Command
+                    <div class="card-content">
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <button class="btn btn-primary" onclick="quickRun('auto')">
+                                Run Full Pipeline
+                            </button>
+                            <button class="btn btn-secondary" onclick="quickRun('chat', 'Analyze this project')">
+                                Analyze Project
+                            </button>
+                            <button class="btn btn-secondary" onclick="switchTab('projects')">
+                                View All Jobs
                             </button>
                         </div>
                     </div>
+                </div>
 
-                    <div id="console-output-container" style="display: none; margin-top: 1.5rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                            <span style="color: #94a3b8; font-weight: 600; font-size: 0.85rem;">Output</span>
-                            <div style="display: flex; gap: 0.5rem; font-size: 0.75rem; color: #64748b;">
-                                <span id="console-output-mode"></span>
-                                <span>•</span>
-                                <span id="console-output-time"></span>
+                <!-- Active Budgets Card -->
+                <div class="card" style="grid-column: 1 / -1;">
+                    <div class="card-header">
+                        <span>Active Budgets</span>
+                        <button class="btn btn-small btn-primary" onclick="switchTab('budgets')">Manage Budgets</button>
+                    </div>
+                    <div class="card-content">
+                        <div id="overview-budgets">
+                            <!-- Budget status will be populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Providers Card -->
+                <div class="card" style="grid-column: 1 / -1;">
+                    <div class="card-header">
+                        <span>LLM Providers</span>
+                        <span id="providers-status" class="status-badge status-ok">--</span>
+                    </div>
+                    <div class="card-content">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                            <div id="providers-body">
+                                <!-- Provider cards will be populated by JS -->
                             </div>
                         </div>
-                        <pre
-                            id="console-output"
-                            style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; padding: 1rem; color: #e2e8f0; font-family: 'Courier New', monospace; font-size: 0.85rem; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; max-height: 500px; overflow-y: auto;"
-                        ></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Projects Tab -->
+        <div id="projects-tab" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <span>New Run</span>
+                </div>
+                <div class="card-content">
+                    <div class="form-group">
+                        <label for="run-input">Instruction</label>
+                        <textarea id="run-input" placeholder="Enter your instruction (e.g., 'Run full pipeline', 'Analyze code structure')"></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="run-mode">Mode</label>
+                            <select id="run-mode" onchange="handleModeChange()">
+                                <option value="chat">Chat</option>
+                                <option value="auto">Auto Pipeline</option>
+                                <option value="agent">Single Agent</option>
+                                <option value="task">Task (Natural Language)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" id="run-agent-group" style="display: none;">
+                            <label for="run-agent">Agent Name</label>
+                            <input type="text" id="run-agent" placeholder="e.g., Analyzer">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="run-provider">Provider</label>
+                            <select id="run-provider">
+                                <option value="claude">Claude (Anthropic)</option>
+                                <option value="gpt4">GPT-4 (OpenAI)</option>
+                                <option value="gemini">Gemini (Google)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button id="submit-run-btn" class="btn btn-primary" onclick="submitRun()">
+                        Submit Run
+                    </button>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 1.5rem;">
+                <div class="card-header">
+                    <span>All Runs</span>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-small btn-secondary" onclick="filterJobs('all')">All</button>
+                        <button class="btn btn-small btn-secondary" onclick="filterJobs('running')">Running</button>
+                        <button class="btn btn-small btn-secondary" onclick="filterJobs('completed')">Completed</button>
+                        <button class="btn btn-small btn-secondary" onclick="refreshJobs()">Refresh</button>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div id="jobs-list" class="jobs-list">
+                        <!-- Jobs will be populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timeline Tab -->
+            <div id="timeline-tab" class="tab-content" style="display: none;">
+                <!-- Analytics Cards -->
+                <div class="section">
+                    <h2>Analytics Overview</h2>
+                    <div id="analytics-cards" class="analytics-grid">
+                        <!-- Cards will be populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Timeline View -->
+                <div class="section">
+                    <h2>Timeline</h2>
+                    <div id="timeline-view" class="timeline-view">
+                        <!-- Timeline will be populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budgets Tab -->
+            <div id="budgets-tab" class="tab-content">
+                <!-- Active Budgets Overview -->
+                <div class="section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h2>Budget Management</h2>
+                        <button class="btn btn-primary" onclick="showCreateBudgetForm()">+ Create Budget</button>
+                    </div>
+
+                    <!-- Create Budget Form (hidden by default) -->
+                    <div id="create-budget-form" class="budget-form" style="display: none;">
+                        <div class="card" style="margin-bottom: 2rem;">
+                            <div class="card-header">
+                                <span>New Budget</span>
+                                <button class="btn btn-small btn-secondary" onclick="hideCreateBudgetForm()">Cancel</button>
+                            </div>
+                            <div class="card-content">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="budget-name">Budget Name</label>
+                                        <input type="text" id="budget-name" placeholder="e.g., Daily Development Budget">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="budget-period">Period</label>
+                                        <select id="budget-period">
+                                            <option value="daily">Daily</option>
+                                            <option value="weekly">Weekly</option>
+                                            <option value="monthly">Monthly</option>
+                                            <option value="session">Per Session</option>
+                                            <option value="total">Total (Lifetime)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="budget-limit">Spending Limit ($)</label>
+                                        <input type="number" id="budget-limit" placeholder="e.g., 10.00" step="0.01" min="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="budget-threshold">Alert Threshold (%)</label>
+                                        <input type="number" id="budget-threshold" placeholder="e.g., 80" value="80" min="0" max="100">
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary" onclick="createBudget()">Create Budget</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Budget Cards Grid -->
+                    <div id="budgets-list" class="budgets-grid">
+                        <!-- Budget cards will be populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Spending Summary -->
+                <div class="section">
+                    <h2>Spending Summary</h2>
+                    <div id="spending-summary" class="cards-grid">
+                        <!-- Summary cards will be populated by JS -->
                     </div>
                 </div>
             </div>
@@ -532,391 +1083,1049 @@
     </div>
 
     <script>
-        const INFO_ENDPOINT = "/api/info";
-        let lastData = null;
+        // Global State
+        let currentTab = 'overview';
+        let currentFilter = 'all';
+        let jobStreams = new Map(); // Map of job_id -> EventSource
         let refreshInterval = null;
 
-        // Auto-refresh on load and every 5 seconds
+        // Initialize on load
         window.onload = function() {
-            refreshData();
-            // Use 5 second refresh instead of 3 to reduce server load
-            refreshInterval = setInterval(refreshData, 5000);
+            refreshOverview();
+            refreshJobs();
+
+            // Auto-refresh overview every 5 seconds
+            refreshInterval = setInterval(refreshOverview, 5000);
         };
 
-        // Clean up interval on page unload
         window.onbeforeunload = function() {
-            if (refreshInterval) {
-                clearInterval(refreshInterval);
-            }
+            if (refreshInterval) clearInterval(refreshInterval);
+            // Close all SSE connections
+            jobStreams.forEach(stream => stream.close());
         };
 
-        async function refreshData() {
+        // Tab Switching
+        function switchTab(tabName) {
+            currentTab = tabName;
+
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+
+            // Refresh data when switching tabs
+            if (tabName === 'projects') {
+                refreshJobs();
+            } else if (tabName === 'timeline') {
+                refreshTimeline();
+                refreshAnalytics();
+            } else if (tabName === 'budgets') {
+                refreshBudgets();
+                refreshSpendingSummary();
+            }
+        }
+
+        // Overview Data Refresh
+        async function refreshOverview() {
             try {
                 setRefreshing(true);
-                const res = await fetch(INFO_ENDPOINT, { cache: "no-store" });
-                if (!res.ok) throw new Error("Failed to fetch info");
+                const res = await fetch('/api/info', { cache: 'no-store' });
+                if (!res.ok) throw new Error('Failed to fetch info');
                 const data = await res.json();
-                lastData = data;
-                renderData(data);
+                renderOverview(data);
                 setLastUpdated();
-                hideErrorBanner();
+
+                // Also refresh budget status in overview
+                refreshOverviewBudgets();
             } catch (err) {
-                console.error("Dashboard refresh error:", err);
-                showErrorBanner("Failed to refresh dashboard data. See console for details.");
+                console.error('Overview refresh error:', err);
             } finally {
                 setRefreshing(false);
             }
         }
 
         function setRefreshing(isRefreshing) {
-            const indicator = document.getElementById("refresh-indicator");
+            const indicator = document.getElementById('refresh-indicator');
             if (isRefreshing) {
-                indicator.classList.add("spinning");
+                indicator.classList.add('spinning');
             } else {
-                indicator.classList.remove("spinning");
+                indicator.classList.remove('spinning');
             }
         }
 
         function setLastUpdated() {
             const now = new Date();
             const timeStr = now.toLocaleTimeString();
-            document.getElementById("last-updated").textContent = `Last updated: ${timeStr}`;
+            document.getElementById('last-updated').textContent = `Last updated: ${timeStr}`;
         }
 
-        function showErrorBanner(message) {
-            const banner = document.getElementById("error-banner");
-            banner.textContent = message;
-            banner.classList.add("visible");
-        }
+        function renderOverview(data) {
+            // Project status
+            const statusBadge = document.getElementById('project-status');
+            if (data.bootstrap && data.bootstrap.status === 'initialized') {
+                statusBadge.textContent = 'Initialized';
+                statusBadge.className = 'status-badge status-ok';
+            } else {
+                statusBadge.textContent = 'Incomplete';
+                statusBadge.className = 'status-badge status-warn';
+            }
 
-        function hideErrorBanner() {
-            const banner = document.getElementById("error-banner");
-            banner.classList.remove("visible");
-        }
+            document.getElementById('project-root').textContent = data.bootstrap?.root || '--';
+            document.getElementById('cc-dir').textContent = data.bootstrap?.cc_dir || '--';
+            document.getElementById('bootstrap-file').textContent = data.bootstrap?.bootstrap_file ? '✓ Present' : '✗ Missing';
 
-        function renderData(data) {
-            renderBootstrap(data.bootstrap);
-            renderAgentWorkflow(data.agent_workflow);
+            // Providers
             renderProviders(data.providers);
-            renderPipeline(data.pipeline);
-            renderErrors(data.errors);
-            renderRecommendations(data.recommendations);
-        }
-
-        function renderBootstrap(bootstrap) {
-            // Update project status
-            const statusBadge = document.getElementById("project-status");
-            if (bootstrap.status === "initialized") {
-                statusBadge.textContent = "Initialized";
-                statusBadge.className = "status-badge status-ok";
-            } else {
-                statusBadge.textContent = "Incomplete";
-                statusBadge.className = "status-badge status-warn";
-            }
-
-            // Update project info
-            document.getElementById("project-root").textContent = bootstrap.root || "--";
-            document.getElementById("cc-dir").textContent = bootstrap.cc_dir || "--";
-            document.getElementById("bootstrap-file").textContent = bootstrap.bootstrap_file ? "✓ Present" : "✗ Missing";
-        }
-
-        function renderAgentWorkflow(workflow) {
-            // Update completion badge
-            const completionBadge = document.getElementById("agent-completion");
-            completionBadge.textContent = workflow.completion || "0/10";
-
-            const existingCount = workflow.existing_agents ? workflow.existing_agents.length : 0;
-            const totalCount = workflow.total_agents || 10;
-
-            if (existingCount === totalCount) {
-                completionBadge.className = "status-badge status-ok";
-            } else if (existingCount > totalCount / 2) {
-                completionBadge.className = "status-badge status-warn";
-            } else {
-                completionBadge.className = "status-badge status-error";
-            }
-
-            // Update agents directory
-            document.getElementById("agents-dir").textContent = workflow.agents_dir || "--";
-
-            // Render agent items
-            const agentsList = document.getElementById("agents-list");
-            agentsList.innerHTML = "";
-
-            if (workflow.existing_agents && workflow.existing_agents.length > 0) {
-                workflow.existing_agents.forEach(agent => {
-                    const item = document.createElement("div");
-                    item.className = `agent-item ${agent.is_stub ? 'stub' : 'custom'}`;
-                    item.textContent = agent.name;
-                    item.title = agent.is_stub ? "Using default stub" : "Custom agent";
-                    agentsList.appendChild(item);
-                });
-            } else {
-                agentsList.innerHTML = '<p style="color: #94a3b8;">No agents found</p>';
-            }
         }
 
         function renderProviders(providers) {
-            const providersBody = document.getElementById("providers-body");
-            providersBody.innerHTML = "";
+            const providersBody = document.getElementById('providers-body');
+            providersBody.innerHTML = '';
 
             let configuredCount = 0;
 
             if (providers && providers.length > 0) {
                 providers.forEach(provider => {
-                    const row = document.createElement("div");
-                    row.className = "table-row";
+                    const card = document.createElement('div');
+                    card.style.cssText = 'padding: 1rem; background: rgba(15, 23, 42, 0.5); border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1);';
 
-                    const nameCell = document.createElement("div");
-                    nameCell.textContent = provider.name.toUpperCase();
+                    const name = document.createElement('div');
+                    name.style.cssText = 'font-weight: 600; margin-bottom: 0.5rem;';
+                    name.textContent = provider.name.toUpperCase();
 
-                    const modelCell = document.createElement("div");
-                    modelCell.textContent = provider.model;
+                    const model = document.createElement('div');
+                    model.style.cssText = 'font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.5rem;';
+                    model.textContent = provider.model;
 
-                    const statusCell = document.createElement("div");
-                    const statusBadge = document.createElement("span");
-                    statusBadge.className = provider.api_key_set ? "status-badge status-ok" : "status-badge status-error";
-                    statusBadge.textContent = provider.api_key_set ? "Configured" : "Missing Key";
-                    statusCell.appendChild(statusBadge);
+                    const status = document.createElement('span');
+                    status.className = provider.api_key_set ? 'status-badge status-ok' : 'status-badge status-error';
+                    status.textContent = provider.api_key_set ? 'Configured' : 'Missing Key';
 
-                    row.appendChild(nameCell);
-                    row.appendChild(modelCell);
-                    row.appendChild(statusCell);
-
-                    providersBody.appendChild(row);
+                    card.appendChild(name);
+                    card.appendChild(model);
+                    card.appendChild(status);
+                    providersBody.appendChild(card);
 
                     if (provider.api_key_set) configuredCount++;
                 });
             }
 
             // Update providers status badge
-            const statusBadge = document.getElementById("providers-status");
+            const statusBadge = document.getElementById('providers-status');
             if (configuredCount === providers.length) {
-                statusBadge.textContent = "All Configured";
-                statusBadge.className = "status-badge status-ok";
+                statusBadge.textContent = 'All Configured';
+                statusBadge.className = 'status-badge status-ok';
             } else if (configuredCount > 0) {
                 statusBadge.textContent = `${configuredCount}/${providers.length} Configured`;
-                statusBadge.className = "status-badge status-warn";
+                statusBadge.className = 'status-badge status-warn';
             } else {
-                statusBadge.textContent = "Not Configured";
-                statusBadge.className = "status-badge status-error";
+                statusBadge.textContent = 'Not Configured';
+                statusBadge.className = 'status-badge status-error';
             }
         }
 
-        function renderPipeline(pipeline) {
-            // Handle last_run which can be null or an object
-            const lastRunEl = document.getElementById("pipeline-last-run");
-            if (pipeline.last_run && pipeline.last_run.timestamp) {
-                lastRunEl.textContent = pipeline.last_run.timestamp;
-            } else {
-                lastRunEl.textContent = "Never";
-            }
-
-            document.getElementById("pipeline-total-runs").textContent = pipeline.total_runs || 0;
-            document.getElementById("pipeline-success-rate").textContent = pipeline.success_rate || "N/A";
-
-            const statusBadge = document.getElementById("pipeline-status");
-            const status = pipeline.status || "idle";
-            statusBadge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
-
-            // Update badge color based on status
-            if (status === "success") {
-                statusBadge.className = "status-badge status-ok";
-            } else if (status === "failed") {
-                statusBadge.className = "status-badge status-error";
-            } else if (status === "partial") {
-                statusBadge.className = "status-badge status-warn";
-            } else {
-                statusBadge.className = "status-badge status-ok";
+        // Overview Budgets Status
+        async function refreshOverviewBudgets() {
+            try {
+                const res = await fetch('/api/budgets?enabled_only=true', { cache: 'no-store' });
+                if (!res.ok) throw new Error('Failed to fetch budgets');
+                const data = await res.json();
+                renderOverviewBudgets(data.budgets);
+            } catch (err) {
+                console.error('Overview budgets refresh error:', err);
             }
         }
 
-        function renderErrors(errors) {
-            // Handle new errors structure (object with total_errors, unrecovered_errors, recent)
-            const totalErrors = errors.total_errors || 0;
-            const unrecovered = errors.unrecovered_errors || 0;
-            const errorBadge = document.getElementById("error-count");
-            const errorsContent = document.getElementById("errors-content");
+        function renderOverviewBudgets(budgets) {
+            const container = document.getElementById('overview-budgets');
 
-            errorBadge.textContent = totalErrors;
-
-            if (totalErrors === 0) {
-                errorBadge.className = "status-badge status-ok";
-                errorsContent.innerHTML = '<p style="color: #94a3b8;">No errors recorded.</p>';
-            } else {
-                // Set badge color based on unrecovered errors
-                if (unrecovered === 0) {
-                    errorBadge.className = "status-badge status-ok";
-                } else if (unrecovered < 3) {
-                    errorBadge.className = "status-badge status-warn";
-                } else {
-                    errorBadge.className = "status-badge status-error";
-                }
-
-                // Build error content with recent errors
-                let content = `<div style="margin-bottom: 0.75rem;">`;
-                content += `<div class="info-row"><span class="info-label">Total Errors</span><span class="info-value">${totalErrors}</span></div>`;
-                content += `<div class="info-row"><span class="info-label">Unrecovered</span><span class="info-value">${unrecovered}</span></div>`;
-                content += `</div>`;
-
-                if (errors.recent && errors.recent.length > 0) {
-                    content += '<div style="font-size: 0.85rem; color: #cbd5e1;"><strong>Recent Errors:</strong></div>';
-                    content += '<div style="margin-top: 0.5rem;">';
-                    errors.recent.forEach(err => {
-                        const statusIcon = err.recovered ? '✓' : '✗';
-                        const statusColor = err.recovered ? '#22c55e' : '#ef4444';
-                        content += `<div style="padding: 0.5rem; background: rgba(15, 23, 42, 0.5); border-radius: 4px; margin-bottom: 0.5rem; border-left: 2px solid ${statusColor};">`;
-                        content += `<div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.25rem;">${err.timestamp} - ${err.agent} (${err.stage})</div>`;
-                        content += `<div style="font-size: 0.85rem;"><span style="color: ${statusColor};">[${statusIcon}]</span> ${err.message}</div>`;
-                        content += `</div>`;
-                    });
-                    content += '</div>';
-                }
-
-                errorsContent.innerHTML = content;
-            }
-        }
-
-        function renderRecommendations(recommendations) {
-            const recommendationsList = document.getElementById("recommendations-list");
-            const countBadge = document.getElementById("recommendations-count");
-
-            countBadge.textContent = recommendations ? recommendations.length : 0;
-
-            if (recommendations && recommendations.length > 0) {
-                countBadge.className = "status-badge status-warn";
-                recommendationsList.innerHTML = "";
-
-                recommendations.forEach(rec => {
-                    const item = document.createElement("li");
-                    item.className = `recommendation-item ${rec.level || 'info'}`;
-
-                    const message = document.createElement("div");
-                    message.className = "recommendation-message";
-                    message.textContent = rec.message;
-
-                    const action = document.createElement("div");
-                    action.className = "recommendation-action";
-                    action.textContent = rec.action;
-
-                    item.appendChild(message);
-                    item.appendChild(action);
-                    recommendationsList.appendChild(item);
-                });
-            } else {
-                countBadge.className = "status-badge status-ok";
-                recommendationsList.innerHTML = '<li style="color: #94a3b8; list-style: none;">System appears healthy. No immediate changes recommended.</li>';
-            }
-        }
-
-        // Console command functionality
-        const CONSOLE_ENDPOINT = "/api/console";
-
-        // Show/hide agent name input based on mode selection
-        document.getElementById("console-mode").addEventListener("change", function(e) {
-            const agentContainer = document.getElementById("console-agent-container");
-            if (e.target.value === "agent") {
-                agentContainer.style.display = "block";
-            } else {
-                agentContainer.style.display = "none";
-            }
-        });
-
-        async function runConsoleCommand() {
-            const inputEl = document.getElementById("console-input");
-            const modeEl = document.getElementById("console-mode");
-            const agentEl = document.getElementById("console-agent");
-            const runBtn = document.getElementById("console-run-btn");
-            const statusBadge = document.getElementById("console-status");
-            const outputContainer = document.getElementById("console-output-container");
-            const outputEl = document.getElementById("console-output");
-            const outputModeEl = document.getElementById("console-output-mode");
-            const outputTimeEl = document.getElementById("console-output-time");
-
-            // Get input values
-            const input = inputEl.value.trim();
-            const mode = modeEl.value;
-            const agent = agentEl.value.trim();
-
-            // Validate input
-            if (!input) {
-                alert("Please enter an instruction");
+            if (!budgets || budgets.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 1.5rem; color: #94a3b8;">
+                        No active budgets configured.
+                        <a href="#" onclick="switchTab('budgets'); return false;" style="color: #3b82f6; text-decoration: underline;">
+                            Create a budget
+                        </a> to track spending.
+                    </div>
+                `;
                 return;
             }
 
-            if (mode === "agent" && !agent) {
-                alert("Please enter an agent name");
-                return;
-            }
+            container.innerHTML = `
+                <div style="display: grid; gap: 1rem;">
+                    ${budgets.map(budget => {
+                        const usagePercent = budget.usage_percentage || 0;
+                        const remaining = budget.remaining || 0;
+                        const isExceeded = budget.is_exceeded || false;
+                        const shouldAlert = budget.should_alert || false;
 
-            // Set loading state
-            runBtn.disabled = true;
-            runBtn.textContent = "Running…";
-            statusBadge.textContent = "Running";
-            statusBadge.className = "status-badge status-warn";
-            outputContainer.style.display = "none";
+                        let statusColor = '#22c55e'; // green
+                        let statusText = 'Healthy';
+                        let statusIcon = '✓';
+
+                        if (isExceeded) {
+                            statusColor = '#ef4444'; // red
+                            statusText = 'EXCEEDED';
+                            statusIcon = '⚠';
+                        } else if (shouldAlert) {
+                            statusColor = '#f59e0b'; // orange
+                            statusText = 'Warning';
+                            statusIcon = '⚠';
+                        }
+
+                        let progressBarClass = '';
+                        if (isExceeded) {
+                            progressBarClass = 'exceeded';
+                        } else if (shouldAlert) {
+                            progressBarClass = 'warning';
+                        }
+
+                        return `
+                            <div style="padding: 1rem; background: rgba(15, 23, 42, 0.5); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                                    <div>
+                                        <div style="font-weight: 600; color: #f1f5f9; margin-bottom: 0.25rem;">
+                                            ${budget.name}
+                                        </div>
+                                        <div style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">
+                                            ${budget.period}
+                                        </div>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <div style="font-size: 0.75rem; color: ${statusColor}; font-weight: 600; margin-bottom: 0.25rem;">
+                                            ${statusIcon} ${statusText}
+                                        </div>
+                                        <div style="font-size: 0.85rem; color: ${statusColor}; font-weight: 600;">
+                                            ${usagePercent.toFixed(1)}%
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="budget-progress" style="margin-bottom: 0.75rem;">
+                                    <div class="budget-progress-bar ${progressBarClass}" style="width: ${Math.min(usagePercent, 100)}%"></div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #cbd5e1;">
+                                    <span>$${budget.current_spending.toFixed(4)} / $${budget.limit.toFixed(2)}</span>
+                                    <span style="color: ${remaining > 0 ? '#22c55e' : '#ef4444'};">
+                                        $${remaining.toFixed(4)} left
+                                    </span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        // Quick Actions
+        async function quickRun(mode, input = '') {
+            if (mode === 'auto' && !input) {
+                input = 'Run full 9-agent pipeline';
+            }
 
             try {
-                // Build request payload
+                const response = await fetch('/api/runs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mode: mode,
+                        input: input,
+                        provider: 'claude'
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to submit run');
+                const job = await response.json();
+
+                // Switch to projects tab and start streaming
+                switchTab('projects');
+                refreshJobs();
+
+                alert(`Job submitted: ${job.id}\nSwitch to Projects tab to view progress.`);
+            } catch (err) {
+                console.error('Quick run error:', err);
+                alert('Failed to submit job: ' + err.message);
+            }
+        }
+
+        // Jobs Management
+        function handleModeChange() {
+            const mode = document.getElementById('run-mode').value;
+            const agentGroup = document.getElementById('run-agent-group');
+
+            if (mode === 'agent') {
+                agentGroup.style.display = 'block';
+            } else {
+                agentGroup.style.display = 'none';
+            }
+        }
+
+        async function submitRun() {
+            const input = document.getElementById('run-input').value.trim();
+            const mode = document.getElementById('run-mode').value;
+            const agent = document.getElementById('run-agent').value.trim();
+            const provider = document.getElementById('run-provider').value;
+            const submitBtn = document.getElementById('submit-run-btn');
+
+            // Validate
+            if (!input) {
+                alert('Please enter an instruction');
+                return;
+            }
+
+            if (mode === 'agent' && !agent) {
+                alert('Please enter an agent name');
+                return;
+            }
+
+            // Disable button
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner"></span> Submitting...';
+
+            try {
                 const payload = {
                     mode: mode,
-                    input: input
+                    input: input,
+                    provider: provider
                 };
 
-                if (mode === "agent" && agent) {
+                if (mode === 'agent') {
                     payload.agent = agent;
                 }
 
-                // Make API request
-                const response = await fetch(CONSOLE_ENDPOINT, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
+                const response = await fetch('/api/runs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
 
-                const result = await response.json();
-
-                // Display results
-                outputContainer.style.display = "block";
-                outputModeEl.textContent = `Mode: ${result.mode}`;
-
-                // Calculate duration
-                const started = new Date(result.started_at);
-                const finished = new Date(result.finished_at);
-                const duration = ((finished - started) / 1000).toFixed(1);
-                outputTimeEl.textContent = `Duration: ${duration}s`;
-
-                if (result.status === "ok") {
-                    // Success
-                    outputEl.textContent = result.output || "(no output)";
-                    outputEl.style.borderLeftColor = "#22c55e";
-                    statusBadge.textContent = "Success";
-                    statusBadge.className = "status-badge status-ok";
-                } else {
-                    // Error
-                    outputEl.textContent = result.error || "Unknown error";
-                    outputEl.style.borderLeftColor = "#ef4444";
-                    statusBadge.textContent = "Error";
-                    statusBadge.className = "status-badge status-error";
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to submit run');
                 }
 
-            } catch (error) {
-                // Network or parsing error
-                console.error("Console command error:", error);
-                outputContainer.style.display = "block";
-                outputEl.textContent = `Network error: ${error.message}`;
-                outputEl.style.borderLeftColor = "#ef4444";
-                outputModeEl.textContent = "";
-                outputTimeEl.textContent = "";
-                statusBadge.textContent = "Error";
-                statusBadge.className = "status-badge status-error";
+                const job = await response.json();
+
+                // Clear form
+                document.getElementById('run-input').value = '';
+
+                // Refresh jobs list
+                await refreshJobs();
+
+                // Auto-scroll to new job
+                setTimeout(() => {
+                    const jobElement = document.getElementById(`job-${job.id}`);
+                    if (jobElement) {
+                        jobElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 500);
+
+            } catch (err) {
+                console.error('Submit run error:', err);
+                alert('Failed to submit run: ' + err.message);
             } finally {
-                // Reset button state
-                runBtn.disabled = false;
-                runBtn.textContent = "Run Command";
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Submit Run';
             }
+        }
+
+        async function refreshJobs() {
+            try {
+                const params = new URLSearchParams();
+                if (currentFilter !== 'all') {
+                    params.append('status', currentFilter);
+                }
+
+                const response = await fetch(`/api/runs?${params}`);
+                if (!response.ok) throw new Error('Failed to fetch jobs');
+
+                const data = await response.json();
+                renderJobs(data.runs);
+            } catch (err) {
+                console.error('Refresh jobs error:', err);
+            }
+        }
+
+        function filterJobs(filter) {
+            currentFilter = filter;
+            refreshJobs();
+        }
+
+        function renderJobs(jobs) {
+            const jobsList = document.getElementById('jobs-list');
+
+            if (!jobs || jobs.length === 0) {
+                jobsList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <div class="empty-state-text">No jobs found</div>
+                        <div class="empty-state-subtext">Submit a new run to get started</div>
+                    </div>
+                `;
+                return;
+            }
+
+            jobsList.innerHTML = jobs.map(job => renderJobItem(job)).join('');
+
+            // Start streaming for running jobs
+            jobs.filter(j => j.status === 'running').forEach(job => {
+                startJobStream(job.id);
+            });
+        }
+
+        function renderJobItem(job) {
+            const statusClass = job.status;
+            const statusText = job.status.charAt(0).toUpperCase() + job.status.slice(1);
+
+            const createdDate = new Date(job.created_at);
+            const timeAgo = getTimeAgo(createdDate);
+
+            const canCancel = job.can_cancel && job.status === 'running';
+
+            let duration = '--';
+            if (job.started_at) {
+                const started = new Date(job.started_at);
+                const ended = job.finished_at ? new Date(job.finished_at) : new Date();
+                duration = ((ended - started) / 1000).toFixed(1) + 's';
+            }
+
+            return `
+                <div id="job-${job.id}" class="job-item ${statusClass}">
+                    <div class="job-header">
+                        <div class="job-title">
+                            ${job.mode.toUpperCase()}${job.agent_name ? ` - ${job.agent_name}` : ''}
+                        </div>
+                        <div class="job-actions">
+                            <span class="status-badge status-${getStatusColor(job.status)}">${statusText}</span>
+                            ${canCancel ? `
+                                <button class="btn btn-small btn-warning" onclick="cancelJob('${job.id}', 'graceful')" title="Graceful shutdown (SIGTERM then SIGKILL)">Cancel</button>
+                                <button class="btn btn-small btn-danger" onclick="cancelJob('${job.id}', 'forced')" title="Force stop immediately (SIGKILL)">⚡ Force</button>
+                            ` : ''}
+                            ${job.status !== 'running' ? `<button class="btn btn-small btn-secondary" onclick="viewJobDetails('${job.id}')">Details</button>` : ''}
+                        </div>
+                    </div>
+                    <div class="job-meta">
+                        <span>⏱️ ${timeAgo}</span>
+                        <span>⏲️ ${duration}</span>
+                        <span>🤖 ${job.provider}</span>
+                    </div>
+                    <div class="job-input">"${escapeHtml(job.input)}"</div>
+                    ${job.output || job.status === 'running' ? `<div id="job-output-${job.id}" class="job-output">${escapeHtml(job.output || 'Starting...')}</div>` : ''}
+                    ${job.error ? `<div class="job-output" style="border-left: 3px solid #ef4444;">${escapeHtml(job.error)}</div>` : ''}
+                </div>
+            `;
+        }
+
+        function getStatusColor(status) {
+            const colors = {
+                'pending': 'info',
+                'running': 'warn',
+                'completed': 'ok',
+                'failed': 'error',
+                'cancelled': 'warn'
+            };
+            return colors[status] || 'info';
+        }
+
+        function getTimeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+
+            if (seconds < 60) return `${seconds}s ago`;
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes}m ago`;
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours}h ago`;
+            const days = Math.floor(hours / 24);
+            return `${days}d ago`;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Job Streaming with SSE
+        function startJobStream(jobId) {
+            // Don't create duplicate streams
+            if (jobStreams.has(jobId)) return;
+
+            const eventSource = new EventSource(`/api/runs/${jobId}/stream`);
+            jobStreams.set(jobId, eventSource);
+
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                // Update output
+                const outputEl = document.getElementById(`job-output-${jobId}`);
+                if (outputEl && data.output) {
+                    outputEl.textContent += data.output;
+                    outputEl.scrollTop = outputEl.scrollHeight;
+                }
+
+                // If finished, close stream and refresh
+                if (data.finished) {
+                    eventSource.close();
+                    jobStreams.delete(jobId);
+
+                    // Refresh after a short delay
+                    setTimeout(() => refreshJobs(), 1000);
+                }
+            };
+
+            eventSource.onerror = (error) => {
+                console.error(`Stream error for job ${jobId}:`, error);
+                eventSource.close();
+                jobStreams.delete(jobId);
+            };
+        }
+
+        async function cancelJob(jobId, mode = 'graceful') {
+            const modeText = mode === 'forced' ? 'force stop' : 'cancel';
+            const confirmText = mode === 'forced'
+                ? 'Force stop will immediately kill the process tree (SIGKILL). Continue?'
+                : 'Cancel will attempt graceful shutdown (SIGTERM, then SIGKILL after 5s). Continue?';
+
+            if (!confirm(confirmText)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/runs/${jobId}/cancel?mode=${mode}`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) throw new Error(`Failed to ${modeText} job`);
+
+                const result = await response.json();
+                console.log(`Job ${jobId} ${modeText}led: ${result.message}`);
+
+                // Close stream if exists
+                const stream = jobStreams.get(jobId);
+                if (stream) {
+                    stream.close();
+                    jobStreams.delete(jobId);
+                }
+
+                // Refresh jobs
+                await refreshJobs();
+            } catch (err) {
+                console.error(`${modeText} job error:`, err);
+                alert(`Failed to ${modeText} job: ` + err.message);
+            }
+        }
+
+        async function viewJobDetails(jobId) {
+            try {
+                const response = await fetch(`/api/runs/${jobId}`);
+                if (!response.ok) throw new Error('Failed to fetch job details');
+
+                const job = await response.json();
+
+                let details = `
+Job ID: ${job.id}
+Mode: ${job.mode}
+${job.agent_name ? `Agent: ${job.agent_name}\n` : ''}Provider: ${job.provider}
+Status: ${job.status}
+
+Input:
+${job.input}
+
+Created: ${new Date(job.created_at).toLocaleString()}
+${job.started_at ? `Started: ${new Date(job.started_at).toLocaleString()}\n` : ''}${job.finished_at ? `Finished: ${new Date(job.finished_at).toLocaleString()}\n` : ''}${job.exit_code !== null ? `Exit Code: ${job.exit_code}\n` : ''}
+${job.output ? `\nOutput:\n${job.output}` : ''}${job.error ? `\nError:\n${job.error}` : ''}
+                `.trim();
+
+                alert(details);
+            } catch (err) {
+                console.error('View job details error:', err);
+                alert('Failed to fetch job details: ' + err.message);
+            }
+        }
+
+        // Analytics Refresh
+        async function refreshAnalytics() {
+            try {
+                const res = await fetch('/api/analytics', { cache: 'no-store' });
+                if (!res.ok) throw new Error('Failed to fetch analytics');
+                const data = await res.json();
+                renderAnalytics(data);
+            } catch (err) {
+                console.error('Analytics refresh error:', err);
+            }
+        }
+
+        function renderAnalytics(data) {
+            const container = document.getElementById('analytics-cards');
+
+            container.innerHTML = `
+                <div class="analytics-card">
+                    <div class="analytics-card-title">Total Jobs</div>
+                    <div class="analytics-card-value">${formatNumber(data.total_jobs)}</div>
+                    <div class="analytics-card-subtitle">Across ${data.total_sessions} sessions</div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="analytics-card-title">Total Cost</div>
+                    <div class="analytics-card-value">$${formatCost(data.total_cost)}</div>
+                    <div class="analytics-card-subtitle">${formatNumber(data.total_tokens)} tokens</div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="analytics-card-title">Success Rate</div>
+                    <div class="analytics-card-value">${data.success_rate.toFixed(1)}%</div>
+                    <div class="analytics-card-subtitle">${data.by_status.completed || 0} completed</div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="analytics-card-title">Avg Duration</div>
+                    <div class="analytics-card-value">${formatDuration(data.avg_duration)}</div>
+                    <div class="analytics-card-subtitle">Per job</div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="analytics-card-title">By Status</div>
+                    <div class="analytics-card-value" style="font-size: 1rem;">
+                        ${Object.entries(data.by_status).map(([status, count]) =>
+                            `<div style="margin: 0.25rem 0;">${status}: ${count}</div>`
+                        ).join('')}
+                    </div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="analytics-card-title">By Mode</div>
+                    <div class="analytics-card-value" style="font-size: 1rem;">
+                        ${Object.entries(data.by_mode).map(([mode, count]) =>
+                            `<div style="margin: 0.25rem 0;">${mode}: ${count}</div>`
+                        ).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Timeline Refresh
+        async function refreshTimeline() {
+            try {
+                const res = await fetch('/api/timeline', { cache: 'no-store' });
+                if (!res.ok) throw new Error('Failed to fetch timeline');
+                const data = await res.json();
+                renderTimeline(data);
+            } catch (err) {
+                console.error('Timeline refresh error:', err);
+            }
+        }
+
+        function renderTimeline(data) {
+            const container = document.getElementById('timeline-view');
+
+            if (!data.timeline || data.timeline.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📊</div>
+                        <div class="empty-state-text">No timeline data</div>
+                        <div class="empty-state-subtext">Submit some jobs to see your timeline</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = data.timeline.map(item => {
+                const session = item.session;
+                const jobs = item.jobs;
+
+                const sessionName = session ? session.name : 'Ungrouped Jobs';
+                const sessionMeta = session ? `
+                    <div class="session-meta">
+                        <div class="session-meta-item">
+                            💰 $${formatCost(session.total_cost)}
+                        </div>
+                        <div class="session-meta-item">
+                            🔤 ${formatNumber(session.total_tokens)} tokens
+                        </div>
+                        <div class="session-meta-item">
+                            📋 ${session.completed_jobs}/${session.total_jobs} completed
+                        </div>
+                    </div>
+                ` : '';
+
+                const jobsHtml = jobs.map(job => `
+                    <div class="timeline-job">
+                        <div class="timeline-job-status status-${job.status}">
+                            ${job.status}
+                        </div>
+                        <div class="timeline-job-content">
+                            <div class="timeline-job-mode">${job.mode}${job.agent_name ? ` · ${job.agent_name}` : ''}</div>
+                            <div class="timeline-job-input">${escapeHtml(job.input.substring(0, 100))}${job.input.length > 100 ? '...' : ''}</div>
+                            <div class="timeline-job-meta">
+                                <span>${formatTimeAgo(job.created_at)}</span>
+                                ${job.started_at && job.finished_at ? `<span>⏱ ${calculateDuration(job.started_at, job.finished_at)}</span>` : ''}
+                                <span>🤖 ${job.provider}</span>
+                            </div>
+                        </div>
+                        <div class="timeline-job-metrics">
+                            <div class="timeline-job-cost">$${formatCost(job.estimated_cost)}</div>
+                            <div class="timeline-job-tokens">${formatNumber(job.total_tokens)} tok</div>
+                        </div>
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="session-card">
+                        <div class="session-header">
+                            <div class="session-name">${escapeHtml(sessionName)}</div>
+                            ${sessionMeta}
+                        </div>
+                        <div class="session-jobs">
+                            ${jobsHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Utility Functions
+        function formatCost(cost) {
+            if (cost === undefined || cost === null) return '0.00';
+            return cost.toFixed(4);
+        }
+
+        function formatNumber(num) {
+            if (num === undefined || num === null) return '0';
+            if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+
+        function formatDuration(seconds) {
+            if (!seconds || seconds < 1) return '<1s';
+            if (seconds < 60) return `${Math.round(seconds)}s`;
+            if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+            return `${(seconds / 3600).toFixed(1)}h`;
+        }
+
+        function calculateDuration(startTime, endTime) {
+            try {
+                const start = new Date(startTime);
+                const end = new Date(endTime);
+                const diffSeconds = (end - start) / 1000;
+                return formatDuration(diffSeconds);
+            } catch (e) {
+                return 'N/A';
+            }
+        }
+
+        // Budget Management Functions
+        function showCreateBudgetForm() {
+            document.getElementById('create-budget-form').style.display = 'block';
+        }
+
+        function hideCreateBudgetForm() {
+            document.getElementById('create-budget-form').style.display = 'none';
+            // Reset form
+            document.getElementById('budget-name').value = '';
+            document.getElementById('budget-period').value = 'daily';
+            document.getElementById('budget-limit').value = '';
+            document.getElementById('budget-threshold').value = '80';
+        }
+
+        async function createBudget() {
+            const name = document.getElementById('budget-name').value.trim();
+            const period = document.getElementById('budget-period').value;
+            const limit = parseFloat(document.getElementById('budget-limit').value);
+            const threshold = parseFloat(document.getElementById('budget-threshold').value);
+
+            // Validation
+            if (!name) {
+                alert('Please enter a budget name');
+                return;
+            }
+            if (!limit || limit <= 0) {
+                alert('Please enter a valid spending limit');
+                return;
+            }
+            if (threshold < 0 || threshold > 100) {
+                alert('Alert threshold must be between 0 and 100');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/budgets', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        period: period,
+                        limit: limit,
+                        alert_threshold: threshold
+                    })
+                });
+
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.detail || 'Failed to create budget');
+                }
+
+                hideCreateBudgetForm();
+                refreshBudgets();
+                refreshSpendingSummary();
+            } catch (err) {
+                alert('Error creating budget: ' + err.message);
+                console.error('Budget creation error:', err);
+            }
+        }
+
+        async function refreshBudgets() {
+            try {
+                const res = await fetch('/api/budgets', { cache: 'no-store' });
+                if (!res.ok) throw new Error('Failed to fetch budgets');
+                const data = await res.json();
+                renderBudgets(data.budgets);
+            } catch (err) {
+                console.error('Budgets refresh error:', err);
+            }
+        }
+
+        function renderBudgets(budgets) {
+            const container = document.getElementById('budgets-list');
+
+            if (!budgets || budgets.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <div class="empty-state-icon">💰</div>
+                        <div class="empty-state-text">No budgets configured</div>
+                        <div class="empty-state-subtext">Create a budget to track your spending</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = budgets.map(budget => {
+                const usagePercent = budget.usage_percentage || 0;
+                const remaining = budget.remaining || 0;
+                const isExceeded = budget.is_exceeded || false;
+                const shouldAlert = budget.should_alert || false;
+
+                let cardClass = 'budget-card';
+                let progressClass = 'budget-progress-bar';
+
+                if (isExceeded) {
+                    cardClass += ' exceeded';
+                    progressClass += ' exceeded';
+                } else if (shouldAlert) {
+                    cardClass += ' warning';
+                    progressClass += ' warning';
+                }
+
+                return `
+                    <div class="${cardClass}">
+                        <div class="budget-card-header">
+                            <div>
+                                <div class="budget-name">${budget.name}</div>
+                                <div class="budget-period">${budget.period}</div>
+                            </div>
+                            <button class="budget-toggle ${budget.enabled ? 'enabled' : 'disabled'}"
+                                    onclick="toggleBudget('${budget.id}', ${!budget.enabled})">
+                                ${budget.enabled ? '✓ Active' : '✗ Disabled'}
+                            </button>
+                        </div>
+
+                        <div class="budget-usage">
+                            <div class="budget-usage-header">
+                                <span class="budget-usage-label">Usage</span>
+                                <span class="budget-usage-value">
+                                    <span style="color: ${isExceeded ? '#ef4444' : shouldAlert ? '#f59e0b' : '#22c55e'};">
+                                        ${usagePercent.toFixed(1)}%
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="budget-progress">
+                                <div class="${progressClass}" style="width: ${Math.min(usagePercent, 100)}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="budget-stats">
+                            <div class="budget-stat">
+                                <span class="budget-stat-label">Spent</span>
+                                <span class="budget-stat-value">$${budget.current_spending.toFixed(4)}</span>
+                            </div>
+                            <div class="budget-stat">
+                                <span class="budget-stat-label">Remaining</span>
+                                <span class="budget-stat-value" style="color: ${remaining > 0 ? '#22c55e' : '#ef4444'};">
+                                    $${remaining.toFixed(4)}
+                                </span>
+                            </div>
+                            <div class="budget-stat">
+                                <span class="budget-stat-label">Limit</span>
+                                <span class="budget-stat-value">$${budget.limit.toFixed(2)}</span>
+                            </div>
+                            <div class="budget-stat">
+                                <span class="budget-stat-label">Alert at</span>
+                                <span class="budget-stat-value">${budget.alert_threshold}%</span>
+                            </div>
+                        </div>
+
+                        <div class="budget-actions">
+                            <button class="btn btn-small btn-secondary" onclick="resetBudget('${budget.id}')">
+                                Reset Period
+                            </button>
+                            <button class="btn btn-small btn-warning" onclick="editBudget('${budget.id}')">
+                                Edit
+                            </button>
+                            <button class="btn btn-small btn-danger" onclick="deleteBudget('${budget.id}')">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function toggleBudget(budgetId, enabled) {
+            try {
+                const res = await fetch(`/api/budgets/${budgetId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: enabled })
+                });
+
+                if (!res.ok) throw new Error('Failed to toggle budget');
+                refreshBudgets();
+            } catch (err) {
+                alert('Error toggling budget: ' + err.message);
+                console.error('Budget toggle error:', err);
+            }
+        }
+
+        async function resetBudget(budgetId) {
+            if (!confirm('Reset this budget period? Current spending will be cleared.')) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/budgets/${budgetId}/reset`, {
+                    method: 'POST'
+                });
+
+                if (!res.ok) throw new Error('Failed to reset budget');
+                refreshBudgets();
+            } catch (err) {
+                alert('Error resetting budget: ' + err.message);
+                console.error('Budget reset error:', err);
+            }
+        }
+
+        async function editBudget(budgetId) {
+            // Simple implementation - show prompt for new limit
+            const newLimit = prompt('Enter new spending limit ($):');
+            if (!newLimit) return;
+
+            const limit = parseFloat(newLimit);
+            if (isNaN(limit) || limit <= 0) {
+                alert('Please enter a valid limit');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/budgets/${budgetId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ limit: limit })
+                });
+
+                if (!res.ok) throw new Error('Failed to update budget');
+                refreshBudgets();
+            } catch (err) {
+                alert('Error updating budget: ' + err.message);
+                console.error('Budget update error:', err);
+            }
+        }
+
+        async function deleteBudget(budgetId) {
+            if (!confirm('Delete this budget? This cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/budgets/${budgetId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!res.ok) throw new Error('Failed to delete budget');
+                refreshBudgets();
+            } catch (err) {
+                alert('Error deleting budget: ' + err.message);
+                console.error('Budget delete error:', err);
+            }
+        }
+
+        async function refreshSpendingSummary() {
+            try {
+                const res = await fetch('/api/spending/summary', { cache: 'no-store' });
+                if (!res.ok) throw new Error('Failed to fetch spending summary');
+                const data = await res.json();
+                renderSpendingSummary(data);
+            } catch (err) {
+                console.error('Spending summary refresh error:', err);
+            }
+        }
+
+        function renderSpendingSummary(data) {
+            const container = document.getElementById('spending-summary');
+
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-header">Total Spending</div>
+                    <div class="card-content">
+                        <div style="font-size: 2rem; font-weight: 700; color: #22c55e; margin-bottom: 0.5rem;">
+                            $${data.total_spending.toFixed(4)}
+                        </div>
+                        <div style="color: #94a3b8;">Across ${data.total_jobs} jobs</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">By Provider</div>
+                    <div class="card-content">
+                        ${Object.entries(data.by_provider).map(([provider, stats]) => `
+                            <div class="info-row">
+                                <span class="info-label">${provider}</span>
+                                <span class="info-value">$${stats.cost.toFixed(4)} (${stats.jobs} jobs)</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">By Mode</div>
+                    <div class="card-content">
+                        ${Object.entries(data.by_mode).map(([mode, stats]) => `
+                            <div class="info-row">
+                                <span class="info-label">${mode}</span>
+                                <span class="info-value">$${stats.cost.toFixed(4)} (${stats.jobs} jobs)</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">By Status</div>
+                    <div class="card-content">
+                        ${Object.entries(data.by_status).map(([status, stats]) => `
+                            <div class="info-row">
+                                <span class="info-label">${status}</span>
+                                <span class="info-value">$${stats.cost.toFixed(4)} (${stats.jobs} jobs)</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
         }
     </script>
 </body>

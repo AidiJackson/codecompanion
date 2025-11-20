@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Optional, Dict, Callable
 from contextlib import redirect_stdout, redirect_stderr
 
-from .models import Job, JobStatus, JobMode, JobStore, get_job_store, update_job_metrics
+from .models import Job, JobStatus, JobMode, JobStore, get_job_store, update_job_metrics, get_budget_store
 from .process_manager import ProcessManager, CancellationMode, get_process_manager
 
 
@@ -337,6 +337,9 @@ class JobExecutor:
             # Calculate token usage and cost
             update_job_metrics(job)
 
+            # Update budget spending
+            self._update_budgets(job)
+
         except Exception as e:
             # Restore cwd
             try:
@@ -358,9 +361,36 @@ class JobExecutor:
             # Calculate token usage and cost even for failed jobs
             update_job_metrics(job)
 
+            # Update budget spending even for failed jobs
+            self._update_budgets(job)
+
         finally:
             # Update job in store
             self.job_store.update(job)
+
+    def _update_budgets(self, job: Job):
+        """
+        Update budget spending after job completion.
+
+        Adds job cost to all active non-session budgets.
+        """
+        if job.estimated_cost <= 0:
+            return  # No cost to track
+
+        try:
+            budget_store = get_budget_store()
+            budgets = budget_store.list(enabled_only=True)
+
+            for budget in budgets:
+                # Skip session budgets (handled separately)
+                if budget.period.value == 'session':
+                    continue
+
+                # Add spending to budget
+                budget_store.add_spending(budget.id, job.estimated_cost)
+
+        except Exception as e:
+            print(f"[executor] Warning: Failed to update budgets: {e}")
 
     def _cleanup_job(self, job_id: str):
         """Clean up job resources after completion."""

@@ -826,3 +826,369 @@ def update_job_metrics(job: Job) -> Job:
         )
 
     return job
+
+
+class BudgetPeriod(str, Enum):
+    """Budget period types."""
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    SESSION = "session"      # Per-session limit
+    TOTAL = "total"          # Total limit (no reset)
+
+
+@dataclass
+class Budget:
+    """
+    Represents a spending budget with alerts.
+
+    Budgets can be set for different time periods or per-session.
+    Alerts are triggered when spending reaches threshold percentages.
+
+    Attributes:
+        id: Unique budget identifier
+        name: Human-readable budget name
+        period: Budget period (daily, weekly, monthly, session, total)
+        limit: Maximum spending limit in USD
+        current_spending: Current spending in period
+        alert_threshold: Alert when spending reaches this percentage (0-100)
+        enabled: Whether budget is active
+        created_at: ISO timestamp when budget was created
+        period_start: ISO timestamp when current period started
+        period_end: ISO timestamp when current period ends (for time-based budgets)
+        last_alert_at: ISO timestamp of last alert sent
+    """
+    id: str
+    name: str
+    period: BudgetPeriod
+    limit: float
+    current_spending: float = 0.0
+    alert_threshold: float = 80.0
+    enabled: bool = True
+    created_at: Optional[str] = None
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
+    last_alert_at: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return asdict(self)
+
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> 'Budget':
+        """Create Budget from dictionary."""
+        if isinstance(data.get('period'), str):
+            data['period'] = BudgetPeriod(data['period'])
+        return Budget(**data)
+
+    def usage_percentage(self) -> float:
+        """Calculate usage as percentage of limit."""
+        if self.limit <= 0:
+            return 0.0
+        return (self.current_spending / self.limit) * 100.0
+
+    def remaining(self) -> float:
+        """Calculate remaining budget."""
+        return max(0.0, self.limit - self.current_spending)
+
+    def is_exceeded(self) -> bool:
+        """Check if budget is exceeded."""
+        return self.current_spending >= self.limit
+
+    def should_alert(self) -> bool:
+        """Check if alert threshold is reached."""
+        return self.usage_percentage() >= self.alert_threshold
+
+
+class BudgetStore:
+    """
+    Thread-safe SQLite-based storage for budgets.
+
+    Stores budget configurations and tracks spending per period.
+    """
+
+    def __init__(self, db_path: Optional[Path] = None):
+        """
+        Initialize budget store.
+
+        Args:
+            db_path: Path to SQLite database file. Uses same DB as jobs
+        """
+        if db_path is None:
+            db_path = Path.cwd() / ".cc" / "jobs.db"
+
+        self.db_path = db_path
+        self._lock = threading.Lock()
+        self._init_db()
+
+    def _init_db(self):
+        """Initialize database schema."""
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with self._get_conn() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS budgets (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    period TEXT NOT NULL,
+                    limit_amount REAL NOT NULL,
+                    current_spending REAL DEFAULT 0.0,
+                    alert_threshold REAL DEFAULT 80.0,
+                    enabled INTEGER DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    period_start TEXT,
+                    period_end TEXT,
+                    last_alert_at TEXT
+                )
+            """)
+
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_budgets_period
+                ON budgets(period)
+            """)
+
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_budgets_enabled
+                ON budgets(enabled)
+            """)
+
+            conn.commit()
+
+    @contextmanager
+    def _get_conn(self):
+        """Get thread-safe database connection."""
+        with self._lock:
+            conn = sqlite3.connect(str(self.db_path))
+            conn.row_factory = sqlite3.Row
+            try:
+                yield conn
+            finally:
+                conn.close()
+
+    def create(self, budget: Budget) -> Budget:
+        """Create a new budget."""
+        if not budget.created_at:
+            budget.created_at = datetime.utcnow().isoformat() + "Z"
+
+        with self._get_conn() as conn:
+            conn.execute("""
+                INSERT INTO budgets (
+                    id, name, period, limit_amount, current_spending,
+                    alert_threshold, enabled, created_at, period_start,
+                    period_end, last_alert_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                budget.id,
+                budget.name,
+                budget.period.value,
+                budget.limit,
+                budget.current_spending,
+                budget.alert_threshold,
+                int(budget.enabled),
+                budget.created_at,
+                budget.period_start,
+                budget.period_end,
+                budget.last_alert_at
+            ))
+            conn.commit()
+
+        return budget
+
+    def get(self, budget_id: str) -> Optional[Budget]:
+        """Get budget by ID."""
+        with self._get_conn() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM budgets WHERE id = ?",
+                (budget_id,)
+            )
+            row = cursor.fetchone()
+
+            if row:
+                return self._row_to_budget(row)
+            return None
+
+    def list(
+        self,
+        period: Optional[BudgetPeriod] = None,
+        enabled_only: bool = False
+    ) -> List[Budget]:
+        """List budgets with optional filters."""
+        with self._get_conn() as conn:
+            query = "SELECT * FROM budgets WHERE 1=1"
+            params = []
+
+            if period:
+                query += " AND period = ?"
+                params.append(period.value)
+
+            if enabled_only:
+                query += " AND enabled = 1"
+
+            query += " ORDER BY created_at DESC"
+
+            cursor = conn.execute(query, params)
+            rows = cursor.fetchall()
+
+            return [self._row_to_budget(row) for row in rows]
+
+    def update(self, budget: Budget) -> Budget:
+        """Update existing budget."""
+        with self._get_conn() as conn:
+            conn.execute("""
+                UPDATE budgets
+                SET name = ?, period = ?, limit_amount = ?, current_spending = ?,
+                    alert_threshold = ?, enabled = ?, period_start = ?,
+                    period_end = ?, last_alert_at = ?
+                WHERE id = ?
+            """, (
+                budget.name,
+                budget.period.value,
+                budget.limit,
+                budget.current_spending,
+                budget.alert_threshold,
+                int(budget.enabled),
+                budget.period_start,
+                budget.period_end,
+                budget.last_alert_at,
+                budget.id
+            ))
+            conn.commit()
+
+        return budget
+
+    def delete(self, budget_id: str) -> bool:
+        """Delete budget by ID."""
+        with self._get_conn() as conn:
+            cursor = conn.execute(
+                "DELETE FROM budgets WHERE id = ?",
+                (budget_id,)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def add_spending(self, budget_id: str, amount: float) -> Optional[Budget]:
+        """
+        Add spending to a budget.
+
+        Args:
+            budget_id: Budget ID
+            amount: Amount to add to current_spending
+
+        Returns:
+            Updated budget or None if not found
+        """
+        budget = self.get(budget_id)
+        if not budget:
+            return None
+
+        budget.current_spending += amount
+        return self.update(budget)
+
+    def reset_period(self, budget_id: str) -> Optional[Budget]:
+        """
+        Reset budget period spending.
+
+        Sets current_spending to 0 and updates period_start.
+
+        Args:
+            budget_id: Budget ID
+
+        Returns:
+            Updated budget or None if not found
+        """
+        budget = self.get(budget_id)
+        if not budget:
+            return None
+
+        budget.current_spending = 0.0
+        budget.period_start = datetime.utcnow().isoformat() + "Z"
+
+        # Calculate period_end based on period type
+        if budget.period == BudgetPeriod.DAILY:
+            from datetime import timedelta
+            end = datetime.utcnow() + timedelta(days=1)
+            budget.period_end = end.isoformat() + "Z"
+        elif budget.period == BudgetPeriod.WEEKLY:
+            from datetime import timedelta
+            end = datetime.utcnow() + timedelta(weeks=1)
+            budget.period_end = end.isoformat() + "Z"
+        elif budget.period == BudgetPeriod.MONTHLY:
+            from datetime import timedelta
+            end = datetime.utcnow() + timedelta(days=30)
+            budget.period_end = end.isoformat() + "Z"
+
+        return self.update(budget)
+
+    def check_budgets(self, cost: float) -> Dict[str, Any]:
+        """
+        Check if adding cost would exceed any active budgets.
+
+        Args:
+            cost: Cost to check
+
+        Returns:
+            Dict with:
+              - exceeded: List of exceeded budget IDs
+              - warnings: List of budget IDs reaching alert threshold
+              - allowed: Boolean, whether cost can be added
+        """
+        exceeded = []
+        warnings = []
+
+        budgets = self.list(enabled_only=True)
+
+        for budget in budgets:
+            if budget.period == BudgetPeriod.SESSION:
+                continue  # Session budgets checked separately
+
+            projected_spending = budget.current_spending + cost
+
+            if projected_spending > budget.limit:
+                exceeded.append(budget.id)
+            elif (projected_spending / budget.limit * 100.0) >= budget.alert_threshold:
+                if budget.usage_percentage() < budget.alert_threshold:
+                    warnings.append(budget.id)
+
+        return {
+            'exceeded': exceeded,
+            'warnings': warnings,
+            'allowed': len(exceeded) == 0
+        }
+
+    def _row_to_budget(self, row: sqlite3.Row) -> Budget:
+        """Convert database row to Budget object."""
+        return Budget(
+            id=row['id'],
+            name=row['name'],
+            period=BudgetPeriod(row['period']),
+            limit=row['limit_amount'],
+            current_spending=row['current_spending'],
+            alert_threshold=row['alert_threshold'],
+            enabled=bool(row['enabled']),
+            created_at=row['created_at'],
+            period_start=row['period_start'],
+            period_end=row['period_end'],
+            last_alert_at=row['last_alert_at']
+        )
+
+
+# Global budget store instance (singleton)
+_budget_store: Optional[BudgetStore] = None
+
+
+def get_budget_store(db_path: Optional[Path] = None) -> BudgetStore:
+    """
+    Get global budget store instance.
+
+    Args:
+        db_path: Optional path to database file
+
+    Returns:
+        BudgetStore instance
+    """
+    global _budget_store
+
+    if _budget_store is None:
+        _budget_store = BudgetStore(db_path=db_path)
+
+    return _budget_store

@@ -860,6 +860,7 @@
             <button class="tab" onclick="switchTab('projects')">Projects</button>
             <button class="tab" onclick="switchTab('timeline')">Timeline & Analytics</button>
             <button class="tab" onclick="switchTab('budgets')">Budgets</button>
+            <button class="tab" onclick="switchTab('models')">Models</button>
         </div>
 
         <!-- Overview Tab -->
@@ -1080,6 +1081,66 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Models Tab -->
+            <div id="models-tab" class="tab-content">
+                <div class="section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h2>Model Catalog</h2>
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <!-- Update Mode Selector -->
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <label for="update-mode-select" style="font-size: 0.9rem; color: #666;">Update Mode:</label>
+                                <select id="update-mode-select" onchange="handleUpdateModeChange()" style="padding: 0.4rem 0.8rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;">
+                                    <option value="auto">Auto</option>
+                                    <option value="notify">Notify</option>
+                                    <option value="off">Off</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary" onclick="syncModels()">Sync OpenRouter Models</button>
+                        </div>
+                    </div>
+
+                    <!-- Updates Indicator -->
+                    <div id="models-updates-indicator" style="margin-bottom: 1rem; padding: 0.75rem; background: #f0f8ff; border-left: 4px solid #4a90e2; border-radius: 4px; font-size: 0.9rem; color: #333; display: flex; gap: 1.5rem; flex-wrap: wrap;">
+                        <span id="last-synced-text">Last synced: never</span>
+                        <span id="new-count-text">New: 0</span>
+                        <span id="updated-count-text">Updated: 0</span>
+                        <span id="removed-count-text">Removed: 0</span>
+                    </div>
+
+                    <!-- Models Table -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span>OpenRouter Models</span>
+                        </div>
+                        <div class="card-content">
+                            <div style="overflow-x: auto;">
+                                <table class="models-table" style="width: 100%; border-collapse: collapse;">
+                                    <thead>
+                                        <tr style="background: #f5f5f5; text-align: left;">
+                                            <th style="padding: 0.75rem; border-bottom: 2px solid #ddd;">ID</th>
+                                            <th style="padding: 0.75rem; border-bottom: 2px solid #ddd;">Display Name</th>
+                                            <th style="padding: 0.75rem; border-bottom: 2px solid #ddd;">Family</th>
+                                            <th style="padding: 0.75rem; border-bottom: 2px solid #ddd;">Context</th>
+                                            <th style="padding: 0.75rem; border-bottom: 2px solid #ddd;">Input Price</th>
+                                            <th style="padding: 0.75rem; border-bottom: 2px solid #ddd;">Output Price</th>
+                                            <th style="padding: 0.75rem; border-bottom: 2px solid #ddd;">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="models-table-body">
+                                        <tr>
+                                            <td colspan="7" style="text-align: center; padding: 2rem; color: #999;">
+                                                No models loaded. Click "Sync OpenRouter Models" to fetch the catalog.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1130,6 +1191,8 @@
             } else if (tabName === 'budgets') {
                 refreshBudgets();
                 refreshSpendingSummary();
+            } else if (tabName === 'models') {
+                initModelsTab();
             }
         }
 
@@ -2127,6 +2190,213 @@ ${job.output ? `\nOutput:\n${job.output}` : ''}${job.error ? `\nError:\n${job.er
                     </div>
                 </div>
             `;
+        }
+
+        // ============================================================================
+        // MODEL INTELLIGENCE SYSTEM (MIS) v1 - JavaScript Functions
+        // ============================================================================
+
+        /**
+         * Initialize Models tab when first opened
+         */
+        async function initModelsTab() {
+            try {
+                // 1. Load current settings (update mode)
+                await loadModelSettings();
+
+                // 2. Get update mode and decide behavior
+                const settings = await fetch('/api/models/settings', { cache: 'no-store' });
+                const settingsData = await settings.json();
+                const updateMode = settingsData.update_mode;
+
+                // 3. Behavior based on update mode
+                if (updateMode === 'auto') {
+                    // Auto mode: trigger sync automatically
+                    await syncModels();
+                } else if (updateMode === 'notify' || updateMode === 'off') {
+                    // Notify/Off mode: just load what's in catalog + show updates indicator
+                    await refreshModels();
+                    await refreshModelUpdatesIndicator();
+                }
+            } catch (err) {
+                console.error('Error initializing Models tab:', err);
+            }
+        }
+
+        /**
+         * Load model settings (update mode)
+         */
+        async function loadModelSettings() {
+            try {
+                const res = await fetch('/api/models/settings', { cache: 'no-store' });
+                if (!res.ok) throw new Error('Failed to fetch model settings');
+                const data = await res.json();
+
+                // Update UI dropdown
+                const select = document.getElementById('update-mode-select');
+                if (select) {
+                    select.value = data.update_mode || 'notify';
+                }
+            } catch (err) {
+                console.error('Error loading model settings:', err);
+            }
+        }
+
+        /**
+         * Handle update mode change
+         */
+        async function handleUpdateModeChange() {
+            const select = document.getElementById('update-mode-select');
+            const newMode = select.value;
+
+            try {
+                const res = await fetch('/api/models/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ update_mode: newMode })
+                });
+
+                if (!res.ok) throw new Error('Failed to update model settings');
+
+                console.log(`Update mode changed to: ${newMode}`);
+
+                // If switched to auto, trigger sync
+                if (newMode === 'auto') {
+                    await syncModels();
+                }
+            } catch (err) {
+                console.error('Error updating model settings:', err);
+                alert('Failed to update settings: ' + err.message);
+            }
+        }
+
+        /**
+         * Refresh models catalog (fetch from DB)
+         */
+        async function refreshModels() {
+            try {
+                const res = await fetch('/api/models/catalog?provider=openrouter', { cache: 'no-store' });
+                if (!res.ok) throw new Error('Failed to fetch model catalog');
+                const data = await res.json();
+                renderModelsTable(data.models || []);
+            } catch (err) {
+                console.error('Error refreshing models:', err);
+            }
+        }
+
+        /**
+         * Render models table
+         */
+        function renderModelsTable(models) {
+            const tbody = document.getElementById('models-table-body');
+            if (!tbody) return;
+
+            if (!models || models.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 2rem; color: #999;">No models available. Click "Sync OpenRouter Models" to fetch the catalog.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = models.map(m => {
+                const status = m.is_active ? '<span style="color: #27ae60;">Active</span>' : '<span style="color: #999;">Inactive</span>';
+                const contextLen = m.context_length ? m.context_length.toLocaleString() : '—';
+                const inputPrice = m.input_price != null ? `$${m.input_price.toFixed(2)}` : '—';
+                const outputPrice = m.output_price != null ? `$${m.output_price.toFixed(2)}` : '—';
+
+                return `
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 0.75rem; font-family: monospace; font-size: 0.85rem;">${m.id}</td>
+                        <td style="padding: 0.75rem;">${m.display_name || m.id}</td>
+                        <td style="padding: 0.75rem;">${m.family || '—'}</td>
+                        <td style="padding: 0.75rem;">${contextLen}</td>
+                        <td style="padding: 0.75rem;">${inputPrice}</td>
+                        <td style="padding: 0.75rem;">${outputPrice}</td>
+                        <td style="padding: 0.75rem;">${status}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        /**
+         * Sync models with OpenRouter
+         */
+        async function syncModels() {
+            const btn = event?.target;
+
+            try {
+                // Disable button and show loading state
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = 'Syncing...';
+                }
+
+                const res = await fetch('/api/models/sync', { method: 'POST' });
+                if (!res.ok) {
+                    const errData = await res.json();
+                    throw new Error(errData.detail || 'Failed to sync models');
+                }
+
+                const diff = await res.json();
+                console.log('Model sync diff:', diff);
+
+                // Show sync results in console
+                console.log(`Synced OpenRouter models:
+  New: ${diff.new.length}
+  Updated: ${diff.updated.length}
+  Removed: ${diff.removed.length}
+  Last synced: ${diff.last_synced}`);
+
+                // Refresh table and indicator
+                await refreshModels();
+                await refreshModelUpdatesIndicator();
+            } catch (err) {
+                console.error('Error syncing models:', err);
+                alert('Failed to sync models: ' + err.message);
+            } finally {
+                // Re-enable button
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = 'Sync OpenRouter Models';
+                }
+            }
+        }
+
+        /**
+         * Refresh model updates indicator
+         */
+        async function refreshModelUpdatesIndicator() {
+            try {
+                const res = await fetch('/api/models/updates', { cache: 'no-store' });
+                if (!res.ok) throw new Error('Failed to fetch model updates');
+                const data = await res.json();
+                const info = data.openrouter || {};
+
+                // Update indicator elements
+                const lastSyncedEl = document.getElementById('last-synced-text');
+                const newCountEl = document.getElementById('new-count-text');
+                const updatedCountEl = document.getElementById('updated-count-text');
+                const removedCountEl = document.getElementById('removed-count-text');
+
+                if (lastSyncedEl) {
+                    const lastSynced = info.last_synced ? new Date(info.last_synced).toLocaleString() : 'never';
+                    lastSyncedEl.textContent = `Last synced: ${lastSynced}`;
+                }
+
+                if (newCountEl) newCountEl.textContent = `New: ${info.new_count || 0}`;
+                if (updatedCountEl) updatedCountEl.textContent = `Updated: ${info.updated_count || 0}`;
+                if (removedCountEl) removedCountEl.textContent = `Removed: ${info.removed_count || 0}`;
+
+                // Optional: Show "updates available" badge if has_updates is true
+                const indicator = document.getElementById('models-updates-indicator');
+                if (indicator && info.has_updates) {
+                    indicator.style.borderColor = '#e74c3c';
+                    indicator.style.background = '#fee';
+                } else if (indicator) {
+                    indicator.style.borderColor = '#4a90e2';
+                    indicator.style.background = '#f0f8ff';
+                }
+            } catch (err) {
+                console.error('Error refreshing model updates indicator:', err);
+            }
         }
     </script>
 </body>

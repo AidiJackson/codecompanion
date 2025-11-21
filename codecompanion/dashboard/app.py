@@ -31,6 +31,12 @@ from codecompanion.info_core import gather_all_info
 from .models import Job, JobStatus, JobMode, Session, Budget, BudgetPeriod, get_job_store, get_session_store, get_budget_store
 from .executor import get_executor
 
+# Import model catalog (MIS v1)
+from codecompanion.model_catalog import get_catalog_store, sync_openrouter_models
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 app = FastAPI(
     title="CodeCompanion Control Tower",
@@ -1097,6 +1103,196 @@ async def console_command_legacy(request: Request):
         "message": f"Job submitted successfully. Use GET /api/runs/{job.id} to check status",
         "job": job.to_dict()
     })
+
+
+# ============================================================================
+# MODEL INTELLIGENCE SYSTEM (MIS) API v1
+# ============================================================================
+
+
+@app.get("/api/models/catalog")
+async def get_model_catalog(provider: Optional[str] = None):
+    """
+    Get model catalog.
+
+    Query parameters:
+    - provider: Optional provider filter (e.g., "openrouter")
+
+    Response (JSON):
+    {
+        "models": [
+            {
+                "id": "anthropic/claude-3.5-sonnet",
+                "provider": "openrouter",
+                "display_name": "Claude 3.5 Sonnet",
+                "family": "anthropic",
+                "context_length": 200000,
+                "input_price": 3.0,  # USD per 1M tokens
+                "output_price": 15.0,  # USD per 1M tokens
+                "capabilities": {"vision": false, "tools": true},
+                "is_active": true,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-15T00:00:00Z"
+            },
+            ...
+        ]
+    }
+    """
+    try:
+        store = get_catalog_store()
+        models = store.list_models(provider=provider, active_only=False)
+
+        return JSONResponse(content={
+            "models": [
+                {
+                    "id": m.id,
+                    "provider": m.provider,
+                    "display_name": m.display_name,
+                    "family": m.family,
+                    "context_length": m.context_length,
+                    "input_price": m.input_price,
+                    "output_price": m.output_price,
+                    "capabilities": m.capabilities,
+                    "is_active": m.is_active,
+                    "created_at": m.created_at,
+                    "updated_at": m.updated_at,
+                }
+                for m in models
+            ]
+        })
+    except Exception as e:
+        logger.exception("Error fetching model catalog")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/models/sync")
+async def sync_models():
+    """
+    Trigger model sync with OpenRouter.
+
+    Returns diff of changes (new, updated, removed models).
+
+    Response (JSON):
+    {
+        "provider": "openrouter",
+        "new": ["model1", "model2", ...],
+        "updated": ["model3", ...],
+        "removed": ["model4", ...],
+        "last_synced": "2024-01-15T12:00:00Z"
+    }
+    """
+    try:
+        diff = sync_openrouter_models()
+        return JSONResponse(content=diff)
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception("Error syncing OpenRouter models")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/models/updates")
+async def get_model_updates():
+    """
+    Get model update summary and metadata.
+
+    Returns information about last sync and available updates.
+
+    Response (JSON):
+    {
+        "openrouter": {
+            "has_updates": false,
+            "new_count": 0,
+            "updated_count": 0,
+            "removed_count": 0,
+            "last_synced": "2024-01-15T12:00:00Z",
+            "update_mode": "notify"
+        }
+    }
+    """
+    try:
+        store = get_catalog_store()
+        last_synced = store.get_last_synced("openrouter")
+        update_mode = store.get_update_mode()
+
+        # For v1, we don't track new/updated/removed counts persistently
+        # They're only returned from sync_openrouter_models()
+        # So has_updates is simply based on whether we've ever synced
+        has_updates = last_synced is None
+
+        return JSONResponse(content={
+            "openrouter": {
+                "has_updates": has_updates,
+                "new_count": 0,
+                "updated_count": 0,
+                "removed_count": 0,
+                "last_synced": last_synced,
+                "update_mode": update_mode,
+            }
+        })
+    except Exception as e:
+        logger.exception("Error fetching model updates")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/models/settings")
+async def get_model_settings():
+    """
+    Get model catalog settings.
+
+    Response (JSON):
+    {
+        "update_mode": "auto" | "notify" | "off"
+    }
+    """
+    try:
+        store = get_catalog_store()
+        update_mode = store.get_update_mode()
+
+        return JSONResponse(content={
+            "update_mode": update_mode
+        })
+    except Exception as e:
+        logger.exception("Error fetching model settings")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/models/settings")
+async def update_model_settings(request: Request):
+    """
+    Update model catalog settings.
+
+    Request body (JSON):
+    {
+        "update_mode": "auto" | "notify" | "off"
+    }
+
+    Response (JSON):
+    {
+        "update_mode": "notify"
+    }
+    """
+    try:
+        body = await request.json()
+        update_mode = body.get("update_mode")
+
+        if not update_mode or update_mode not in ("auto", "notify", "off"):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid update_mode. Must be 'auto', 'notify', or 'off'"
+            )
+
+        store = get_catalog_store()
+        store.set_update_mode(update_mode)
+
+        return JSONResponse(content={
+            "update_mode": update_mode
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error updating model settings")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 def run_dashboard(host: str = "0.0.0.0", port: Optional[int] = None):

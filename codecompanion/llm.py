@@ -26,11 +26,20 @@ PROVIDERS = {
         "model": "gemini-1.5-pro",
         "headers": {},
     },
+    "openrouter": {
+        "api_key_env": "OPENROUTER_API_KEY",
+        "base_url": "https://openrouter.ai/api/v1/chat/completions",
+        "model": "anthropic/claude-3.5-sonnet",  # Default model
+        "headers": {
+            "HTTP-Referer": "https://github.com/AidiJackson/codecompanion",
+            "X-Title": "CodeCompanion",
+        },
+    },
 }
 
 
 def complete(system: str, messages: list, provider: str = "claude", **kwargs):
-    """Complete using specified provider (claude, gpt4, gemini)"""
+    """Complete using specified provider (claude, gpt4, gemini, openrouter)"""
     if provider not in PROVIDERS:
         raise LLMError(f"Unknown provider: {provider}. Use: {list(PROVIDERS.keys())}")
 
@@ -45,6 +54,8 @@ def complete(system: str, messages: list, provider: str = "claude", **kwargs):
         return _call_openai(system, messages, key, config, **kwargs)
     elif provider == "gemini":
         return _call_gemini(system, messages, key, config, **kwargs)
+    elif provider == "openrouter":
+        return _call_openrouter(system, messages, key, config, **kwargs)
 
 
 def _call_claude(system: str, messages: list, key: str, config: dict, **kwargs):
@@ -92,6 +103,31 @@ def _call_gemini(system: str, messages: list, key: str, config: dict, **kwargs):
     return _retry_request(url, headers, payload, extract_gemini_content)
 
 
+def _call_openrouter(system: str, messages: list, key: str, config: dict, **kwargs):
+    """
+    Call OpenRouter API (OpenAI-compatible).
+
+    OpenRouter supports multiple models via the 'model' parameter.
+    Returns actual cost in usage.total_cost field.
+    """
+    headers = {
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        **config["headers"],  # Includes HTTP-Referer and X-Title
+    }
+
+    # Use model from kwargs if provided, otherwise use default
+    model = kwargs.get("model", config["model"])
+
+    payload = {
+        "model": model,
+        "temperature": kwargs.get("temperature", 0.2),
+        "messages": [{"role": "system", "content": system}] + messages,
+    }
+
+    return _retry_request(config["base_url"], headers, payload, extract_openrouter_content)
+
+
 def _retry_request(url: str, headers: dict, payload: dict, extract_fn):
     backoff = 1.0
     for attempt in range(5):
@@ -121,3 +157,28 @@ def extract_openai_content(data):
 
 def extract_gemini_content(data):
     return {"content": data["candidates"][0]["content"]["parts"][0]["text"]}
+
+
+def extract_openrouter_content(data):
+    """
+    Extract content and cost from OpenRouter response.
+
+    OpenRouter returns actual cost in usage.total_cost (USD).
+    We include this in the response for accurate cost tracking.
+    """
+    result = data["choices"][0]["message"].copy()
+
+    # Add usage information including actual cost
+    if "usage" in data:
+        result["usage"] = {
+            "prompt_tokens": data["usage"].get("prompt_tokens", 0),
+            "completion_tokens": data["usage"].get("completion_tokens", 0),
+            "total_tokens": data["usage"].get("total_tokens", 0),
+            "total_cost": data["usage"].get("total_cost", 0.0),  # Actual cost in USD
+        }
+
+    # Add model information
+    if "model" in data:
+        result["model"] = data["model"]
+
+    return result

@@ -119,6 +119,7 @@ class Job:
     output_tokens: int = 0
     total_tokens: int = 0
     estimated_cost: float = 0.0
+    actual_cost: Optional[float] = None
     model_used: Optional[str] = None
     process_id: Optional[int] = None
     cancellation_mode: Optional[str] = None
@@ -189,6 +190,7 @@ class JobStore:
                     output_tokens INTEGER DEFAULT 0,
                     total_tokens INTEGER DEFAULT 0,
                     estimated_cost REAL DEFAULT 0.0,
+                    actual_cost REAL,
                     model_used TEXT,
                     process_id INTEGER,
                     cancellation_mode TEXT
@@ -248,6 +250,7 @@ class JobStore:
             'output_tokens': 'INTEGER DEFAULT 0',
             'total_tokens': 'INTEGER DEFAULT 0',
             'estimated_cost': 'REAL DEFAULT 0.0',
+            'actual_cost': 'REAL',
             'model_used': 'TEXT',
             'process_id': 'INTEGER',
             'cancellation_mode': 'TEXT'
@@ -289,8 +292,8 @@ class JobStore:
                     status, created_at, started_at, finished_at,
                     output, error, exit_code, can_cancel,
                     session_id, input_tokens, output_tokens, total_tokens,
-                    estimated_cost, model_used
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    estimated_cost, actual_cost, model_used
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 job.id,
                 job.mode.value,
@@ -311,6 +314,7 @@ class JobStore:
                 job.output_tokens,
                 job.total_tokens,
                 job.estimated_cost,
+                job.actual_cost,
                 job.model_used,
             ))
             conn.commit()
@@ -405,6 +409,7 @@ class JobStore:
                     output_tokens = ?,
                     total_tokens = ?,
                     estimated_cost = ?,
+                    actual_cost = ?,
                     model_used = ?
                 WHERE id = ?
             """, (
@@ -426,6 +431,7 @@ class JobStore:
                 job.output_tokens,
                 job.total_tokens,
                 job.estimated_cost,
+                job.actual_cost,
                 job.model_used,
                 job.id,
             ))
@@ -494,6 +500,7 @@ class JobStore:
             output_tokens=row['output_tokens'] if 'output_tokens' in row.keys() else 0,
             total_tokens=row['total_tokens'] if 'total_tokens' in row.keys() else 0,
             estimated_cost=row['estimated_cost'] if 'estimated_cost' in row.keys() else 0.0,
+            actual_cost=row['actual_cost'] if 'actual_cost' in row.keys() else None,
             model_used=row['model_used'] if 'model_used' in row.keys() else None,
             process_id=row['process_id'] if 'process_id' in row.keys() else None,
             cancellation_mode=row['cancellation_mode'] if 'cancellation_mode' in row.keys() else None,
@@ -714,6 +721,16 @@ PROVIDER_PRICING = {
             'gemini-pro': {'input': 1.25, 'output': 5.0},
             'gemini-ultra': {'input': 2.5, 'output': 10.0},
         }
+    },
+    'openrouter': {
+        'input': 5.0,
+        'output': 15.0,
+        'models': {
+            # OpenRouter returns actual cost via API, these are fallback estimates
+            'anthropic/claude-3.5-sonnet': {'input': 3.0, 'output': 15.0},
+            'openai/gpt-4': {'input': 30.0, 'output': 60.0},
+            'google/gemini-pro': {'input': 1.25, 'output': 5.0},
+        }
     }
 }
 
@@ -779,12 +796,18 @@ def estimate_job_cost(job: Job) -> float:
     """
     Estimate cost for a job based on input/output.
 
+    Prefers actual cost from API (e.g. OpenRouter) over estimated cost.
+
     Args:
         job: Job object
 
     Returns:
         Estimated cost in USD
     """
+    # Prefer actual cost from API (OpenRouter returns this)
+    if job.actual_cost is not None and job.actual_cost > 0:
+        return job.actual_cost
+
     if job.estimated_cost > 0:
         return job.estimated_cost
 

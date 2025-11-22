@@ -1,6 +1,9 @@
 import os
 import time
 import httpx
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class LLMError(Exception): ...
@@ -182,3 +185,193 @@ def extract_openrouter_content(data):
         result["model"] = data["model"]
 
     return result
+
+
+# ==============================================================================
+# Fallback Logic (Phase 3)
+# ==============================================================================
+
+
+def _is_retryable_error(exc: Exception) -> bool:
+    """
+    Determine if an error is retryable for fallback purposes.
+
+    Retryable errors include:
+    - Network/timeout errors (httpx.RequestError)
+    - HTTP 429, 500, 502, 503, 504 status codes
+    - Model-not-found / malformed response errors
+
+    Args:
+        exc: Exception to check
+
+    Returns:
+        True if error is retryable, False otherwise
+    """
+    # Network / timeout errors
+    if isinstance(exc, httpx.RequestError):
+        return True
+
+    # HTTP status errors
+    if isinstance(exc, httpx.HTTPStatusError):
+        if exc.response is not None:
+            return exc.response.status_code in {429, 500, 502, 503, 504}
+
+    # Model-not-found / malformed response – treat as retryable for v1
+    if isinstance(exc, (KeyError, ValueError)):
+        return True
+
+    # LLMError from _retry_request exhausting retries
+    if isinstance(exc, LLMError):
+        return True
+
+    return False
+
+
+def complete_with_fallback(
+    system: str,
+    messages: list,
+    provider: str,
+    model: str = None,
+    *,
+    fallback_enabled: bool = True,
+    fallback_chain: list = None,
+    **kwargs,
+) -> dict:
+    """
+    Call llm.complete() with the given provider/model, with smart fallback.
+
+    If the primary provider is 'openrouter' and fallback_enabled is True,
+    we try an ordered fallback chain, catching retryable errors.
+
+    For non-openrouter providers, this simply wraps complete() with meta info.
+
+    Args:
+        system: System prompt
+        messages: List of message dicts with 'role' and 'content'
+        provider: Primary provider name (claude, gpt4, gemini, openrouter)
+        model: Optional model name (especially for OpenRouter)
+        fallback_enabled: Enable fallback chain (default: True)
+        fallback_chain: Optional custom fallback chain as list of (provider, model) tuples
+        **kwargs: Additional arguments passed to complete()
+
+    Returns:
+        Dict with completion result plus 'meta' field:
+        {
+            "content": "...",
+            "usage": {...},  # if available
+            "meta": {
+                "primary_provider": str,
+                "primary_model": str or None,
+                "used_fallback": bool,
+                "fallback_provider": str or None,  # if used
+                "fallback_model": str or None,     # if used
+                "fallback_attempts": int,
+                "primary_error_type": str or None,
+                "primary_error_message": str or None,
+            }
+        }
+    """
+    primary_provider = provider
+    primary_model = model
+
+    # Build meta dict (will be populated and returned)
+    meta = {
+        "primary_provider": primary_provider,
+        "primary_model": primary_model,
+        "used_fallback": False,
+        "fallback_provider": None,
+        "fallback_model": None,
+        "fallback_attempts": 0,
+        "primary_error_type": None,
+        "primary_error_message": None,
+    }
+
+    # If provider is not openrouter, just call complete() normally
+    if provider != "openrouter":
+        try:
+            result = complete(system, messages, provider=provider, model=model, **kwargs)
+            result["meta"] = meta
+            return result
+        except Exception as e:
+            # Non-openrouter providers don't get fallback
+            raise
+
+    # For openrouter: build fallback chain if not provided
+    if fallback_chain is None:
+        chain = []
+
+        # Primary: OpenRouter with specified model
+        if os.getenv("OPENROUTER_API_KEY"):
+            chain.append(("openrouter", model))
+
+        # Fallback 1: Claude
+        if os.getenv("ANTHROPIC_API_KEY"):
+            chain.append(("claude", None))  # Use default Claude model
+
+        # Fallback 2: GPT-4
+        if os.getenv("OPENAI_API_KEY"):
+            chain.append(("gpt4", None))  # Use default GPT-4 model
+
+        fallback_chain = chain
+
+    # If fallback is disabled or no chain, just try primary
+    if not fallback_enabled or not fallback_chain:
+        try:
+            result = complete(system, messages, provider=provider, model=model, **kwargs)
+            result["meta"] = meta
+            return result
+        except Exception as e:
+            raise
+
+    # Try each provider/model in the fallback chain
+    primary_error = None
+
+    for idx, (fallback_provider, fallback_model) in enumerate(fallback_chain):
+        is_primary = (idx == 0)
+        is_last = (idx == len(fallback_chain) - 1)
+
+        try:
+            # Attempt completion with this provider/model
+            if fallback_model:
+                result = complete(system, messages, provider=fallback_provider, model=fallback_model, **kwargs)
+            else:
+                result = complete(system, messages, provider=fallback_provider, **kwargs)
+
+            # Success! Update meta and return
+            if not is_primary:
+                meta["used_fallback"] = True
+                meta["fallback_provider"] = fallback_provider
+                meta["fallback_model"] = fallback_model
+                meta["fallback_attempts"] = idx
+
+            result["meta"] = meta
+            return result
+
+        except Exception as e:
+            # Save primary error for meta
+            if is_primary:
+                primary_error = e
+                meta["primary_error_type"] = type(e).__name__
+                meta["primary_error_message"] = str(e)[:200]  # Truncate
+
+            # Check if we should fallback
+            if not is_last and _is_retryable_error(e):
+                # Log fallback attempt
+                next_provider, next_model = fallback_chain[idx + 1]
+                logger.warning(
+                    "LLM fallback: %s/%s failed with %s, falling back to %s/%s",
+                    fallback_provider,
+                    fallback_model or "(default)",
+                    type(e).__name__,
+                    next_provider,
+                    next_model or "(default)",
+                )
+                continue  # Try next in chain
+            else:
+                # Either last in chain or non-retryable error
+                raise
+
+    # Should not reach here, but just in case
+    if primary_error:
+        raise primary_error
+    raise LLMError("Fallback chain exhausted with no result")

@@ -103,6 +103,7 @@ class JobExecutor:
         input_text: str,
         agent_name: Optional[str] = None,
         provider: str = "claude",
+        model: Optional[str] = None,
         target_root: Optional[str] = None
     ) -> Job:
         """
@@ -112,7 +113,8 @@ class JobExecutor:
             mode: Execution mode (chat, auto, agent, task)
             input_text: User input/instruction
             agent_name: Optional agent name (for mode=agent)
-            provider: LLM provider (claude, gpt4, gemini)
+            provider: LLM provider (claude, gpt4, gemini, openrouter)
+            model: Optional model name (especially for OpenRouter)
             target_root: Target repository root (defaults to cwd)
 
         Returns:
@@ -128,6 +130,7 @@ class JobExecutor:
             input=input_text,
             agent_name=agent_name,
             provider=provider,
+            model_used=model,  # Store model for OpenRouter
             target_root=target_root,
             status=JobStatus.PENDING,
             created_at=datetime.utcnow().isoformat() + "Z",
@@ -251,10 +254,14 @@ class JobExecutor:
     ):
         """Execute job in background thread."""
         # Import here to avoid circular dependencies
-        from codecompanion.llm import complete, LLMError
+        from codecompanion.llm import complete, complete_with_fallback, LLMError
         from codecompanion.runner import run_pipeline, run_single_agent
         from codecompanion.task_handler import run_task
         from codecompanion.target import TargetContext
+        import logging
+        import json
+
+        logger = logging.getLogger(__name__)
 
         # Update status to RUNNING and store process ID
         job.status = JobStatus.RUNNING
@@ -277,11 +284,27 @@ class JobExecutor:
 
                 if job.mode == JobMode.CHAT:
                     # Single-turn chat mode
-                    response = complete(
-                        "You are CodeCompanion, a helpful coding assistant. Respond to the user's question or instruction concisely.",
-                        [{"role": "user", "content": job.input}],
-                        provider=job.provider,
-                    )
+                    # Use fallback for OpenRouter, regular complete() for others
+                    if job.provider == "openrouter":
+                        # Use complete_with_fallback for OpenRouter jobs
+                        response = complete_with_fallback(
+                            "You are CodeCompanion, a helpful coding assistant. Respond to the user's question or instruction concisely.",
+                            [{"role": "user", "content": job.input}],
+                            provider=job.provider,
+                            model=getattr(job, 'model_used', None),  # Use model if provided
+                            fallback_enabled=True,
+                        )
+                        # Log meta information for debugging
+                        if "meta" in response:
+                            logger.info(f"LLM completion meta for job {job.id}: {json.dumps(response['meta'])}")
+                    else:
+                        # Regular complete() for non-OpenRouter providers
+                        response = complete(
+                            "You are CodeCompanion, a helpful coding assistant. Respond to the user's question or instruction concisely.",
+                            [{"role": "user", "content": job.input}],
+                            provider=job.provider,
+                        )
+
                     output = response.get("content", "")
                     print(output)
                     exit_code = 0

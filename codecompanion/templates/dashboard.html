@@ -968,12 +968,19 @@
 
                         <div class="form-group">
                             <label for="run-provider">Provider</label>
-                            <select id="run-provider">
+                            <select id="run-provider" onchange="onProviderChange()">
                                 <option value="claude">Claude (Anthropic)</option>
                                 <option value="gpt4">GPT-4 (OpenAI)</option>
                                 <option value="gemini">Gemini (Google)</option>
                                 <option value="openrouter">OpenRouter (Multi-Model)</option>
                             </select>
+                        </div>
+
+                        <!-- OpenRouter Model Selection (shown only when provider is openrouter) -->
+                        <div class="form-group" id="openrouter-model-group" style="display:none;">
+                            <label for="openrouter-model-input">OpenRouter Model</label>
+                            <input type="text" id="openrouter-model-input" class="input" placeholder="e.g. anthropic/claude-3.5-sonnet">
+                            <small style="color: #666; font-size: 0.85rem;">Optional: Specify a model from OpenRouter catalog. Leave blank for default.</small>
                         </div>
                     </div>
 
@@ -1430,6 +1437,22 @@
             }
         }
 
+        /**
+         * Handle provider selection change (Phase 3: OpenRouter model selection)
+         */
+        function onProviderChange() {
+            const provider = document.getElementById('run-provider').value;
+            const modelGroup = document.getElementById('openrouter-model-group');
+
+            if (!modelGroup) return;
+
+            if (provider === 'openrouter') {
+                modelGroup.style.display = 'block';
+            } else {
+                modelGroup.style.display = 'none';
+            }
+        }
+
         async function submitRun() {
             const input = document.getElementById('run-input').value.trim();
             const mode = document.getElementById('run-mode').value;
@@ -1461,6 +1484,15 @@
 
                 if (mode === 'agent') {
                     payload.agent = agent;
+                }
+
+                // Include model if provider is OpenRouter and model is specified (Phase 3)
+                if (provider === 'openrouter') {
+                    const modelInput = document.getElementById('openrouter-model-input');
+                    const model = modelInput ? modelInput.value.trim() : '';
+                    if (model) {
+                        payload.model = model;
+                    }
                 }
 
                 const response = await fetch('/api/runs', {

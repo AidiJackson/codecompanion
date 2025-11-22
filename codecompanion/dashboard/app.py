@@ -128,6 +128,7 @@ async def create_run(request: Request):
     input_text = body.get("input", "").strip()
     agent_name = body.get("agent")
     provider = body.get("provider", "claude")
+    model = body.get("model")  # Optional model (especially for OpenRouter)
     target_root = body.get("target_root")
 
     # Validate input
@@ -160,6 +161,7 @@ async def create_run(request: Request):
         input_text=input_text,
         agent_name=agent_name,
         provider=provider,
+        model=model,  # Pass model parameter (Phase 3)
         target_root=target_root
     )
 

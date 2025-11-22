@@ -1099,6 +1099,120 @@ async def console_command_legacy(request: Request):
     })
 
 
+# ============================================================================
+# MODEL CATALOG API
+# ============================================================================
+
+
+@app.get("/api/models/catalog")
+async def get_models_catalog(provider: Optional[str] = None):
+    """
+    Get model catalog from MIS (Model Intelligence System).
+
+    Query Parameters:
+    - provider: Filter by provider (e.g., "openrouter")
+
+    Response (JSON):
+    {
+        "models": [
+            {
+                "model_id": "anthropic/claude-3.5-sonnet",
+                "provider": "openrouter",
+                "context_length": 200000,
+                "supports_vision": true,
+                "pricing": {"input": 0.003, "output": 0.015}
+            },
+            ...
+        ]
+    }
+
+    NOTE: This is a placeholder implementation. Should be replaced with
+    actual MIS catalog query when Phase 2 MIS is integrated.
+    """
+    # TODO: Replace with actual MIS catalog query
+    # This is a temporary hardcoded list of popular OpenRouter models
+    all_models = [
+        {
+            "model_id": "anthropic/claude-3.5-sonnet",
+            "provider": "openrouter",
+            "context_length": 200000,
+            "supports_vision": True,
+            "pricing": {"input": 0.003, "output": 0.015}
+        },
+        {
+            "model_id": "anthropic/claude-3-opus",
+            "provider": "openrouter",
+            "context_length": 200000,
+            "supports_vision": True,
+            "pricing": {"input": 0.015, "output": 0.075}
+        },
+        {
+            "model_id": "anthropic/claude-3-sonnet",
+            "provider": "openrouter",
+            "context_length": 200000,
+            "supports_vision": True,
+            "pricing": {"input": 0.003, "output": 0.015}
+        },
+        {
+            "model_id": "anthropic/claude-3-haiku",
+            "provider": "openrouter",
+            "context_length": 200000,
+            "supports_vision": True,
+            "pricing": {"input": 0.00025, "output": 0.00125}
+        },
+        {
+            "model_id": "openai/gpt-4-turbo",
+            "provider": "openrouter",
+            "context_length": 128000,
+            "supports_vision": True,
+            "pricing": {"input": 0.01, "output": 0.03}
+        },
+        {
+            "model_id": "openai/gpt-4",
+            "provider": "openrouter",
+            "context_length": 8192,
+            "supports_vision": False,
+            "pricing": {"input": 0.03, "output": 0.06}
+        },
+        {
+            "model_id": "openai/gpt-3.5-turbo",
+            "provider": "openrouter",
+            "context_length": 16385,
+            "supports_vision": False,
+            "pricing": {"input": 0.0005, "output": 0.0015}
+        },
+        {
+            "model_id": "google/gemini-pro-1.5",
+            "provider": "openrouter",
+            "context_length": 1000000,
+            "supports_vision": True,
+            "pricing": {"input": 0.0025, "output": 0.0075}
+        },
+        {
+            "model_id": "meta-llama/llama-3-70b-instruct",
+            "provider": "openrouter",
+            "context_length": 8192,
+            "supports_vision": False,
+            "pricing": {"input": 0.00059, "output": 0.00079}
+        },
+        {
+            "model_id": "mistralai/mixtral-8x7b-instruct",
+            "provider": "openrouter",
+            "context_length": 32768,
+            "supports_vision": False,
+            "pricing": {"input": 0.00024, "output": 0.00024}
+        }
+    ]
+
+    # Filter by provider if specified
+    if provider:
+        models = [m for m in all_models if m.get("provider") == provider]
+    else:
+        models = all_models
+
+    return JSONResponse(content={"models": models})
+
+
 def run_dashboard(host: str = "0.0.0.0", port: Optional[int] = None):
     """Run the dashboard server using uvicorn with graceful shutdown."""
     import uvicorn
